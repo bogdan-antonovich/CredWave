@@ -1,0 +1,6 @@
+cred-web/.vscode
+cred-web/node_modules
+cred-web/.env
+
+cred-api/.env
+cred-api/README.md

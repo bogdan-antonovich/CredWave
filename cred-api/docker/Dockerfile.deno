@@ -1,0 +1,34 @@
+FROM denoland/deno:1.44.4
+
+WORKDIR /app
+
+# Copy all Edge Functions into the image
+COPY supabase/functions /app/functions
+
+# Copy the relay server entrypoint
+COPY docker/relay.ts /app/relay.ts
+
+# Cache dependencies used by all shared modules upfront
+# This avoids per-request network fetches inside the container
+RUN deno cache \
+      --allow-import \
+      /app/functions/_shared/supabase.ts \
+      /app/functions/_shared/auth.ts \
+      /app/functions/_shared/cors.ts \
+      /app/functions/_shared/google.ts \
+      /app/functions/_shared/ai.ts \
+      /app/functions/_shared/ratelimit.ts
+
+EXPOSE 8081
+
+# Allow all permissions required by the functions:
+#   --allow-net        HTTP calls to Supabase, Google, OpenAI, Paddle, Resend
+#   --allow-env        Read environment variables
+#   --allow-read       Read function files from /app/functions
+#   --unstable-kv      Deno KV (used by the rate limiter)
+CMD ["deno", "run", \
+     "--allow-net", \
+     "--allow-env", \
+     "--allow-read", \
+     "--unstable-kv", \
+     "/app/relay.ts"]

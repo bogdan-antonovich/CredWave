@@ -1,0 +1,121 @@
+# Supabase local development configuration
+# Reference: https://supabase.com/docs/guides/cli/config
+
+[project]
+# Your Supabase project reference — replace with the value from your dashboard URL:
+# https://supabase.com/dashboard/project/<project_ref>
+project_id = "your-project-ref"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[inbucket]
+# Local email testing server (catches all outgoing emails in development)
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+# Maximum file upload size in bytes (50 MB)
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+# JWT expiry in seconds (1 hour)
+jwt_expiry = 3600
+# Allow new user sign-ups
+enable_signup = true
+site_url = "https://credwave.app"
+
+# Redirect URLs — both the marketing site and the dashboard are allowed
+additional_redirect_urls = [
+  "https://credwave.app/**",
+  "https://dashboard.credwave.app/**"
+]
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
+
+[auth.external.google]
+enabled = true
+# Set these in .env — do not commit real credentials to source control
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+skip_nonce_check = false
+# Additional scopes required for Google Business Profile API access
+scopes = "https://www.googleapis.com/auth/business.manage"
+
+[functions]
+# Edge Function runtime configuration
+
+[functions.auth-me]
+verify_jwt = true
+
+[functions.restaurants]
+verify_jwt = true
+
+[functions.auto-reply]
+verify_jwt = true
+
+[functions.reviews]
+verify_jwt = true
+
+[functions.review-generate]
+verify_jwt = true
+
+[functions.review-reply]
+verify_jwt = true
+
+[functions.review-sync]
+# JWT verification is handled manually inside the function
+# because cron calls use the service role key, not a user JWT
+verify_jwt = false
+
+[functions.demo-search]
+verify_jwt = false
+
+[functions.demo-blocks]
+verify_jwt = false
+
+[functions.admin-restaurants]
+# JWT is verified manually — function checks for admin role
+verify_jwt = true
+
+[functions.admin-blocks]
+verify_jwt = true
+
+[functions.billing]
+# Cron calls use service role — handled manually inside the function
+verify_jwt = false
+
+[functions.paddle-webhook]
+# Verified via Paddle-Signature header, not Bearer JWT
+verify_jwt = false
+
+[functions.contact]
+verify_jwt = false
+
+[functions.token-refresh]
+# Only accepts service role key — verified manually inside the function
+verify_jwt = false
+
+[analytics]
+enabled = false
