@@ -1,0 +1,191 @@
+version: '3.8'
+
+x-loki-logging: &loki-logging
+  driver: loki
+  options:
+    loki-url: 'http://localhost:3100/loki/api/v1/push'
+    loki-external-labels: 'stack=credwave,service={{.Name}}'
+    loki-retries: '5'
+    loki-max-backoff: '5s'
+    loki-timeout: '10s'
+
+services:
+  api:
+    image: ${DOCKER_REGISTRY}/credwave:${TAG}
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      TG_CHAT_ID: ${TG_CHAT_ID}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      ADMIN_ID: ${ADMIN_ID}
+    secrets:
+      - source: DATABASE_URL_FILE_${TAG}
+        target: DATABASE_URL_FILE
+      - source: JWT_SECRET_FILE_${TAG}
+        target: JWT_SECRET_FILE
+      - source: GOOGLE_CLIENT_ID_FILE_${TAG}
+        target: GOOGLE_CLIENT_ID_FILE
+      - source: GOOGLE_CLIENT_SECRET_FILE_${TAG}
+        target: GOOGLE_CLIENT_SECRET_FILE
+      - source: GOOGLE_PLACES_API_KEY_FILE_${TAG}
+        target: GOOGLE_PLACES_API_KEY_FILE
+      - source: TG_BOT_TOKEN_FILE_${TAG}
+        target: TG_BOT_TOKEN_FILE
+      - source: PADDLE_API_KEY_FILE_${TAG}
+        target: PADDLE_API_KEY_FILE
+      - source: PADDLE_WEBHOOK_SECRET_FILE_${TAG}
+        target: PADDLE_WEBHOOK_SECRET_FILE
+      - source: SERPAPI_API_KEY_FILE_${TAG}
+        target: SERPAPI_API_KEY_FILE
+      - source: OPENAI_API_KEY_FILE_${TAG}
+        target: OPENAI_API_KEY_FILE
+      - source: ADMIN_PASSWORD_FILE_${TAG}
+        target: ADMIN_PASSWORD_FILE
+    networks:
+      - credwave
+    ports:
+      - target: 3000
+        published: ${PORT}
+        mode: host
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+
+  migrate:
+    image: ${DOCKER_REGISTRY}/credwave:${TAG}
+    command: ['/app/migrate.sh']
+    secrets:
+      - source: DATABASE_URL_FILE_${TAG}
+        target: DATABASE_URL_FILE
+    networks:
+      - credwave
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: none
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: credwave
+      POSTGRES_DB: credwave
+      POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD_FILE
+    secrets:
+      - source: POSTGRES_PASSWORD_FILE_${TAG}
+        target: POSTGRES_PASSWORD_FILE
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - credwave
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+    logging: *loki-logging
+
+  loki:
+    image: grafana/loki:3.0.0
+    command: -config.file=/etc/loki/config.yml
+    configs:
+      - source: loki_config_${TAG}
+        target: /etc/loki/config.yml
+    volumes:
+      - loki_data:/loki
+    networks:
+      - credwave
+    ports:
+      - target: 3100
+        published: 127.0.0.1:3100
+        mode: host
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    configs:
+      - source: grafana_datasource_${TAG}
+        target: /etc/grafana/provisioning/datasources/loki.yml
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - credwave
+    ports:
+      - target: 3000
+        published: 3001
+        mode: host
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  credwave:
+    driver: overlay
+
+volumes:
+  db_data:
+  loki_data:
+  grafana_data:
+
+secrets:
+  DATABASE_URL_FILE:
+    external: true
+    name: DATABASE_URL_FILE_${TAG}
+  JWT_SECRET_FILE:
+    external: true
+    name: JWT_SECRET_FILE_${TAG}
+  GOOGLE_CLIENT_ID_FILE:
+    external: true
+    name: GOOGLE_CLIENT_ID_FILE_${TAG}
+  GOOGLE_CLIENT_SECRET_FILE:
+    external: true
+    name: GOOGLE_CLIENT_SECRET_FILE_${TAG}
+  GOOGLE_PLACES_API_KEY_FILE:
+    external: true
+    name: GOOGLE_PLACES_API_KEY_FILE_${TAG}
+  TG_BOT_TOKEN_FILE:
+    external: true
+    name: TG_BOT_TOKEN_FILE_${TAG}
+  PADDLE_API_KEY_FILE:
+    external: true
+    name: PADDLE_API_KEY_FILE_${TAG}
+  PADDLE_WEBHOOK_SECRET_FILE:
+    external: true
+    name: PADDLE_WEBHOOK_SECRET_FILE_${TAG}
+  SERPAPI_API_KEY_FILE:
+    external: true
+    name: SERPAPI_API_KEY_FILE_${TAG}
+  OPENAI_API_KEY_FILE:
+    external: true
+    name: OPENAI_API_KEY_FILE_${TAG}
+  ADMIN_PASSWORD_FILE:
+    external: true
+    name: ADMIN_PASSWORD_FILE_${TAG}
+  POSTGRES_PASSWORD_FILE:
+    external: true
+    name: POSTGRES_PASSWORD_FILE_${TAG}
+
+configs:
+  loki_config:
+    external: true
+    name: loki_config_${TAG}
+  grafana_datasource:
+    external: true
+    name: grafana_datasource_${TAG}

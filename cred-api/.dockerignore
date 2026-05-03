@@ -1,0 +1,22 @@
+node_modules
+dist
+coverage
+.git
+
+# test files not needed in image
+test
+src/**/*.spec.ts
+src/**/*.integration.spec.ts
+jest.integration.config.ts
+
+# docker/config files not needed in image
+cfg
+docker
+
+# misc
+*.log
+*.md
+.env*
+.gitignore
+.prettierrc
+eslint.config.mjs

@@ -1,6 +1,22 @@
 cred-web/.vscode
 cred-web/node_modules
 cred-web/.env
+cred-web/dist
 
 cred-api/.env
 cred-api/README.md
+cred-api/node_modules
+cred-api/dist
+cred-api/coverage
+cred-api/docker/docker-compose.resolved.yml
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+CLAUDE.md
+CONTEXT.md
+
+node_modules

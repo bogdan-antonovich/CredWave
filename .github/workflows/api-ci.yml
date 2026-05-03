@@ -1,0 +1,67 @@
+name: API CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'cred-api/**'
+      - '.github/workflows/api-ci.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'cred-api/**'
+      - '.github/workflows/api-ci.yml'
+
+defaults:
+  run:
+    working-directory: cred-api
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cred-api/package-lock.json
+
+      - run: npm ci
+
+      - name: ESLint check
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cred-api/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cred-api/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run test:int
