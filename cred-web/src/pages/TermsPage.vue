@@ -225,6 +225,8 @@ const updated = 'May 4, 2026'
 </template>
 
 <style scoped>
+@reference "../assets/main.css";
+
 .prose-legal section {
   @apply mb-10;
 }
