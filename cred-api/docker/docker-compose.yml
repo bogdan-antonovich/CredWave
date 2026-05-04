@@ -22,27 +22,27 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL}
       ADMIN_ID: ${ADMIN_ID}
     secrets:
-      - source: DATABASE_URL_FILE_${TAG}
+      - source: DATABASE_URL_FILE
         target: DATABASE_URL_FILE
-      - source: JWT_SECRET_FILE_${TAG}
+      - source: JWT_SECRET_FILE
         target: JWT_SECRET_FILE
-      - source: GOOGLE_CLIENT_ID_FILE_${TAG}
+      - source: GOOGLE_CLIENT_ID_FILE
         target: GOOGLE_CLIENT_ID_FILE
-      - source: GOOGLE_CLIENT_SECRET_FILE_${TAG}
+      - source: GOOGLE_CLIENT_SECRET_FILE
         target: GOOGLE_CLIENT_SECRET_FILE
-      - source: GOOGLE_PLACES_API_KEY_FILE_${TAG}
+      - source: GOOGLE_PLACES_API_KEY_FILE
         target: GOOGLE_PLACES_API_KEY_FILE
-      - source: TG_BOT_TOKEN_FILE_${TAG}
+      - source: TG_BOT_TOKEN_FILE
         target: TG_BOT_TOKEN_FILE
-      - source: PADDLE_API_KEY_FILE_${TAG}
+      - source: PADDLE_API_KEY_FILE
         target: PADDLE_API_KEY_FILE
-      - source: PADDLE_WEBHOOK_SECRET_FILE_${TAG}
+      - source: PADDLE_WEBHOOK_SECRET_FILE
         target: PADDLE_WEBHOOK_SECRET_FILE
-      - source: SERPAPI_API_KEY_FILE_${TAG}
+      - source: SERPAPI_API_KEY_FILE
         target: SERPAPI_API_KEY_FILE
-      - source: OPENAI_API_KEY_FILE_${TAG}
+      - source: OPENAI_API_KEY_FILE
         target: OPENAI_API_KEY_FILE
-      - source: ADMIN_PASSWORD_FILE_${TAG}
+      - source: ADMIN_PASSWORD_FILE
         target: ADMIN_PASSWORD_FILE
     networks:
       - credwave
@@ -65,7 +65,7 @@ services:
     image: ${DOCKER_REGISTRY}/credwave:${TAG}
     command: ['/app/migrate.sh']
     secrets:
-      - source: DATABASE_URL_FILE_${TAG}
+      - source: DATABASE_URL_FILE
         target: DATABASE_URL_FILE
     networks:
       - credwave
@@ -81,7 +81,7 @@ services:
       POSTGRES_DB: credwave
       POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD_FILE
     secrets:
-      - source: POSTGRES_PASSWORD_FILE_${TAG}
+      - source: POSTGRES_PASSWORD_FILE
         target: POSTGRES_PASSWORD_FILE
     volumes:
       - db_data:/var/lib/postgresql/data
@@ -98,7 +98,7 @@ services:
     image: grafana/loki:3.0.0
     command: -config.file=/etc/loki/config.yml
     configs:
-      - source: loki_config_${TAG}
+      - source: loki_config
         target: /etc/loki/config.yml
     volumes:
       - loki_data:/loki
@@ -121,7 +121,7 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: 'false'
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
     configs:
-      - source: grafana_datasource_${TAG}
+      - source: grafana_datasource
         target: /etc/grafana/provisioning/datasources/loki.yml
     volumes:
       - grafana_data:/var/lib/grafana
