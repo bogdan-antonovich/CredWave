@@ -106,7 +106,7 @@ services:
       - credwave
     ports:
       - target: 3199
-        published: 127.0.0.1:3199
+        published: 3199
         mode: host
     deploy:
       replicas: 1
