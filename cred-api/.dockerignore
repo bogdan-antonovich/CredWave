@@ -11,7 +11,9 @@ jest.integration.config.ts
 
 # docker/config files not needed in image
 cfg
-docker
+docker/docker-compose.yml
+docker/docker-compose.resolved.yml
+docker/prod.Dockerfile
 
 # misc
 *.log
