@@ -20,13 +20,19 @@ describe('AdminService', () => {
   });
 
   describe('getRestaurants', () => {
-    it('returns list of slugs', async () => {
-      sql.mockResolvedValueOnce([{ slug: 'bella-napoli' }, { slug: 'sakura' }]);
+    it('returns list of restaurants with name and slug', async () => {
+      sql.mockResolvedValueOnce([
+        { name: 'Bella Napoli', slug: 'bella-napoli' },
+        { name: 'Sakura', slug: 'sakura' },
+      ]);
 
       const result = await service.getRestaurants();
 
       expect(result).toEqual({
-        restaurants: ['bella-napoli', 'sakura'],
+        restaurants: [
+          { name: 'Bella Napoli', slug: 'bella-napoli' },
+          { name: 'Sakura', slug: 'sakura' },
+        ],
       });
     });
 

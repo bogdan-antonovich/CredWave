@@ -3,7 +3,7 @@ version: '3.8'
 x-loki-logging: &loki-logging
   driver: loki
   options:
-    loki-url: 'http://localhost:3100/loki/api/v1/push'
+    loki-url: 'http://localhost:3199/loki/api/v1/push'
     loki-external-labels: 'stack=credwave,service={{.Name}}'
     loki-retries: '5'
     loki-max-backoff: '5s'
@@ -17,6 +17,7 @@ services:
       PORT: ${PORT}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
       TG_CHAT_ID: ${TG_CHAT_ID}
       OPENAI_MODEL: ${OPENAI_MODEL}
       ADMIN_ID: ${ADMIN_ID}
@@ -104,8 +105,8 @@ services:
     networks:
       - credwave
     ports:
-      - target: 3100
-        published: 127.0.0.1:3100
+      - target: 3199
+        published: 127.0.0.1:3199
         mode: host
     deploy:
       replicas: 1
@@ -128,7 +129,7 @@ services:
       - credwave
     ports:
       - target: 3000
-        published: 3001
+        published: 3101
         mode: host
     deploy:
       replicas: 1

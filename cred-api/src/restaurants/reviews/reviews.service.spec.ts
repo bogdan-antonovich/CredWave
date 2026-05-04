@@ -41,6 +41,7 @@ describe('ReviewsService', () => {
       providers: [
         ReviewsService,
         { provide: 'SQL', useValue: sql },
+        { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
         { provide: AppConfigService, useValue: configMock },
       ],
     }).compile();

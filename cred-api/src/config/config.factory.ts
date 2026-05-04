@@ -47,4 +47,5 @@ export const configFactory = (): AppConfig => ({
     Id: Number(process.env.ADMIN_ID!),
     password: readSecret('ADMIN_PASSWORD_FILE'),
   },
+  frontendUrl: process.env.FRONTEND_URL!,
 });

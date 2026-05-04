@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Search, Sparkles, MapPin, ChevronRight } from 'lucide-vue-next'
+import { Search, Sparkles, MapPin, ChevronRight, Star } from 'lucide-vue-next'
 import { restaurantNameSchema } from '@/schemas/demo.schema'
-import { useDemoStore } from '@/stores/demo.store'
+import { useDemoStore, type SearchResult } from '@/stores/demo.store'
 import FooterSection from '@/components/layout/FooterSection.vue'
 import ReviewCard from '@/components/demo/ReviewCard.vue'
 import { useReveal } from '@/utils/useReveal'
@@ -13,49 +13,13 @@ const demoStore = useDemoStore()
 const input = ref('')
 const validationError = ref<string | null>(null)
 
-// Multi-step state
 type Step = 'input' | 'searching' | 'disambiguation' | 'generating' | 'results'
 const step = ref<Step>('input')
-
-// Disambiguation data
-interface RestaurantOption {
-  name: string
-  location: string
-  reviewCount: number
-}
-const restaurantOptions = ref<RestaurantOption[]>([])
-const selectedSlug = ref('')
-
-// Random city/neighborhood pools for fake disambiguation
-const locations = [
-  'Manhattan, New York',
-  'Brooklyn, New York',
-  'West Hollywood, Los Angeles',
-  'Lincoln Park, Chicago',
-  'South Beach, Miami',
-  'Back Bay, Boston',
-  'Capitol Hill, Seattle',
-  'Mission District, San Francisco',
-  'Midtown, Atlanta',
-  'River North, Chicago',
-  'Downtown, Austin',
-  'Pearl District, Portland',
-]
-
-function generateDisambiguation(name: string): RestaurantOption[] {
-  const count = Math.floor(Math.random() * 5) + 1
-  const shuffled = [...locations].sort(() => Math.random() - 0.5)
-  return Array.from({ length: count }, (_, i) => ({
-    name: name,
-    location: shuffled[i % shuffled.length],
-    reviewCount: Math.floor(Math.random() * 400) + 20,
-  }))
-}
 
 const loadingMessages = {
   searching: [
     'Searching Google Maps…',
-    'Scanning reviews…',
+    'Scanning listings…',
     'Matching restaurants…',
   ],
   generating: [
@@ -94,48 +58,24 @@ async function handleGenerate() {
     return
   }
 
-  const slug = input.value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+  step.value = 'searching'
+  startLoadingMessages('searching')
+  await demoStore.searchRestaurants(input.value.trim())
+  stopLoadingMessages()
 
-  selectedSlug.value = slug
-
-  // 50% chance: show disambiguation
-  const showDisambiguation = Math.random() < 0.5
-
-  if (showDisambiguation) {
-    // Phase 1: searching
-    step.value = 'searching'
-    startLoadingMessages('searching')
-    await new Promise(r => setTimeout(r, 1800 + Math.random() * 1000))
-    stopLoadingMessages()
-
-    // Show disambiguation
-    restaurantOptions.value = generateDisambiguation(input.value.trim())
-    step.value = 'disambiguation'
-  } else {
-    // Skip straight to generating
-    await generateResponses(slug)
+  if (demoStore.searchResults.length === 0) {
+    step.value = 'input'
+    validationError.value = 'No restaurants found. Try a different name or spelling.'
+    return
   }
+
+  step.value = 'disambiguation'
 }
 
-async function selectRestaurant(option: RestaurantOption) {
-  const slug = option.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-  selectedSlug.value = slug
-  await generateResponses(slug)
-}
-
-async function generateResponses(slug: string) {
+async function selectRestaurant(option: SearchResult) {
   step.value = 'generating'
   startLoadingMessages('generating')
-  await demoStore.fetchBlocks(slug)
-  // Add a minimum visual delay so the animation feels real
-  await new Promise(r => setTimeout(r, 2200 + Math.random() * 800))
+  await demoStore.generateDemo(option.google_place_id, option.name)
   stopLoadingMessages()
   step.value = 'results'
 }
@@ -143,14 +83,15 @@ async function generateResponses(slug: string) {
 function reset() {
   step.value = 'input'
   demoStore.reset()
-  restaurantOptions.value = []
   input.value = ''
+  validationError.value = null
 }
 
 const showInput = computed(() => step.value === 'input')
 const showLoading = computed(() => step.value === 'searching' || step.value === 'generating')
 const showDisambiguation = computed(() => step.value === 'disambiguation')
 const showResults = computed(() => step.value === 'results' && demoStore.blocks.length > 0)
+const showEmpty = computed(() => step.value === 'results' && demoStore.blocks.length === 0)
 </script>
 
 <template>
@@ -202,10 +143,9 @@ const showResults = computed(() => step.value === 'results' && demoStore.blocks.
         </div>
       </section>
 
-      <!-- ═══ STEP: Loading (searching or generating) ═══ -->
+      <!-- ═══ STEP: Loading ═══ -->
       <section v-if="showLoading" class="pb-24 px-6">
         <div class="max-w-[400px] mx-auto text-center py-16">
-          <!-- Animated dots -->
           <div class="flex items-center justify-center gap-2 mb-6">
             <span class="w-2.5 h-2.5 rounded-full bg-accent animate-bounce" style="animation-delay: 0ms;" />
             <span class="w-2.5 h-2.5 rounded-full bg-accent animate-bounce" style="animation-delay: 150ms;" />
@@ -223,16 +163,17 @@ const showResults = computed(() => step.value === 'results' && demoStore.blocks.
         <div class="max-w-[560px] mx-auto">
           <div class="reveal text-center mb-6">
             <p class="text-sm text-text-secondary">
-              We found <span class="font-semibold text-text-primary">{{ restaurantOptions.length }}</span>
-              restaurant{{ restaurantOptions.length > 1 ? 's' : '' }} matching
+              We found
+              <span class="font-semibold text-text-primary">{{ demoStore.searchResults.length }}</span>
+              restaurant{{ demoStore.searchResults.length !== 1 ? 's' : '' }} matching
               "<span class="font-semibold text-text-primary">{{ input.trim() }}</span>"
             </p>
           </div>
 
           <div class="reveal space-y-2">
             <button
-              v-for="(option, i) in restaurantOptions"
-              :key="i"
+              v-for="option in demoStore.searchResults"
+              :key="option.google_place_id"
               class="w-full flex items-center gap-4 p-4 rounded-xl border border-border bg-white text-left hover:border-accent/40 hover:shadow-sm transition-all duration-200 group"
               @click="selectRestaurant(option)"
             >
@@ -241,7 +182,20 @@ const showResults = computed(() => step.value === 'results' && demoStore.blocks.
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-semibold text-text-primary">{{ option.name }}</p>
-                <p class="text-xs text-text-muted mt-0.5">{{ option.location }} · {{ option.reviewCount }} reviews</p>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <p class="text-xs text-text-muted truncate">{{ option.location }}</p>
+                  <template v-if="option.rating">
+                    <span class="text-text-muted">·</span>
+                    <span class="flex items-center gap-0.5 text-xs text-text-muted shrink-0">
+                      <Star class="w-3 h-3 text-warning fill-warning" />
+                      {{ option.rating }}
+                    </span>
+                  </template>
+                  <template v-if="option.review_count">
+                    <span class="text-text-muted">·</span>
+                    <span class="text-xs text-text-muted shrink-0">{{ option.review_count }} reviews</span>
+                  </template>
+                </div>
               </div>
               <ChevronRight class="w-4 h-4 text-text-muted group-hover:text-accent shrink-0 transition-colors duration-200" />
             </button>
@@ -261,7 +215,6 @@ const showResults = computed(() => step.value === 'results' && demoStore.blocks.
       <!-- ═══ STEP: Results ═══ -->
       <section v-if="showResults" class="pb-24 px-6">
         <div class="max-w-[800px] mx-auto">
-          <!-- Quick explainer -->
           <div class="reveal flex items-center gap-4 p-4 rounded-xl bg-accent/5 border border-accent/10 mb-8">
             <div class="flex -space-x-1 shrink-0">
               <span class="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-[9px] font-bold text-rose-500 ring-2 ring-white">E</span>
@@ -285,7 +238,6 @@ const showResults = computed(() => step.value === 'results' && demoStore.blocks.
             </div>
           </div>
 
-          <!-- Try again -->
           <div class="text-center mt-8">
             <button
               class="text-sm text-accent font-medium hover:underline"
@@ -300,7 +252,7 @@ const showResults = computed(() => step.value === 'results' && demoStore.blocks.
               What if every review got a response — without you lifting a finger?
             </p>
             <p class="mt-3 text-sm text-white/45 max-w-[440px] mx-auto">
-              CredWave monitors your Google reviews 24/7. Every review, three responses, zero effort. Restaurants using us see a 16.4% conversion lift.
+              CredWave monitors your Google reviews 24/7. Every review, three responses, zero effort.
             </p>
             <RouterLink
               to="/pricing"
@@ -309,6 +261,16 @@ const showResults = computed(() => step.value === 'results' && demoStore.blocks.
               View pricing
             </RouterLink>
           </div>
+        </div>
+      </section>
+
+      <!-- ═══ No results after generation ═══ -->
+      <section v-if="showEmpty" class="pb-24 px-6">
+        <div class="max-w-[400px] mx-auto text-center py-16">
+          <p class="text-sm text-text-muted">No unanswered reviews found for this restaurant.</p>
+          <button class="mt-4 text-sm text-accent font-medium hover:underline" @click="reset">
+            Try another restaurant
+          </button>
         </div>
       </section>
     </main>

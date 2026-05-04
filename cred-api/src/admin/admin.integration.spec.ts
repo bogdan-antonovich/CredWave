@@ -15,7 +15,7 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
 type RestaurantsResponse = {
-  restaurants: string[];
+  restaurants: { name: string; slug: string }[];
 };
 
 type AddRestaurantResponse = {
@@ -109,8 +109,8 @@ describe('Admin (integration)', () => {
 
       const body = res.body as RestaurantsResponse;
 
-      expect(body.restaurants).toContain('a');
-      expect(body.restaurants).toContain('b');
+      expect(body.restaurants.map((r) => r.slug)).toContain('a');
+      expect(body.restaurants.map((r) => r.slug)).toContain('b');
     });
   });
 
@@ -181,6 +181,49 @@ describe('Admin (integration)', () => {
 
     it('returns 404 if restaurant not found', async () => {
       await request(server).get('/admin/restaurants/none').expect(404);
+    });
+  });
+
+  describe('POST /admin/restaurants/:slug/blocks', () => {
+    it('creates block with responses', async () => {
+      await sql`
+        INSERT INTO d_restaurants (id, name, slug)
+        VALUES (1, 'Test', 'test')
+      `;
+
+      const payload = {
+        reviewerName: 'Alice',
+        reviewText: 'Loved it!',
+        rating: 5,
+        responses: [
+          { text: 'Thanks!', tone: 'friendly' },
+          { text: 'We appreciate it.', tone: 'professional' },
+        ],
+      };
+
+      await request(server)
+        .post('/admin/restaurants/test/blocks')
+        .send(payload)
+        .expect(201);
+
+      const reviews = await sql`SELECT * FROM d_reviews WHERE restaurant_id = 1`;
+      expect(reviews).toHaveLength(1);
+      expect(reviews[0].reviewer_name).toBe('Alice');
+
+      const responses = await sql`SELECT * FROM d_responses WHERE review_id = ${reviews[0].id}`;
+      expect(responses).toHaveLength(2);
+    });
+
+    it('returns 404 for unknown slug', async () => {
+      await request(server)
+        .post('/admin/restaurants/nonexistent/blocks')
+        .send({
+          reviewerName: 'X',
+          reviewText: 'Y',
+          rating: 3,
+          responses: [],
+        })
+        .expect(404);
     });
   });
 

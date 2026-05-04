@@ -1,5 +1,6 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import type { Request } from 'express';
 import { UsersService } from './users.service';
 import {
   NotFoundException,
@@ -9,7 +10,6 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
@@ -27,7 +27,6 @@ export class UsersController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get the current user profile' })
-  @ApiQuery({ name: 'user_id', description: 'User ID' })
   @ApiOkResponse({
     schema: {
       type: 'object',
@@ -41,8 +40,9 @@ export class UsersController {
       },
     },
   })
-  async getMe(@Query('user_id') userId: string) {
+  async getMe(@Req() req: Request) {
     this.logger.info('Fetching user info');
+    const userId = (req.user as { id: string }).id;
     const user = await this.usersService.getUserbyId(userId);
     if (!user) throw new NotFoundException('User not found');
 

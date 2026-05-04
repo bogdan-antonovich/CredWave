@@ -51,3 +51,12 @@ export interface SerpReview {
 export interface SerpApiReviewsResponse {
   reviews?: SerpReview[];
 }
+
+export interface DemoBlock {
+  reviewer_name: string;
+  review_text: string;
+  rating: number;
+  empathetic: string;
+  professional: string;
+  casual: string;
+}

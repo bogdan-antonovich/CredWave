@@ -19,12 +19,12 @@ export class RestaurantsService {
   ) {}
 
   private async getAccessToken(userId: string): Promise<string | null> {
-    const [row] = await this.sql<{ google_access_token: string }[]>`
+    const [row] = await this.sql<{ token: string }[]>`
       SELECT token
       FROM gl_access_tokens
       WHERE user_id = ${userId}
     `;
-    return row?.google_access_token ?? null;
+    return row?.token ?? null;
   }
 
   async getBusinessLocations(userId: string) {
@@ -77,7 +77,14 @@ export class RestaurantsService {
         ON CONFLICT (google_location_id) DO UPDATE
         SET name = ${location.title!},
             updated_at = NOW()
-        RETURNING *
+        RETURNING
+          id,
+          name,
+          slug,
+          address,
+          owner_name       AS "ownerName",
+          additional_info  AS "additionalInfo",
+          updated_at       AS "updatedAt"
       `;
       result.push(row);
     }
@@ -87,37 +94,38 @@ export class RestaurantsService {
 
   async updateRestaurantInfo(id: string, data: RestaurantChanges) {
     await this.sql`
-     UPDATE restaurant
+      UPDATE restaurants
       SET
+          name = ${data.name},
           owner_name = ${data.ownerName},
           additional_info = ${data.additionalInfo},
           updated_at = NOW()
       WHERE id = ${id}
-      `;
+    `;
   }
 
   async getAutoReply(id: string) {
     const [row] = await this.sql<AutoReplyChanges[]>`
       SELECT
-          auto_reply_enabled,
-          auto_reply_default_tone,
-          auto_reply_custom_instructions
-      FROM restaurant
+          auto_reply_enabled       AS "enabled",
+          auto_reply_default_tone  AS "defaultTone",
+          auto_reply_custom_instructions AS "customInstructions"
+      FROM restaurants
       WHERE id = ${id}
-      `;
+    `;
     return row ?? null;
   }
 
   async updateAutoReply(id: string, data: AutoReplyChanges) {
     await this.sql`
-     UPDATE restaurant
+      UPDATE restaurants
       SET
           auto_reply_enabled = ${data.enabled},
           auto_reply_default_tone = ${data.defaultTone},
           auto_reply_custom_instructions = ${data.customInstructions},
           updated_at = NOW()
       WHERE id = ${id}
-      `;
+    `;
   }
 
   async searchRestaurants(query: string) {

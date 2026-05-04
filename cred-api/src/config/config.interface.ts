@@ -35,4 +35,5 @@ export interface AppConfig {
     Id: number;
     password: string;
   };
+  frontendUrl: string;
 }

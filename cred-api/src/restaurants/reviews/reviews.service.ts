@@ -8,9 +8,11 @@ import {
   GoogleReview,
   SerpReview,
   SerpApiReviewsResponse,
+  DemoBlock,
 } from './reviews.types';
 import { google } from 'googleapis';
 import { getJson } from 'serpapi';
+import OpenAI from 'openai';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 
 @LogMethods()
@@ -18,6 +20,7 @@ import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 export class ReviewsService {
   constructor(
     @Inject('SQL') private readonly sql: Sql,
+    @Inject('OPENAI') private readonly openai: OpenAI,
     private readonly cfg: AppConfigService,
   ) {}
 
@@ -111,24 +114,37 @@ export class ReviewsService {
     const offset = (page - 1) * perPage;
     const statusFilter =
       status === 'pending'
-        ? this.sql`AND replied = false`
+        ? this.sql`AND r.replied = false`
         : status === 'replied'
-          ? this.sql`AND replied = true`
+          ? this.sql`AND r.replied = true`
           : this.sql``;
 
     const [reviews, [stats]] = await Promise.all([
       this.sql<Review[]>`
-        SELECT * FROM reviews
-        WHERE restaurant_id = ${restaurantId}
+        SELECT
+          r.id,
+          r.reviewer_name        AS "reviewerName",
+          r.reviewer_avatar_url  AS "reviewerAvatarUrl",
+          r.review_text          AS "reviewText",
+          r.rating,
+          r.posted_at            AS "postedAt",
+          r.replied,
+          r.reply_text           AS "replyText",
+          r.replied_at           AS "repliedAt",
+          res.response_json      AS responses,
+          res.responses_generated_at AS "responsesGeneratedAt"
+        FROM reviews r
+        LEFT JOIN responses res ON res.review_id = r.id
+        WHERE r.restaurant_id = ${restaurantId}
         ${statusFilter}
-        ORDER BY posted_at DESC
+        ORDER BY r.posted_at DESC
         LIMIT ${perPage} OFFSET ${offset}
       `,
       this.sql<{ pending: number; replied: number; total: number }[]>`
         SELECT
           COUNT(*) FILTER (WHERE replied = false) AS pending,
-          COUNT(*) FILTER (WHERE replied = true) AS replied,
-          COUNT(*) AS total
+          COUNT(*) FILTER (WHERE replied = true)  AS replied,
+          COUNT(*)                                 AS total
         FROM reviews
         WHERE restaurant_id = ${restaurantId}
       `,
@@ -171,6 +187,51 @@ export class ReviewsService {
       ON CONFLICT (place_id) DO UPDATE
       SET reviews = ${this.sql.json(reviews as unknown as Parameters<Sql['json']>[0])}, created_at = NOW()
     `;
+  }
+
+  async generateDemoBlocks(
+    placeId: string,
+    restaurantName: string,
+  ): Promise<{ blocks: DemoBlock[] }> {
+    const { reviews } = await this.getDemoReviews(placeId);
+
+    const blocks = await Promise.all(
+      reviews.map(async (review): Promise<DemoBlock> => {
+        const prompt = `
+          You are an employee of a restaurant named "${restaurantName}".
+          Generate 3 different responses to the following Google review.
+          Reviewer: ${review.user.name};
+          Rating: ${review.rating}/5;
+          Review: ${review.snippet};
+
+          Return ONLY a valid JSON object (no markdown, no extra text):
+          {
+            "empathetic": "...",
+            "professional": "...",
+            "casual": "..."
+          }
+        `;
+
+        const completion = await this.openai.chat.completions.create({
+          model: this.cfg.get('openai').model,
+          messages: [{ role: 'developer', content: prompt }],
+          response_format: { type: 'json_object' },
+        });
+
+        const responses = JSON.parse(
+          completion.choices[0].message.content!,
+        ) as { empathetic: string; professional: string; casual: string };
+
+        return {
+          reviewer_name: review.user.name,
+          review_text: review.snippet,
+          rating: review.rating,
+          ...responses,
+        };
+      }),
+    );
+
+    return { blocks };
   }
 
   async getDemoReviews(placeId: string): Promise<{ reviews: SerpReview[] }> {

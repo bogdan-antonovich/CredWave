@@ -18,5 +18,7 @@ cred-api/docker/docker-compose.resolved.yml
 
 CLAUDE.md
 CONTEXT.md
+FLOW.md
+API.md
 
 node_modules

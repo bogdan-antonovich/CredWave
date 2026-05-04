@@ -1,38 +1,32 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { CreditCard, Download, ExternalLink, Check, AlertCircle } from 'lucide-vue-next'
+import { computed, onMounted } from 'vue'
+import { CreditCard, Download, ExternalLink, Check, AlertCircle, Loader2 } from 'lucide-vue-next'
+import { useBillingStore } from '@/stores/billing.store'
 
-// Mock billing data
-const plan = ref({
-  name: 'Growth',
-  price: 66,
-  period: 'annual',
-  reviewsUsed: 142,
-  reviewsLimit: 200,
-  nextBilling: 'May 15, 2026',
-  status: 'active' as 'active' | 'past_due' | 'canceled',
+const billingStore = useBillingStore()
+
+onMounted(() => void billingStore.fetchAll())
+
+const usagePercent = computed(() => {
+  const usage = billingStore.subscription?.usage
+  if (!usage || usage.reviewsLimit === 0) return 0
+  return Math.round((usage.reviewsUsed / usage.reviewsLimit) * 100)
 })
 
-const paymentMethod = ref({
-  brand: 'Visa',
-  last4: '4242',
-  expiry: '09/27',
-})
+function formatDate(iso: string | null) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
-const invoices = ref([
-  { id: 'inv_001', date: 'Apr 1, 2026', amount: '$66.00', status: 'paid' },
-  { id: 'inv_002', date: 'Mar 1, 2026', amount: '$66.00', status: 'paid' },
-  { id: 'inv_003', date: 'Feb 1, 2026', amount: '$66.00', status: 'paid' },
-  { id: 'inv_004', date: 'Jan 1, 2026', amount: '$66.00', status: 'paid' },
-  { id: 'inv_005', date: 'Dec 1, 2025', amount: '$79.00', status: 'paid' },
-])
+function formatAmount(amount: number, currency: string) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount / 100)
+}
 
-const usagePercent = Math.round((plan.value.reviewsUsed / plan.value.reviewsLimit) * 100)
-
-function manageBilling() {
-  // TODO: Open Paddle customer portal
-  // window.Paddle.Checkout.open(...)
-  alert('This will open the Paddle customer portal in production.')
+function statusLabel(status: string) {
+  if (status === 'active') return 'Active'
+  if (status === 'past_due') return 'Past Due'
+  if (status === 'canceled') return 'Canceled'
+  return status
 }
 </script>
 
@@ -43,30 +37,48 @@ function manageBilling() {
       <p class="text-sm text-text-muted mt-0.5">Manage your subscription, payment method, and invoices.</p>
     </div>
 
-    <div class="space-y-6">
+    <!-- Loading -->
+    <div v-if="billingStore.loading" class="flex justify-center py-20">
+      <Loader2 class="w-5 h-5 animate-spin text-text-muted" />
+    </div>
+
+    <!-- No subscription -->
+    <div v-else-if="!billingStore.hasSubscription" class="text-center py-20">
+      <p class="text-sm text-text-muted">You don't have an active subscription yet.</p>
+      <p class="text-xs text-text-muted mt-1">Choose a plan from the pricing page to get started.</p>
+    </div>
+
+    <div v-else class="space-y-6">
       <!-- ═══ Current Plan ═══ -->
       <section class="bg-white border border-border-subtle rounded-2xl overflow-hidden">
         <div class="p-6">
           <div class="flex items-start justify-between">
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="text-lg font-bold font-display text-text-primary">{{ plan.name }}</h2>
+                <h2 class="text-lg font-bold font-display text-text-primary">
+                  {{ billingStore.subscription?.plan.name }}
+                </h2>
                 <span
                   class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                  :class="plan.status === 'active' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'"
+                  :class="billingStore.subscription?.plan.status === 'active' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'"
                 >
-                  {{ plan.status === 'active' ? 'Active' : plan.status === 'past_due' ? 'Past Due' : 'Canceled' }}
+                  {{ statusLabel(billingStore.subscription?.plan.status ?? '') }}
                 </span>
               </div>
               <p class="text-sm text-text-muted mt-1">
-                <span class="text-2xl font-bold font-display text-text-primary">${{ plan.price }}</span>
-                /mo billed {{ plan.period }}ly
+                <span class="text-2xl font-bold font-display text-text-primary">
+                  ${{ billingStore.subscription?.plan.price }}
+                </span>
+                /mo billed {{ billingStore.subscription?.plan.period }}ly
               </p>
-              <p class="text-xs text-text-muted mt-2">Next billing date: {{ plan.nextBilling }}</p>
+              <p class="text-xs text-text-muted mt-2">
+                Next billing date: {{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}
+              </p>
             </div>
             <button
-              class="px-4 py-2 text-xs font-semibold border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all"
-              @click="manageBilling"
+              class="px-4 py-2 text-xs font-semibold border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all disabled:opacity-50"
+              :disabled="billingStore.portalLoading"
+              @click="billingStore.openPortal()"
             >
               Change Plan
             </button>
@@ -77,7 +89,9 @@ function manageBilling() {
         <div class="px-6 pb-6">
           <div class="flex items-center justify-between text-xs mb-2">
             <span class="text-text-muted">Reviews this month</span>
-            <span class="font-semibold text-text-primary">{{ plan.reviewsUsed }} / {{ plan.reviewsLimit }}</span>
+            <span class="font-semibold text-text-primary">
+              {{ billingStore.subscription?.usage.reviewsUsed }} / {{ billingStore.subscription?.usage.reviewsLimit }}
+            </span>
           </div>
           <div class="w-full h-2 rounded-full bg-surface-warm overflow-hidden">
             <div
@@ -98,19 +112,24 @@ function manageBilling() {
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-sm font-bold text-text-primary mb-3">Payment Method</h2>
-            <div class="flex items-center gap-3">
+            <div v-if="billingStore.subscription?.paymentMethod" class="flex items-center gap-3">
               <div class="w-10 h-7 rounded bg-surface-warm border border-border-subtle flex items-center justify-center">
                 <CreditCard class="w-4 h-4 text-text-muted" />
               </div>
               <div>
-                <p class="text-sm font-medium text-text-primary">{{ paymentMethod.brand }} •••• {{ paymentMethod.last4 }}</p>
-                <p class="text-xs text-text-muted">Expires {{ paymentMethod.expiry }}</p>
+                <p class="text-sm font-medium text-text-primary">
+                  {{ billingStore.subscription.paymentMethod.brand }} ••••
+                  {{ billingStore.subscription.paymentMethod.last4 }}
+                </p>
+                <p class="text-xs text-text-muted">Expires {{ billingStore.subscription.paymentMethod.expiry }}</p>
               </div>
             </div>
+            <p v-else class="text-sm text-text-muted">No payment method on file.</p>
           </div>
           <button
-            class="px-4 py-2 text-xs font-semibold border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all"
-            @click="manageBilling"
+            class="px-4 py-2 text-xs font-semibold border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all disabled:opacity-50"
+            :disabled="billingStore.portalLoading"
+            @click="billingStore.openPortal()"
           >
             Update
           </button>
@@ -123,23 +142,37 @@ function manageBilling() {
           <h2 class="text-sm font-bold text-text-primary">Invoice History</h2>
         </div>
 
-        <div class="divide-y divide-border-subtle">
+        <div v-if="billingStore.invoices.length === 0" class="px-6 py-6 text-center">
+          <p class="text-sm text-text-muted">No invoices yet.</p>
+        </div>
+
+        <div v-else class="divide-y divide-border-subtle">
           <div
-            v-for="invoice in invoices"
+            v-for="invoice in billingStore.invoices"
             :key="invoice.id"
             class="flex items-center justify-between px-6 py-3 hover:bg-surface-warm/30 transition-colors"
           >
             <div class="flex items-center gap-4">
-              <p class="text-sm text-text-primary w-28">{{ invoice.date }}</p>
-              <p class="text-sm font-medium text-text-primary">{{ invoice.amount }}</p>
+              <p class="text-sm text-text-primary w-28">{{ formatDate(invoice.date) }}</p>
+              <p class="text-sm font-medium text-text-primary">{{ formatAmount(invoice.amount, invoice.currency) }}</p>
               <span class="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-success">
                 <Check class="w-3 h-3" />
                 {{ invoice.status }}
               </span>
             </div>
-            <button class="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-warm transition-all" title="Download invoice">
+            <a
+              v-if="invoice.download_url"
+              :href="invoice.download_url"
+              target="_blank"
+              rel="noopener"
+              class="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-warm transition-all"
+              title="Download invoice"
+            >
               <Download class="w-3.5 h-3.5" />
-            </button>
+            </a>
+            <span v-else class="p-1.5">
+              <Download class="w-3.5 h-3.5 text-border" />
+            </span>
           </div>
         </div>
       </section>
@@ -147,10 +180,12 @@ function manageBilling() {
       <!-- Manage externally -->
       <div class="text-center">
         <button
-          class="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-accent transition-colors"
-          @click="manageBilling"
+          class="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-accent transition-colors disabled:opacity-50"
+          :disabled="billingStore.portalLoading"
+          @click="billingStore.openPortal()"
         >
-          <ExternalLink class="w-3.5 h-3.5" />
+          <Loader2 v-if="billingStore.portalLoading" class="w-3.5 h-3.5 animate-spin" />
+          <ExternalLink v-else class="w-3.5 h-3.5" />
           Manage subscription via Paddle
         </button>
       </div>

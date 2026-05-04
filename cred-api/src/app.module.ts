@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { ContactModule } from './contact/contact.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { RestaurantsReviewsModule } from './restaurants/reviews/reviews.module';
+import { DemoModule } from './demo/demo.module';
 import { AppConfigModule } from './config/config.module';
 import { AppConfigService } from './config/config.service';
 import { LoggerModule } from 'nestjs-pino';
@@ -66,6 +67,7 @@ import { LoggerModule } from 'nestjs-pino';
     ContactModule,
     RestaurantsModule,
     RestaurantsReviewsModule,
+    DemoModule,
   ],
   controllers: [AuthController],
   providers: [GoogleStrategy, JwtStrategy],

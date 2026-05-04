@@ -7,6 +7,7 @@ const userStore = useUserStore()
 
 const saving = ref(false)
 const saved = ref(false)
+const saveError = ref<string | null>(null)
 
 const toneOptions = [
   { value: 'empathetic', label: 'Empathetic', desc: 'Warm, understanding, emotionally aware responses' },
@@ -16,11 +17,16 @@ const toneOptions = [
 
 async function handleSave() {
   saving.value = true
-  // Simulate save
-  await new Promise(r => setTimeout(r, 1000))
-  saving.value = false
-  saved.value = true
-  setTimeout(() => { saved.value = false }, 2000)
+  saveError.value = null
+  try {
+    await userStore.saveSettings()
+    saved.value = true
+    setTimeout(() => { saved.value = false }, 2000)
+  } catch {
+    saveError.value = 'Failed to save. Please try again.'
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
@@ -45,6 +51,8 @@ async function handleSave() {
         {{ saving ? 'Saving...' : saved ? 'Saved' : 'Save Changes' }}
       </button>
     </div>
+
+    <p v-if="saveError" class="text-xs text-error mb-4">{{ saveError }}</p>
 
     <div class="space-y-8">
       <!-- ═══ Profile ═══ -->

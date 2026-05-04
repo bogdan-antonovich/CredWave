@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { LayoutDashboard, Settings, CreditCard, LogOut, ChevronDown } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user.store'
+import { useAuthStore } from '@/stores/auth.store'
 
 const route = useRoute()
 const showUserMenu = ref(false)
 const userStore = useUserStore()
+const auth = useAuthStore()
 
 const navItems = [
   { to: '/dashboard', label: 'Reviews', icon: LayoutDashboard, exact: true },
@@ -19,9 +21,10 @@ function isActive(item: typeof navItems[number]) {
   return route.path.startsWith(item.to)
 }
 
+onMounted(() => void userStore.fetchAll())
+
 function handleLogout() {
-  // TODO: Supabase signOut
-  window.location.href = '/auth'
+  void auth.logout()
 }
 </script>
 
@@ -63,11 +66,16 @@ function handleLogout() {
             @click="showUserMenu = !showUserMenu"
           >
             <div class="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-              <span class="text-xs font-bold text-accent">{{ userStore.restaurant.ownerName.charAt(0) }}</span>
+              <span v-if="userStore.loading" class="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
+              <span v-else class="text-xs font-bold text-accent">
+                {{ (userStore.restaurant.ownerName || userStore.profile.name || '?').charAt(0).toUpperCase() }}
+              </span>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-xs font-semibold text-text-primary truncate">{{ userStore.restaurant.ownerName }}</p>
-              <p class="text-[10px] text-text-muted truncate">{{ userStore.restaurant.name }}</p>
+              <p class="text-xs font-semibold text-text-primary truncate">
+                {{ userStore.restaurant.ownerName || userStore.profile.name || '—' }}
+              </p>
+              <p class="text-[10px] text-text-muted truncate">{{ userStore.restaurant.name || userStore.profile.email }}</p>
             </div>
             <ChevronDown class="w-3.5 h-3.5 text-text-muted shrink-0" />
           </button>

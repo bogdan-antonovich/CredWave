@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Send, Loader2, CheckCircle, Mail, MessageCircle } from 'lucide-vue-next'
 import FooterSection from '@/components/layout/FooterSection.vue'
 import { useReveal } from '@/utils/useReveal'
+import { api } from '@/services/api'
 
 useReveal()
 
@@ -25,12 +26,14 @@ async function handleSubmit() {
   }
 
   sending.value = true
-
-  // Simulate send — replace with real endpoint
-  await new Promise((r) => setTimeout(r, 1200))
-
-  sent.value = true
-  sending.value = false
+  try {
+    await api.post('/contact', form.value)
+    sent.value = true
+  } catch {
+    error.value = 'Something went wrong. Please try again.'
+  } finally {
+    sending.value = false
+  }
 }
 
 function reset() {

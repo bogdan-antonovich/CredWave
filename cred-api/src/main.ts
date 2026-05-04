@@ -12,6 +12,9 @@ async function bootstrap() {
   });
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(new GlobalExceptionFilter());
+  app.setGlobalPrefix('v1', {
+    exclude: ['api/docs', 'api/docs-json', 'api/docs-yaml'],
+  });
   app.enableCors({
     origin: ['https://credwave.app', 'https://dashboard.credwave.app'],
     credentials: true,
@@ -19,15 +22,13 @@ async function bootstrap() {
 
   const configService = app.get(AppConfigService);
 
-  if (configService.get('nodeEnv') !== 'production') {
-    const swaggerConfig = new DocumentBuilder()
-      .setTitle('CredWave API')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-    const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api/docs', app, document);
-  }
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('CredWave API')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
 
   await app.listen(configService.get('port'));
 }

@@ -169,6 +169,7 @@ describe('/restaurants/:id/reviews', () => {
       providers: [
         ReviewsService,
         { provide: 'SQL', useValue: sql },
+        { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
         {
           provide: AppConfigService,
           useValue: {

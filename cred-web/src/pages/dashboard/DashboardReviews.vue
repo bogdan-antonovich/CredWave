@@ -1,71 +1,90 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Send, Check, Loader2, Zap, ChevronDown } from 'lucide-vue-next'
+import { ref, computed, watch } from 'vue'
+import { Send, Check, Loader2, Zap, ChevronDown, RefreshCw, Sparkles, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import StarRating from '@/components/shared/StarRating.vue'
 import { useUserStore } from '@/stores/user.store'
+import { useReviewsStore } from '@/stores/reviews.store'
+import type { ReviewResponses } from '@/stores/reviews.store'
 
 const userStore = useUserStore()
+const reviewsStore = useReviewsStore()
 
-// ── Mock reviews (will come from backend) ──
-interface DashboardReview {
-  id: string
-  reviewer_name: string
-  review_text: string
-  rating: number
-  posted_at: string
-  replied: boolean
-  responses: {
-    empathetic: string
-    professional: string
-    casual: string
-  }
-}
-
-const showToneDropdown = ref(false)
-
-const toneLabels = {
+const toneLabels: Record<string, string> = {
   empathetic: 'Empathetic',
   professional: 'Professional',
   casual: 'Casual',
 }
 
-const reviews = ref<DashboardReview[]>([])
-const loading = ref(true)
-
-// Per-review state
-const activeTab = ref<Record<string, string>>({})
+const showToneDropdown = ref(false)
+const activeStatus = ref('all')
+const activeTab = ref<Record<string, keyof ReviewResponses>>({})
 const editedText = ref<Record<string, string>>({})
-const sendingId = ref<string | null>(null)
-const sentIds = ref<Set<string>>(new Set())
 
-onMounted(async () => {
-  // Simulate backend fetch
-  await new Promise(r => setTimeout(r, 800))
-  reviews.value = generateMockReviews()
-  // Set defaults
-  for (const r of reviews.value) {
-    activeTab.value[r.id] = userStore.autoReply.defaultTone
-    editedText.value[r.id] = r.responses[userStore.autoReply.defaultTone]
-  }
-  loading.value = false
-})
+// Fetch when restaurant is ready
+watch(
+  () => userStore.restaurantId,
+  (id) => {
+    if (id) void reviewsStore.fetchReviews(id, 1, activeStatus.value)
+  },
+  { immediate: true },
+)
 
-function selectTone(reviewId: string, tone: string) {
+// Initialise local tone/text state when reviews arrive or responses are generated
+watch(
+  () => reviewsStore.reviews,
+  (newReviews) => {
+    for (const review of newReviews) {
+      if (review.responses && !activeTab.value[review.id]) {
+        const tone = userStore.autoReply.defaultTone
+        activeTab.value[review.id] = tone
+        editedText.value[review.id] = review.responses[tone]
+      }
+    }
+  },
+  { deep: true },
+)
+
+function selectTone(reviewId: string, tone: keyof ReviewResponses) {
   activeTab.value[reviewId] = tone
-  const review = reviews.value.find(r => r.id === reviewId)
-  if (review) {
-    editedText.value[reviewId] = review.responses[tone as keyof typeof review.responses]
+  const review = reviewsStore.reviews.find((r) => r.id === reviewId)
+  if (review?.responses) {
+    editedText.value[reviewId] = review.responses[tone]
   }
 }
 
-async function sendReply(reviewId: string) {
-  sendingId.value = reviewId
-  // Simulate posting to Google
-  await new Promise(r => setTimeout(r, 1500))
-  sentIds.value.add(reviewId)
-  const review = reviews.value.find(r => r.id === reviewId)
-  if (review) review.replied = true
-  sendingId.value = null
+async function handleGenerate(reviewId: string) {
+  await reviewsStore.generateReplies(reviewId)
+  const review = reviewsStore.reviews.find((r) => r.id === reviewId)
+  if (review?.responses) {
+    const tone = userStore.autoReply.defaultTone
+    activeTab.value[reviewId] = tone
+    editedText.value[reviewId] = review.responses[tone]
+  }
+}
+
+async function handleReply(reviewId: string) {
+  const text = editedText.value[reviewId]
+  if (!text?.trim()) return
+  await reviewsStore.postReply(reviewId, text)
+}
+
+function setStatus(status: string) {
+  activeStatus.value = status
+  if (userStore.restaurantId) {
+    void reviewsStore.fetchReviews(userStore.restaurantId, 1, status)
+  }
+}
+
+function goToPage(page: number) {
+  if (userStore.restaurantId) {
+    void reviewsStore.fetchReviews(userStore.restaurantId, page, activeStatus.value)
+  }
+}
+
+function handleSync() {
+  if (userStore.restaurantId) {
+    void reviewsStore.fetchReviews(userStore.restaurantId, reviewsStore.pagination.page, activeStatus.value)
+  }
 }
 
 function setAutoTone(tone: 'empathetic' | 'professional' | 'casual') {
@@ -73,148 +92,128 @@ function setAutoTone(tone: 'empathetic' | 'professional' | 'casual') {
   showToneDropdown.value = false
 }
 
-const pendingCount = computed(() => reviews.value.filter(r => !r.replied).length)
-const repliedCount = computed(() => reviews.value.filter(r => r.replied).length)
+const hasPrev = computed(() => reviewsStore.pagination.page > 1)
+const hasNext = computed(
+  () => reviewsStore.pagination.page < reviewsStore.pagination.total_pages,
+)
 
-function generateMockReviews(): DashboardReview[] {
-  return [
-    {
-      id: '1',
-      reviewer_name: 'Maria S.',
-      review_text: 'Absolutely loved the seafood risotto! The flavors were incredible and the portion size was generous. Our waiter Marco was attentive without being intrusive. Will definitely be back!',
-      rating: 5,
-      posted_at: '2 hours ago',
-      replied: false,
-      responses: {
-        empathetic: "Maria, your kind words truly warm our hearts! We're so happy the seafood risotto hit the spot — our chef sources the freshest seafood daily just for dishes like that. And Marco will be thrilled to hear your praise! We can't wait to welcome you back.",
-        professional: "Thank you for your wonderful review, Maria. We're delighted to hear you enjoyed the seafood risotto and that Marco provided excellent service. We take pride in our fresh ingredients and attentive team. We look forward to your next visit.",
-        casual: "Hey Maria! So glad you loved the risotto — it's one of our favorites too! We'll pass the kind words to Marco, he'll be stoked. See you next time! 🎉",
-      },
-    },
-    {
-      id: '2',
-      reviewer_name: 'Tom W.',
-      review_text: 'Waited 40 minutes for a table even with a reservation. When we finally sat down, the appetizers took another 30 minutes. Food was okay but not worth the wait. Disappointing.',
-      rating: 2,
-      posted_at: '5 hours ago',
-      replied: false,
-      responses: {
-        empathetic: "Tom, we're genuinely sorry about the long wait — we understand how frustrating that must have been, especially with a reservation. That's not the experience we want for our guests. We've already spoken with our host and kitchen teams to prevent this. We'd love to make it up to you with a complimentary dinner — please reach out to us directly.",
-        professional: "Thank you for your feedback, Tom. We sincerely apologize for the delays you experienced. We're reviewing our reservation and kitchen processes to ensure this doesn't happen again. We value your time and would appreciate the opportunity to provide a better experience. Please contact us to arrange a return visit.",
-        casual: "Ugh, Tom, that's not cool and we're sorry. 40 minutes with a reservation is way too long. We're fixing the process so this doesn't happen again. Hit us up — we'd love to give you a redo on the house.",
-      },
-    },
-    {
-      id: '3',
-      reviewer_name: 'Sarah K.',
-      review_text: 'Nice ambiance and great cocktails. The bruschetta was fresh and tasty. Only complaint is the music was a bit loud for conversation. Overall a pleasant evening.',
-      rating: 4,
-      posted_at: '1 day ago',
-      replied: true,
-      responses: {
-        empathetic: "Sarah, thank you for the lovely feedback! We're thrilled you enjoyed our cocktails and bruschetta. We totally hear you on the music volume — we've actually been adjusting our evening playlists. Hope to see you again soon for another pleasant evening!",
-        professional: "Thank you for your review, Sarah. We're pleased you enjoyed the ambiance, cocktails, and bruschetta. We appreciate the feedback about the music volume and will review our settings. We hope to welcome you again soon.",
-        casual: "Thanks Sarah! Glad you vibed with the cocktails and bruschetta. We hear you on the music — we'll turn it down a notch so you can actually chat next time. Come back soon!",
-      },
-    },
-    {
-      id: '4',
-      reviewer_name: 'James L.',
-      review_text: 'First time here and it was fantastic. The pasta carbonara was the best I\'ve had outside of Rome. Cozy atmosphere and reasonable prices. Hidden gem!',
-      rating: 5,
-      posted_at: '1 day ago',
-      replied: false,
-      responses: {
-        empathetic: "James, what an incredible compliment — best carbonara outside of Rome! Our chef will be over the moon. We're so glad you discovered us, and we love being your hidden gem. Can't wait for your next visit!",
-        professional: "Thank you, James! We're honored by your comparison to Roman carbonara. Our chef uses traditional techniques and the finest ingredients to achieve authentic flavors. We appreciate you sharing your experience and look forward to serving you again.",
-        casual: "Best carbonara outside Rome?! James, you just made our chef's entire week. Thanks for finding us — now spread the word (or don't, so we stay your hidden gem 😄). See you soon!",
-      },
-    },
-    {
-      id: '5',
-      reviewer_name: 'Priya D.',
-      review_text: 'The vegan options are seriously lacking. Only one main dish available and it was bland. For a restaurant in 2025, this is not acceptable. Please expand the menu.',
-      rating: 2,
-      posted_at: '2 days ago',
-      replied: false,
-      responses: {
-        empathetic: "Priya, you're absolutely right, and we appreciate you being direct about it. Our vegan options haven't kept up, and that's on us. We're actively working with our chef to develop new plant-based dishes. Your feedback is exactly the push we needed. We'd love to have you back to try our expanded menu.",
-        professional: "Thank you for your candid feedback, Priya. We acknowledge that our vegan offerings need improvement. We're currently developing new plant-based menu items and expect to launch them soon. We value your input and hope you'll give us another opportunity.",
-        casual: "Fair point, Priya — one vegan dish isn't cutting it. We're on it! New plant-based options are in the works. When they drop, you'll be the first to know. Thanks for keeping us honest.",
-      },
-    },
-  ]
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 </script>
 
 <template>
   <div class="p-8">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-xl font-bold font-display text-text-primary">Reviews</h1>
         <p class="text-sm text-text-muted mt-0.5">
-          <span class="text-accent font-semibold">{{ pendingCount }}</span> pending ·
-          <span class="text-success font-semibold">{{ repliedCount }}</span> replied
+          <span class="text-accent font-semibold">{{ reviewsStore.stats.pending }}</span> pending ·
+          <span class="text-success font-semibold">{{ reviewsStore.stats.replied }}</span> replied
         </p>
       </div>
 
-      <!-- Auto-reply toggle -->
-      <div class="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-white">
-        <div class="flex items-center gap-2">
-          <Zap class="w-4 h-4" :class="userStore.autoReply.enabled ? 'text-accent' : 'text-text-muted'" />
-          <span class="text-sm font-medium text-text-primary">Auto-reply</span>
-        </div>
-
-        <!-- Tone selector -->
-        <div class="relative">
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border transition-colors"
-            :class="userStore.autoReply.enabled ? 'bg-accent/5 text-accent border-accent/20' : 'text-text-muted bg-surface-warm'"
-            @click="showToneDropdown = !showToneDropdown"
-          >
-            {{ toneLabels[userStore.autoReply.defaultTone] }}
-            <ChevronDown class="w-3 h-3" />
-          </button>
-          <div
-            v-if="showToneDropdown"
-            class="absolute top-full right-0 mt-1 w-36 bg-white border border-border-subtle rounded-lg shadow-lg py-1 z-10"
-          >
-            <button
-              v-for="(label, key) in toneLabels"
-              :key="key"
-              class="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-warm transition-colors"
-              :class="userStore.autoReply.defaultTone === key ? 'text-accent font-semibold' : 'text-text-secondary'"
-              @click="setAutoTone(key as any)"
-            >
-              {{ label }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Toggle switch -->
+      <div class="flex items-center gap-3">
+        <!-- Sync button -->
         <button
-          class="relative w-10 h-5.5 rounded-full transition-colors duration-200"
-          :class="userStore.autoReply.enabled ? 'bg-accent' : 'bg-border'"
-          @click="userStore.setAutoReplyEnabled(!userStore.autoReply.enabled)"
+          class="p-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-border transition-all"
+          :disabled="reviewsStore.loading"
+          title="Refresh reviews"
+          @click="handleSync"
         >
-          <span
-            class="absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all duration-200"
-            :class="userStore.autoReply.enabled ? 'left-[22px]' : 'left-0.5'"
-          />
+          <RefreshCw class="w-4 h-4" :class="reviewsStore.loading ? 'animate-spin' : ''" />
         </button>
+
+        <!-- Auto-reply controls -->
+        <div class="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-white">
+          <div class="flex items-center gap-2">
+            <Zap class="w-4 h-4" :class="userStore.autoReply.enabled ? 'text-accent' : 'text-text-muted'" />
+            <span class="text-sm font-medium text-text-primary">Auto-reply</span>
+          </div>
+
+          <div class="relative">
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border transition-colors"
+              :class="userStore.autoReply.enabled ? 'bg-accent/5 text-accent border-accent/20' : 'text-text-muted bg-surface-warm'"
+              @click="showToneDropdown = !showToneDropdown"
+            >
+              {{ toneLabels[userStore.autoReply.defaultTone] }}
+              <ChevronDown class="w-3 h-3" />
+            </button>
+            <div
+              v-if="showToneDropdown"
+              class="absolute top-full right-0 mt-1 w-36 bg-white border border-border-subtle rounded-lg shadow-lg py-1 z-10"
+            >
+              <button
+                v-for="(label, key) in toneLabels"
+                :key="key"
+                class="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-warm transition-colors"
+                :class="userStore.autoReply.defaultTone === key ? 'text-accent font-semibold' : 'text-text-secondary'"
+                @click="setAutoTone(key as 'empathetic' | 'professional' | 'casual')"
+              >
+                {{ label }}
+              </button>
+            </div>
+          </div>
+
+          <button
+            class="relative w-10 h-5.5 rounded-full transition-colors duration-200"
+            :class="userStore.autoReply.enabled ? 'bg-accent' : 'bg-border'"
+            @click="userStore.setAutoReplyEnabled(!userStore.autoReply.enabled)"
+          >
+            <span
+              class="absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all duration-200"
+              :class="userStore.autoReply.enabled ? 'left-[22px]' : 'left-0.5'"
+            />
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-20">
+    <!-- Status filter tabs -->
+    <div class="flex gap-1 mb-6 border-b border-border-subtle">
+      <button
+        v-for="s in ['all', 'pending', 'replied']"
+        :key="s"
+        class="relative px-4 py-2.5 text-xs font-semibold capitalize transition-colors"
+        :class="activeStatus === s ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'"
+        @click="setStatus(s)"
+      >
+        {{ s }}
+        <span
+          v-if="activeStatus === s"
+          class="absolute bottom-0 left-4 right-4 h-[2px] bg-brand rounded-full"
+        />
+      </button>
+    </div>
+
+    <!-- No restaurant -->
+    <div
+      v-if="!userStore.loading && !userStore.restaurantId"
+      class="flex flex-col items-center justify-center py-20 text-center"
+    >
+      <p class="text-sm text-text-muted">No restaurant connected yet.</p>
+      <p class="text-xs text-text-muted mt-1">Connect your Google Business account to start syncing reviews.</p>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div v-else-if="reviewsStore.loading" class="flex justify-center py-20">
       <Loader2 class="w-5 h-5 animate-spin text-text-muted" />
+    </div>
+
+    <!-- Empty state -->
+    <div
+      v-else-if="reviewsStore.reviews.length === 0"
+      class="flex flex-col items-center justify-center py-20 text-center"
+    >
+      <p class="text-sm text-text-muted">No reviews found.</p>
     </div>
 
     <!-- Review cards -->
     <div v-else class="space-y-5">
       <div
-        v-for="review in reviews"
+        v-for="review in reviewsStore.reviews"
         :key="review.id"
         class="border border-border rounded-2xl bg-white overflow-hidden"
         :class="review.replied ? 'opacity-60' : ''"
@@ -223,16 +222,23 @@ function generateMockReviews(): DashboardReview[] {
         <div class="flex items-center justify-between px-6 pt-5 pb-0">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-full bg-surface-warm flex items-center justify-center shrink-0">
-              <span class="text-xs font-bold text-text-muted">{{ review.reviewer_name.charAt(0) }}</span>
+              <span class="text-xs font-bold text-text-muted">
+                {{ (review.reviewerName || '?').charAt(0) }}
+              </span>
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <p class="text-sm font-semibold text-text-primary">{{ review.reviewer_name }}</p>
-                <span v-if="review.replied" class="text-[10px] font-bold uppercase tracking-wider text-success bg-success/10 px-2 py-0.5 rounded-full">Replied</span>
+                <p class="text-sm font-semibold text-text-primary">{{ review.reviewerName }}</p>
+                <span
+                  v-if="review.replied"
+                  class="text-[10px] font-bold uppercase tracking-wider text-success bg-success/10 px-2 py-0.5 rounded-full"
+                >
+                  Replied
+                </span>
               </div>
               <div class="flex items-center gap-2 mt-0.5">
                 <StarRating :rating="review.rating" />
-                <span class="text-[10px] text-text-muted">{{ review.posted_at }}</span>
+                <span class="text-[10px] text-text-muted">{{ formatDate(review.postedAt) }}</span>
               </div>
             </div>
           </div>
@@ -240,56 +246,94 @@ function generateMockReviews(): DashboardReview[] {
 
         <!-- Review text -->
         <div class="px-6 pt-3 pb-5">
-          <p class="text-sm text-text-secondary leading-relaxed">"{{ review.review_text }}"</p>
+          <p class="text-sm text-text-secondary leading-relaxed">"{{ review.reviewText }}"</p>
         </div>
 
-        <!-- Response section -->
+        <!-- Response section — only for pending reviews -->
         <div v-if="!review.replied" class="border-t border-border-subtle">
-          <!-- Tone tabs -->
-          <div class="flex px-6 gap-0 border-b border-border-subtle">
+
+          <!-- No responses yet: generate button -->
+          <div v-if="!review.responses" class="px-6 py-4 bg-surface-warm/30 flex items-center justify-between">
+            <p class="text-xs text-text-muted">No AI reply generated yet.</p>
             <button
-              v-for="(label, key) in toneLabels"
-              :key="key"
-              class="relative px-4 py-3 text-xs font-semibold transition-colors duration-200"
-              :class="activeTab[review.id] === key
-                ? 'text-text-primary'
-                : 'text-text-muted hover:text-text-secondary'"
-              @click="selectTone(review.id, key)"
+              class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-all disabled:opacity-50"
+              :disabled="reviewsStore.generating[review.id]"
+              @click="handleGenerate(review.id)"
             >
-              {{ label }}
-              <span
-                v-if="activeTab[review.id] === key"
-                class="absolute bottom-0 left-4 right-4 h-[2px] bg-brand rounded-full"
-              />
+              <Loader2 v-if="reviewsStore.generating[review.id]" class="w-3.5 h-3.5 animate-spin" />
+              <Sparkles v-else class="w-3.5 h-3.5" />
+              {{ reviewsStore.generating[review.id] ? 'Generating...' : 'Generate Replies' }}
             </button>
           </div>
 
-          <!-- Editable response -->
-          <div class="px-6 pt-4 pb-5 bg-surface-warm/30">
-            <textarea
-              v-model="editedText[review.id]"
-              rows="4"
-              class="w-full px-4 py-3 text-sm border border-border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200 resize-none leading-relaxed"
-            />
-
-            <div class="flex items-center justify-between mt-3">
-              <p class="text-[10px] text-text-muted">Edit the response above before sending, or send as-is.</p>
+          <!-- Responses ready: tone tabs + editor -->
+          <template v-else>
+            <div class="flex px-6 gap-0 border-b border-border-subtle">
               <button
-                class="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-lg transition-all duration-200 disabled:opacity-50"
-                :class="sentIds.has(review.id)
-                  ? 'bg-success/10 text-success'
-                  : 'bg-accent text-white hover:bg-accent-hover'"
-                :disabled="sendingId === review.id || sentIds.has(review.id)"
-                @click="sendReply(review.id)"
+                v-for="(label, key) in toneLabels"
+                :key="key"
+                class="relative px-4 py-3 text-xs font-semibold transition-colors duration-200"
+                :class="activeTab[review.id] === key ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'"
+                @click="selectTone(review.id, key as keyof ReviewResponses)"
               >
-                <Loader2 v-if="sendingId === review.id" class="w-3.5 h-3.5 animate-spin" />
-                <Check v-else-if="sentIds.has(review.id)" class="w-3.5 h-3.5" />
-                <Send v-else class="w-3.5 h-3.5" />
-                {{ sendingId === review.id ? 'Posting...' : sentIds.has(review.id) ? 'Posted' : 'Post Reply' }}
+                {{ label }}
+                <span
+                  v-if="activeTab[review.id] === key"
+                  class="absolute bottom-0 left-4 right-4 h-[2px] bg-brand rounded-full"
+                />
               </button>
             </div>
-          </div>
+
+            <div class="px-6 pt-4 pb-5 bg-surface-warm/30">
+              <textarea
+                v-model="editedText[review.id]"
+                rows="4"
+                class="w-full px-4 py-3 text-sm border border-border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200 resize-none leading-relaxed"
+              />
+
+              <div class="flex items-center justify-between mt-3">
+                <p class="text-[10px] text-text-muted">Edit the response above before sending, or send as-is.</p>
+                <button
+                  class="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-lg transition-all duration-200 disabled:opacity-50"
+                  :class="reviewsStore.sending[review.id] ? 'bg-accent/50 text-white' : 'bg-accent text-white hover:bg-accent-hover'"
+                  :disabled="reviewsStore.sending[review.id] || !editedText[review.id]?.trim()"
+                  @click="handleReply(review.id)"
+                >
+                  <Loader2 v-if="reviewsStore.sending[review.id]" class="w-3.5 h-3.5 animate-spin" />
+                  <Send v-else class="w-3.5 h-3.5" />
+                  {{ reviewsStore.sending[review.id] ? 'Posting...' : 'Post Reply' }}
+                </button>
+              </div>
+            </div>
+          </template>
         </div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div
+      v-if="reviewsStore.pagination.total_pages > 1"
+      class="flex items-center justify-between mt-8"
+    >
+      <p class="text-xs text-text-muted">
+        Page {{ reviewsStore.pagination.page }} of {{ reviewsStore.pagination.total_pages }}
+        · {{ reviewsStore.pagination.total }} reviews
+      </p>
+      <div class="flex gap-2">
+        <button
+          class="p-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-border transition-all disabled:opacity-30"
+          :disabled="!hasPrev"
+          @click="goToPage(reviewsStore.pagination.page - 1)"
+        >
+          <ChevronLeft class="w-4 h-4" />
+        </button>
+        <button
+          class="p-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-border transition-all disabled:opacity-30"
+          :disabled="!hasNext"
+          @click="goToPage(reviewsStore.pagination.page + 1)"
+        >
+          <ChevronRight class="w-4 h-4" />
+        </button>
       </div>
     </div>
   </div>

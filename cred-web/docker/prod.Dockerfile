@@ -1,0 +1,25 @@
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+ARG VITE_API_URL
+ARG VITE_POSTHOG_KEY
+ARG VITE_POSTHOG_HOST
+ARG VITE_PADDLE_VENDOR_ID
+ARG VITE_PADDLE_ENV
+ARG VITE_PADDLE_PRICE_STARTER_MONTHLY
+ARG VITE_PADDLE_PRICE_STARTER_ANNUAL
+ARG VITE_PADDLE_PRICE_GROWTH_MONTHLY
+ARG VITE_PADDLE_PRICE_GROWTH_ANNUAL
+ARG VITE_PADDLE_PRICE_SCALE_MONTHLY
+ARG VITE_PADDLE_PRICE_SCALE_ANNUAL
+
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine AS production
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

@@ -15,4 +15,6 @@ export const configValidationSchema = Joi.object({
   OPENAI_MODEL: Joi.string().required(),
 
   ADMIN_ID: Joi.number().integer().required(),
+
+  FRONTEND_URL: Joi.string().uri().required(),
 });

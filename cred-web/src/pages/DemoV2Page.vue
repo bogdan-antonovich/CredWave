@@ -13,7 +13,7 @@ const demoStore = useDemoStore()
 
 function loadData() {
   const name = route.params.restaurantName as string
-  if (name) demoStore.fetchBlocks(name)
+  if (name) void demoStore.fetchAdminBlocks(name)
 }
 
 onMounted(loadData)
@@ -32,7 +32,7 @@ watch(() => route.params.restaurantName, loadData)
               Demo
             </div>
             <h1 class="hero-enter hero-enter-delay-1 text-3xl font-bold font-display tracking-tight text-text-primary capitalize">
-              {{ demoStore.restaurantName.replace(/-/g, ' ') }}
+              {{ (route.params.restaurantName as string).replace(/-/g, ' ') }}
             </h1>
             <p class="hero-enter hero-enter-delay-2 mt-2 text-sm text-text-secondary">
               AI-generated review responses — click any to copy

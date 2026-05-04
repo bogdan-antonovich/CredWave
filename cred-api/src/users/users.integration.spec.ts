@@ -18,8 +18,9 @@ class MockJwtGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
     const req = ctx
       .switchToHttp()
-      .getRequest<{ headers: Record<string, string> }>();
+      .getRequest<{ headers: Record<string, string>; user: { id: string } }>();
     if (!req.headers['authorization']) throw new UnauthorizedException();
+    req.user = { id: req.headers['authorization'].split(' ')[1] };
     return true;
   }
 }
@@ -90,7 +91,7 @@ describe('/users route', () => {
 
   describe('GET /users/me', () => {
     it('returns 401 when no JWT is provided', async () => {
-      await request(server).get(`/users/me?user_id=${userId}`).expect(401);
+      await request(server).get('/users/me').expect(401);
     });
 
     it('returns user + google token validity = true', async () => {
@@ -99,8 +100,8 @@ describe('/users route', () => {
       });
 
       const res = await request(server)
-        .get(`/users/me?user_id=${userId}`)
-        .set('Authorization', 'Bearer fake-token')
+        .get('/users/me')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
       expect(res.body).toEqual(
@@ -133,8 +134,8 @@ describe('/users route', () => {
       });
 
       const res = await request(server)
-        .get(`/users/me?user_id=${userId}`)
-        .set('Authorization', 'Bearer fake-token')
+        .get('/users/me')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
       const body = res.body as GetMeResponse;
@@ -144,8 +145,8 @@ describe('/users route', () => {
 
     it('throws 404 when user does not exist', async () => {
       await request(server)
-        .get(`/users/me?user_id=999999`)
-        .set('Authorization', 'Bearer fake-token')
+        .get('/users/me')
+        .set('Authorization', 'Bearer 999999')
         .expect(404);
     });
 
@@ -153,8 +154,8 @@ describe('/users route', () => {
       await sql`DELETE FROM gl_access_tokens WHERE user_id = ${userId}`;
 
       await request(server)
-        .get(`/users/me?user_id=${userId}`)
-        .set('Authorization', 'Bearer fake-token')
+        .get('/users/me')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(404);
     });
 
@@ -162,8 +163,8 @@ describe('/users route', () => {
       mockFetch.mockRejectedValueOnce(new Error('network error'));
 
       await request(server)
-        .get(`/users/me?user_id=${userId}`)
-        .set('Authorization', 'Bearer fake-token')
+        .get('/users/me')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(500);
     });
   });

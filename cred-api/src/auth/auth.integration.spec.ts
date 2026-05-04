@@ -95,8 +95,8 @@ describe('/auth route', () => {
         {
           provide: AppConfigService,
           useValue: {
-            get: () => null,
-            getOrThrow: () => 'test-secret',
+            get: (key: string) =>
+              key === 'frontendUrl' ? 'http://localhost:5173' : null,
           },
         },
       ],
@@ -119,15 +119,18 @@ describe('/auth route', () => {
   });
 
   describe('GET /auth/google/callback', () => {
-    it('creates user, saves tokens, returns JWT pair', async () => {
+    it('creates user, saves tokens, redirects with JWT pair', async () => {
       const res = await request(server)
         .get('/auth/google/callback')
-        .expect(200);
+        .redirects(0)
+        .expect(302);
 
-      const body = res.body as AuthResponse;
+      const location = res.headers['location'] as string;
+      expect(location).toContain('http://localhost:5173/auth/callback');
 
-      expect(body.access_token).toBeDefined();
-      expect(body.refresh_token).toBeDefined();
+      const url = new URL(location);
+      expect(url.searchParams.get('access_token')).toBeTruthy();
+      expect(url.searchParams.get('refresh_token')).toBeTruthy();
 
       const users = await sql`SELECT * FROM users`;
       expect(users).toHaveLength(1);

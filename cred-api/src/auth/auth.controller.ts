@@ -1,12 +1,13 @@
-import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import {
   AppTokensService,
   GoogleTokensService,
   AuthService,
 } from './auth.service';
+import { AppConfigService } from '../config/config.service';
 import { HttpCode } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
@@ -48,6 +49,7 @@ export class AuthController {
     private readonly appTokens: AppTokensService,
     private readonly googleTokens: GoogleTokensService,
     private readonly authService: AuthService,
+    private readonly cfg: AppConfigService,
     @InjectPinoLogger(AuthController.name)
     private readonly logger: PinoLogger,
   ) {}
@@ -61,7 +63,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   @ApiExcludeEndpoint()
-  async googleCallback(@Req() req: AuthenticatedRequest) {
+  async googleCallback(@Req() req: AuthenticatedRequest, @Res() res: Response) {
     this.logger.info('Google callback initiated');
 
     const user = await this.authService.getOrCreateUser(
@@ -80,12 +82,18 @@ export class AuthController {
 
     await this.googleTokens.saveRefreshToken(user.id, req.user.refreshToken);
 
-    const accessToken = this.jwt.sign({ sub: user.id, expiresIn: '15m' });
+    const accessToken = this.jwt.sign({ sub: user.id });
     const refreshToken = randomBytes(64).toString('hex');
 
     await this.appTokens.saveRefreshToken(user.id, refreshToken);
 
-    return { access_token: accessToken, refresh_token: refreshToken };
+    const params = new URLSearchParams({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    res.redirect(
+      `${this.cfg.get('frontendUrl')}/auth/callback?${params.toString()}`,
+    );
   }
 
   @Post('signout')

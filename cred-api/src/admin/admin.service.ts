@@ -18,10 +18,10 @@ export class AdminService {
   constructor(@Inject('SQL') private readonly sql: Sql) {}
 
   async getRestaurants() {
-    const rows = await this.sql<{ slug: string }[]>`
-      SELECT slug FROM d_restaurants ORDER BY created_at DESC
+    const rows = await this.sql<{ name: string; slug: string }[]>`
+      SELECT name, slug FROM d_restaurants ORDER BY created_at DESC
     `;
-    return { restaurants: rows.map((r) => r.slug) };
+    return { restaurants: rows };
   }
 
   async addRestaurant(body: RestaurantCredentials) {
@@ -118,6 +118,34 @@ export class AdminService {
         await tx`
           INSERT INTO d_responses (review_id, text, tone)
           VALUES (${id}, ${response.text}, ${response.tone})
+        `;
+      }
+    });
+  }
+
+  async createBlock(
+    slug: string,
+    body: Omit<ReviewBlock, 'id' | 'restaurantName'>,
+  ) {
+    await this.sql.begin(async (tx) => {
+      const [restaurant] = await tx<{ id: number }[]>`
+        SELECT id FROM d_restaurants WHERE slug = ${slug}
+      `;
+
+      if (!restaurant) {
+        throw new NotFoundException('Restaurant not found');
+      }
+
+      const [review] = await tx<{ id: number }[]>`
+        INSERT INTO d_reviews (restaurant_id, reviewer_name, review_text, rating)
+        VALUES (${restaurant.id}, ${body.reviewerName}, ${body.reviewText}, ${body.rating})
+        RETURNING id
+      `;
+
+      for (const response of body.responses) {
+        await tx`
+          INSERT INTO d_responses (review_id, text, tone)
+          VALUES (${review.id}, ${response.text}, ${response.tone})
         `;
       }
     });

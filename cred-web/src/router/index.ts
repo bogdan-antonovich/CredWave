@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import { trackPageview } from '@/services/analytics'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -35,8 +36,14 @@ const router = createRouter({
       component: () => import('@/pages/AuthPage.vue'),
     },
     {
+      path: '/auth/callback',
+      name: 'auth-callback',
+      component: () => import('@/pages/AuthCallbackPage.vue'),
+    },
+    {
       path: '/dashboard',
       component: () => import('@/pages/dashboard/DashboardLayout.vue'),
+      meta: { requiresAuth: true },
       children: [
         {
           path: '',
@@ -66,6 +73,16 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/pages/LoginPage.vue'),
     },
+    {
+      path: '/privacy',
+      name: 'privacy',
+      component: () => import('@/pages/PrivacyPage.vue'),
+    },
+    {
+      path: '/terms',
+      name: 'terms',
+      component: () => import('@/pages/TermsPage.vue'),
+    },
   ],
   scrollBehavior() {
     return { top: 0 }
@@ -76,9 +93,13 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
     const auth = useAuthStore()
     if (!auth.isAuthenticated) {
-      return { name: 'login', query: { redirect: to.fullPath } }
+      return { name: 'auth' }
     }
   }
+})
+
+router.afterEach((to) => {
+  trackPageview(to.fullPath)
 })
 
 export default router

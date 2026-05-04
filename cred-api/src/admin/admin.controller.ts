@@ -157,6 +157,41 @@ export class AdminController {
     return await this.adminService.updateBlock(Number(id), body);
   }
 
+  @Post('restaurants/:slug/blocks')
+  @HttpCode(201)
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add a review block to a restaurant' })
+  @ApiParam({ name: 'slug', example: 'bella-napoli' })
+  @ApiBody({
+    schema: {
+      required: ['reviewerName', 'reviewText', 'rating', 'responses'],
+      properties: {
+        reviewerName: { type: 'string' },
+        reviewText: { type: 'string' },
+        rating: { type: 'number', minimum: 1, maximum: 5 },
+        responses: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              text: { type: 'string' },
+              tone: {
+                type: 'string',
+                enum: ['empathetic', 'professional', 'casual'],
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({ description: 'Block created' })
+  async createBlock(@Param('slug') slug: string, @Body() body: ReviewBlock) {
+    this.logger.info('Creating a new demo review block');
+    return await this.adminService.createBlock(slug, body);
+  }
+
   @Delete('blocks/:id')
   @HttpCode(204)
   @UseGuards(AuthGuard('jwt'), AdminGuard)

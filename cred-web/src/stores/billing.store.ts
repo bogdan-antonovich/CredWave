@@ -1,0 +1,95 @@
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { api } from '@/services/api'
+import { track } from '@/services/analytics'
+
+interface Plan {
+  name: string
+  price: number
+  period: string
+  status: 'active' | 'past_due' | 'canceled'
+  nextBillingDate: string | null
+  paddleSubscriptionId: string
+}
+
+interface Usage {
+  reviewsUsed: number
+  reviewsLimit: number
+}
+
+interface PaymentMethod {
+  brand: string
+  last4: string
+  expiry: string
+}
+
+interface Subscription {
+  plan: Plan
+  usage: Usage
+  paymentMethod: PaymentMethod | null
+}
+
+interface Invoice {
+  id: string
+  paddle_invoice_id: string
+  date: string
+  amount: number
+  currency: string
+  status: string
+  download_url: string | null
+}
+
+export const useBillingStore = defineStore('billing', () => {
+  const subscription = ref<Subscription | null>(null)
+  const invoices = ref<Invoice[]>([])
+  const loading = ref(false)
+  const portalLoading = ref(false)
+  const hasSubscription = ref(true)
+
+  async function fetchSubscription() {
+    try {
+      subscription.value = await api.get<Subscription>('/billing/subscription')
+      hasSubscription.value = true
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
+        hasSubscription.value = false
+      }
+    }
+  }
+
+  async function fetchInvoices() {
+    try {
+      const data = await api.get<{ invoices: Invoice[] }>('/billing/invoices')
+      invoices.value = data.invoices
+    } catch {
+      // no invoices or not subscribed
+    }
+  }
+
+  async function fetchAll() {
+    loading.value = true
+    await Promise.all([fetchSubscription(), fetchInvoices()])
+    loading.value = false
+  }
+
+  async function openPortal() {
+    portalLoading.value = true
+    try {
+      const data = await api.post<{ url: string }>('/billing/portal')
+      track('billing_portal_opened')
+      window.open(data.url, '_blank')
+    } finally {
+      portalLoading.value = false
+    }
+  }
+
+  return {
+    subscription,
+    invoices,
+    loading,
+    portalLoading,
+    hasSubscription,
+    fetchAll,
+    openPortal,
+  }
+})

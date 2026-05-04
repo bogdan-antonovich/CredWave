@@ -72,7 +72,7 @@ describe('RestaurantsService', () => {
         accounts: { locations: { list: locationsListMock } },
       });
 
-      sql.mockResolvedValueOnce([{ google_access_token: 'token' }]);
+      sql.mockResolvedValueOnce([{ token: 'token' }]);
 
       const result = await service.getBusinessLocations('u1');
 

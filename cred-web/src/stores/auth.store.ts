@@ -1,24 +1,79 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { config } from '@/config/env'
+import { resetUser } from '@/services/analytics'
+
+const ACCESS_KEY = 'cw_access_token'
+const REFRESH_KEY = 'cw_refresh_token'
 
 export const useAuthStore = defineStore('auth', () => {
-  const isAuthenticated = ref(false)
-  const error = ref<string | null>(null)
+  const accessToken = ref<string | null>(localStorage.getItem(ACCESS_KEY))
+  const refreshToken = ref<string | null>(localStorage.getItem(REFRESH_KEY))
 
-  function login(password: string): boolean {
-    if (password === config.admin.password) {
-      isAuthenticated.value = true
-      error.value = null
+  const isAuthenticated = computed(() => !!accessToken.value)
+
+  function setTokens(access: string, refresh: string) {
+    accessToken.value = access
+    refreshToken.value = refresh
+    localStorage.setItem(ACCESS_KEY, access)
+    localStorage.setItem(REFRESH_KEY, refresh)
+  }
+
+  function clearTokens() {
+    accessToken.value = null
+    refreshToken.value = null
+    localStorage.removeItem(ACCESS_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+  }
+
+  function login() {
+    window.location.href = `${config.apiUrl}/auth/google`
+  }
+
+  async function refresh(): Promise<boolean> {
+    if (!refreshToken.value) return false
+
+    try {
+      const res = await fetch(`${config.apiUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${refreshToken.value}` },
+      })
+      if (!res.ok) {
+        clearTokens()
+        return false
+      }
+      const data = (await res.json()) as { access_token: string; refresh_token: string }
+      setTokens(data.access_token, data.refresh_token)
       return true
+    } catch {
+      clearTokens()
+      return false
     }
-    error.value = 'Invalid password'
-    return false
   }
 
-  function logout() {
-    isAuthenticated.value = false
+  async function logout() {
+    if (accessToken.value) {
+      try {
+        await fetch(`${config.apiUrl}/auth/signout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken.value}` },
+        })
+      } catch {
+        // ignore — we clear tokens regardless
+      }
+    }
+    resetUser()
+    clearTokens()
+    window.location.href = '/auth'
   }
 
-  return { isAuthenticated, error, login, logout }
+  return {
+    accessToken,
+    refreshToken,
+    isAuthenticated,
+    setTokens,
+    login,
+    refresh,
+    logout,
+  }
 })

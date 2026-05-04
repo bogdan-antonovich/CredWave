@@ -2,6 +2,7 @@
 import { computed, ref, provide } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import NavBar from '@/components/layout/NavBar.vue'
+import CookieBanner from '@/components/shared/CookieBanner.vue'
 
 const route = useRoute()
 
@@ -32,6 +33,7 @@ const showNav = computed(() => {
     <NavBar v-if="showNav" :dark="darkNav" />
   </Transition>
   <RouterView />
+  <CookieBanner />
 </template>
 
 <style>

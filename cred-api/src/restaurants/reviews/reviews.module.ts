@@ -1,9 +1,20 @@
 import { Module } from '@nestjs/common';
+import OpenAI from 'openai';
+import { AppConfigService } from 'src/config/config.service';
 import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
 
 @Module({
   controllers: [ReviewsController],
-  providers: [ReviewsService],
+  providers: [
+    ReviewsService,
+    {
+      provide: 'OPENAI',
+      inject: [AppConfigService],
+      useFactory: (cfg: AppConfigService) =>
+        new OpenAI({ apiKey: cfg.get('openai').apiKey }),
+    },
+  ],
+  exports: [ReviewsService],
 })
 export class RestaurantsReviewsModule {}
