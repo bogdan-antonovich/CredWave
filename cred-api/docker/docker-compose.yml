@@ -47,7 +47,7 @@ services:
     networks:
       - credwave
     ports:
-      - target: 3000
+      - target: ${PORT}
         published: ${PORT}
         mode: host
     deploy:
