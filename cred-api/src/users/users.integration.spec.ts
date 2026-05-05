@@ -173,7 +173,8 @@ describe('/users route', () => {
     let service: UsersService;
 
     beforeEach(() => {
-      service = new UsersService(sql);
+      const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } as any;
+      service = new UsersService(sql, mockLogger);
     });
 
     it('getUserbyId returns user', async () => {
