@@ -41,7 +41,7 @@ import { LoggerModule } from 'nestjs-pino';
             target: 'pino-loki',
             level,
             options: {
-              host: 'http://loki:3199',
+              host: 'http://loki:3100',
               labels: { app: 'credwave' },
               interval: 5,
               silenceErrors: false,

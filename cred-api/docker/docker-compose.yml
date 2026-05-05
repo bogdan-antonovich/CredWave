@@ -60,7 +60,7 @@ services:
       update_config:
         parallelism: 1
         delay: 10s
-        order: start-first
+        order: stop-first
 
   migrate:
     image: ${DOCKER_REGISTRY}/credwave:${TAG}
