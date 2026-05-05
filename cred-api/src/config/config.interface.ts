@@ -1,6 +1,7 @@
 export interface AppConfig {
   port: number;
   nodeEnv: 'development' | 'production' | 'test';
+  logLevel: 'trace' | 'debug' | 'info' | 'warn' | 'error';
   db: {
     connectUrl: string;
   };

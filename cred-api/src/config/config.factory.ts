@@ -13,6 +13,7 @@ const readSecret = (secretName: string): string => {
 export const configFactory = (): AppConfig => ({
   port: Number(process.env.PORT ?? 3000),
   nodeEnv: (process.env.NODE_ENV as AppConfig['nodeEnv']) ?? 'development',
+  logLevel: (process.env.LOG_LEVEL as AppConfig['logLevel']) ?? 'info',
   db: {
     connectUrl: readSecret('DATABASE_URL_FILE'),
   },

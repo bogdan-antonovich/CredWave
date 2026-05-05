@@ -64,6 +64,7 @@ jobs:
             DOCKERHUB_TOKEN,
             PORT,
             NODE_ENV,
+            LOG_LEVEL,
             DATABASE_URL,
             JWT_SECRET,
             JWT_EXPIRES_IN,
@@ -130,7 +131,7 @@ jobs:
 
             export TAG="$TAG"
             export DOCKER_REGISTRY="$DOCKERHUB_USERNAME"
-            export PORT NODE_ENV
+            export PORT NODE_ENV LOG_LEVEL
             export JWT_EXPIRES_IN
             export GOOGLE_CALLBACK_URL
             export FRONTEND_URL
@@ -221,6 +222,7 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           PORT: ${{ vars.PORT }}
           NODE_ENV: ${{ vars.NODE_ENV }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           JWT_EXPIRES_IN: ${{ vars.JWT_EXPIRES_IN }}

@@ -15,6 +15,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: ${PORT}
+      LOG_LEVEL: ${LOG_LEVEL}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
       FRONTEND_URL: ${FRONTEND_URL}

@@ -23,11 +23,12 @@ import { LoggerModule } from 'nestjs-pino';
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => {
         const isProd = config.get('nodeEnv') === 'production';
+        const level = config.get('logLevel');
 
         const targets: any[] = [
           {
             target: 'pino-pretty',
-            level: 'info',
+            level,
             options: { colorize: true, singleLine: false },
           },
         ];
@@ -35,9 +36,9 @@ import { LoggerModule } from 'nestjs-pino';
         if (isProd) {
           targets.push({
             target: 'pino-loki',
-            level: 'info',
+            level,
             options: {
-              host: 'http://loki:3100',
+              host: 'http://loki:3199',
               labels: { app: 'credwave' },
               interval: 5,
               silenceErrors: false,
@@ -47,7 +48,7 @@ import { LoggerModule } from 'nestjs-pino';
 
         return {
           pinoHttp: {
-            level: 'info',
+            level,
             transport: { targets },
           },
         };

@@ -5,6 +5,9 @@ export const configValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .default('development'),
+  LOG_LEVEL: Joi.string()
+    .valid('trace', 'debug', 'info', 'warn', 'error')
+    .default('info'),
 
   JWT_EXPIRES_IN: Joi.string().default('7d'),
 
