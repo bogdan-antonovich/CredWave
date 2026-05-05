@@ -3,6 +3,7 @@ import { RestaurantsService } from './restaurants.service';
 import { AppConfigService } from 'src/config/config.service';
 import { google } from 'googleapis';
 import { RestaurantChanges } from './restaurants.types';
+import { getLoggerToken } from 'nestjs-pino';
 
 jest.mock('googleapis', () => ({
   google: {
@@ -30,6 +31,7 @@ describe('RestaurantsService', () => {
         RestaurantsService,
         { provide: 'SQL', useValue: sql },
         { provide: AppConfigService, useValue: configMock },
+        { provide: getLoggerToken(RestaurantsService.name), useValue: { debug: jest.fn() } },
       ],
     }).compile();
 

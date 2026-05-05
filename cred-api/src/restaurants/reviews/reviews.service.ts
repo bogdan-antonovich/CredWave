@@ -14,15 +14,21 @@ import { google } from 'googleapis';
 import { getJson } from 'serpapi';
 import OpenAI from 'openai';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 @LogMethods()
 @Injectable()
 export class ReviewsService {
+  protected readonly logger: PinoLogger;
+
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     @Inject('OPENAI') private readonly openai: OpenAI,
     private readonly cfg: AppConfigService,
-  ) {}
+    @InjectPinoLogger(ReviewsService.name) logger: PinoLogger,
+  ) {
+    this.logger = logger;
+  }
 
   private async getAccessToken(userId: string): Promise<string | null> {
     const [row] = await this.sql<{ token: string }[]>`

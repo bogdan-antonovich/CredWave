@@ -11,11 +11,19 @@ import {
   RestaurantCredentials,
 } from './admin.types';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 @LogMethods()
 @Injectable()
 export class AdminService {
-  constructor(@Inject('SQL') private readonly sql: Sql) {}
+  protected readonly logger: PinoLogger;
+
+  constructor(
+    @Inject('SQL') private readonly sql: Sql,
+    @InjectPinoLogger(AdminService.name) logger: PinoLogger,
+  ) {
+    this.logger = logger;
+  }
 
   async getRestaurants() {
     const rows = await this.sql<{ name: string; slug: string }[]>`

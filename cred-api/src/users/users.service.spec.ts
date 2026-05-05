@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import type { User } from '../shared/types';
+import { getLoggerToken } from 'nestjs-pino';
 
 type SqlMock = jest.Mock<
   Promise<unknown[]>,
@@ -16,7 +17,11 @@ function makeSql(...rowSets: object[][]): SqlMock {
 
 async function buildService(sql: SqlMock): Promise<UsersService> {
   const module = await Test.createTestingModule({
-    providers: [UsersService, { provide: 'SQL', useValue: sql }],
+    providers: [
+      UsersService,
+      { provide: 'SQL', useValue: sql },
+      { provide: getLoggerToken(UsersService.name), useValue: { debug: jest.fn() } },
+    ],
   }).compile();
   return module.get<UsersService>(UsersService);
 }

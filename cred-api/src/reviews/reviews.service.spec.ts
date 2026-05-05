@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { AppConfigService } from 'src/config/config.service';
+import { getLoggerToken } from 'nestjs-pino';
 import { google } from 'googleapis';
 import type { AuthPlus } from 'googleapis-common';
 import type { Credentials } from 'google-auth-library';
@@ -54,6 +55,7 @@ async function buildService(sql: SqlMock): Promise<ReviewsService> {
       { provide: 'SQL', useValue: sql },
       { provide: 'OPENAI', useValue: openaiMock },
       { provide: AppConfigService, useValue: configMock },
+      { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn() } },
     ],
   }).compile();
   return module.get<ReviewsService>(ReviewsService);

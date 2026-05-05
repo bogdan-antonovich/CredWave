@@ -5,6 +5,7 @@ import { NotFoundException } from '@nestjs/common';
 import { google } from 'googleapis';
 import { getJson } from 'serpapi';
 import { SerpReview } from './reviews.types';
+import { getLoggerToken } from 'nestjs-pino';
 
 jest.mock('googleapis', () => {
   return {
@@ -43,6 +44,7 @@ describe('ReviewsService', () => {
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
         { provide: AppConfigService, useValue: configMock },
+        { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn() } },
       ],
     }).compile();
 

@@ -2,11 +2,19 @@ import { Injectable, Inject } from '@nestjs/common';
 import type { Sql } from 'postgres';
 import type { User } from '../shared/types';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 @LogMethods()
 @Injectable()
 export class UsersService {
-  constructor(@Inject('SQL') private readonly sql: Sql) {}
+  protected readonly logger: PinoLogger;
+
+  constructor(
+    @Inject('SQL') private readonly sql: Sql,
+    @InjectPinoLogger(UsersService.name) logger: PinoLogger,
+  ) {
+    this.logger = logger;
+  }
 
   async getUserbyId(userId: string) {
     const [row] = await this.sql<User[]>`

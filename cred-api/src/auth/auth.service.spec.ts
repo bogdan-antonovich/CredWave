@@ -6,6 +6,7 @@ import {
   GoogleTokensService,
   AuthService,
 } from './auth.service';
+import { getLoggerToken } from 'nestjs-pino';
 
 jest.mock('googleapis', () => ({
   google: {
@@ -38,6 +39,7 @@ describe('AppTokensService', () => {
           provide: JwtService,
           useValue: { sign: jest.fn().mockReturnValue('signed-token') },
         },
+        { provide: getLoggerToken(AppTokensService.name), useValue: { debug: jest.fn() } },
       ],
     }).compile();
 

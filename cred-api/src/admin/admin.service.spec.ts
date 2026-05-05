@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { getLoggerToken } from 'nestjs-pino';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -13,7 +14,11 @@ describe('AdminService', () => {
     sql = jest.fn();
 
     const module = await Test.createTestingModule({
-      providers: [AdminService, { provide: 'SQL', useValue: sql }],
+      providers: [
+        AdminService,
+        { provide: 'SQL', useValue: sql },
+        { provide: getLoggerToken(AdminService.name), useValue: { debug: jest.fn() } },
+      ],
     }).compile();
 
     service = module.get(AdminService);

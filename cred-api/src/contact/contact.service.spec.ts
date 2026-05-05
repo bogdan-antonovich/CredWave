@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ContactService } from './contact.service';
 import { AppConfigService } from '../config/config.service';
+import { getLoggerToken } from 'nestjs-pino';
 
 describe('ContactService', () => {
   let service: ContactService;
@@ -27,6 +28,7 @@ describe('ContactService', () => {
         { provide: 'SQL', useValue: sqlMock },
         { provide: 'TG_BOT', useValue: botMock },
         { provide: AppConfigService, useValue: configMock },
+        { provide: getLoggerToken(ContactService.name), useValue: { debug: jest.fn() } },
       ],
     }).compile();
 

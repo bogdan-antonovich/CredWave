@@ -9,14 +9,20 @@ import type {
 } from './restaurants.types';
 import { AppConfigService } from '../config/config.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 @LogMethods()
 @Injectable()
 export class RestaurantsService {
+  protected readonly logger: PinoLogger;
+
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     private readonly cfg: AppConfigService,
-  ) {}
+    @InjectPinoLogger(RestaurantsService.name) logger: PinoLogger,
+  ) {
+    this.logger = logger;
+  }
 
   private async getAccessToken(userId: string): Promise<string | null> {
     const [row] = await this.sql<{ token: string }[]>`

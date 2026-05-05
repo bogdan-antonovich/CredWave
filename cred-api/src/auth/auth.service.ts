@@ -6,14 +6,20 @@ import { randomBytes } from 'crypto';
 import { google } from 'googleapis';
 import { AppConfigService } from '../config/config.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 @LogMethods()
 @Injectable()
 export class AppTokensService {
+  protected readonly logger: PinoLogger;
+
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     private jwt: JwtService,
-  ) {}
+    @InjectPinoLogger(AppTokensService.name) logger: PinoLogger,
+  ) {
+    this.logger = logger;
+  }
 
   async addToBlacklist(token: string, expiresAt: Date) {
     await this.sql`
