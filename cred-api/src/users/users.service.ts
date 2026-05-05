@@ -17,11 +17,13 @@ export class UsersService {
   }
 
   async getUserbyId(userId: string) {
+    this.logger.info({ userId }, 'getUserbyId called');
     const [row] = await this.sql<User[]>`
     SELECT id, email, name, picture_url, created_at
     FROM users
     WHERE id = ${userId}
   `;
+    this.logger.debug({ userId, found: !!row }, 'getUserbyId result');
     return row ?? null;
   }
 
