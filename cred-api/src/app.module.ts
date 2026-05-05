@@ -47,12 +47,15 @@ import { LoggerModule } from 'nestjs-pino';
           });
         }
 
-        return {
+        const res = {
           pinoHttp: {
             level,
             transport: { targets },
           },
         };
+
+        console.log('PINO CONFIG:', JSON.stringify(res, null, 2));
+        return res;
       },
     }),
     DatabaseModule,

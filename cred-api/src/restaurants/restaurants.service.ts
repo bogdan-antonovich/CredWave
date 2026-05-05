@@ -152,11 +152,10 @@ export class RestaurantsService {
   }
 
   async searchRestaurants(query: string) {
-    this.logger.info({ query }, 'Restaurant search started');
     const res = await fetch(
       `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&type=restaurant&key=${this.cfg.get('google').places.apiKey}`,
     );
-    this.logger.info({ res }, 'Restaurant search response received');
+    this.logger.debug({ res }, 'Restaurant search response received');
     const data = (await res.json()) as {
       results: {
         name: string;
@@ -167,7 +166,7 @@ export class RestaurantsService {
       }[];
     };
 
-    this.logger.info({ data }, 'Restaurant searching done');
+    this.logger.debug({ data }, 'Restaurant searching done');
 
     return {
       results: data.results.map((place) => ({
