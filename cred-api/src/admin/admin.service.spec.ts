@@ -17,7 +17,7 @@ describe('AdminService', () => {
       providers: [
         AdminService,
         { provide: 'SQL', useValue: sql },
-        { provide: getLoggerToken(AdminService.name), useValue: { debug: jest.fn() } },
+        { provide: getLoggerToken(AdminService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
       ],
     }).compile();
 

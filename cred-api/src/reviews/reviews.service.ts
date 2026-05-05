@@ -44,6 +44,11 @@ export class ReviewsService {
     `;
     if (!review) throw new NotFoundException('Review not found');
 
+    this.logger.debug(
+      { reviewId, additionalContext },
+      'Generating responses for review',
+    );
+
     const [restaurant] = await this.sql<
       { name: string; additional_info: string | null }[]
     >`
@@ -67,17 +72,23 @@ export class ReviewsService {
       }
     `;
 
+    this.logger.debug({ prompt }, 'Prompt generated for review');
+
     const completion = await this.openai.chat.completions.create({
       model: this.cfg.get('openai').model,
       messages: [{ role: 'developer', content: prompt }],
       response_format: { type: 'json_object' },
     });
 
+    this.logger.debug({ completion }, 'OpenAI completion received');
+
     const responses = JSON.parse(completion.choices[0].message.content!) as {
       empathetic: string;
       professional: string;
       casual: string;
     };
+
+    this.logger.debug({ responses }, 'Responses parsed from completion');
 
     const generated_at = new Date();
 
@@ -88,6 +99,11 @@ export class ReviewsService {
       DO UPDATE SET response_json = EXCLUDED.response_json,
           responses_generated_at = EXCLUDED.responses_generated_at
     `;
+
+    this.logger.debug(
+      { reviewId, generated_at },
+      'Responses saved to database',
+    );
 
     return { responses, generated_at };
   }
@@ -102,6 +118,8 @@ export class ReviewsService {
       SELECT google_review_id, restaurant_id FROM reviews WHERE id = ${reviewId}
     `;
     if (!review) throw new NotFoundException('Review not found');
+
+    this.logger.debug({ reviewId, text }, 'Review is found');
 
     const [restaurant] = await this.sql<
       {
@@ -124,6 +142,8 @@ export class ReviewsService {
       body: JSON.stringify({ comment: text }),
     });
 
+    this.logger.debug({ reviewId, text }, 'Review reply sent to Google');
+
     const replied_at = new Date();
 
     await this.sql`
@@ -133,6 +153,11 @@ export class ReviewsService {
           replied_at = ${replied_at}
       WHERE id = ${reviewId}
     `;
+
+    this.logger.debug(
+      { reviewId, replied_at },
+      'Review reply updated in database',
+    );
 
     return { success: true, replied_at };
   }

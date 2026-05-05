@@ -55,6 +55,7 @@ export class AppTokensService {
   ): Promise<{ access_token: string; refresh_token: string } | null> {
     const userId = await this.getUserIdByRefreshToken(refreshToken);
     if (!userId) {
+      this.logger.warn('userId not found for refresh token');
       return null;
     }
 
@@ -63,16 +64,24 @@ export class AppTokensService {
 
     await this.saveRefreshToken(userId, newRefreshToken);
 
+    this.logger.debug({ userId }, 'Refreshed token pair');
+
     return { access_token: accessToken, refresh_token: newRefreshToken };
   }
 }
 
+@LogMethods()
 @Injectable()
 export class GoogleTokensService {
+  protected readonly logger: PinoLogger;
+
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     private readonly cfg: AppConfigService,
-  ) {}
+    @InjectPinoLogger(GoogleTokensService.name) logger: PinoLogger,
+  ) {
+    this.logger = logger;
+  }
 
   async saveAccessToken(userId: string, accessToken: string, expiresAt: Date) {
     await this.sql`
@@ -110,14 +119,23 @@ export class GoogleTokensService {
 
     await this.saveAccessToken(userId, accessToken, expiresAt);
 
+    this.logger.debug({ userId }, 'Refreshed google access token');
+
     return accessToken;
   }
 }
 
+@LogMethods()
 @Injectable()
 export class AuthService {
-  constructor(@Inject('SQL') private readonly sql: Sql) {}
+  protected readonly logger: PinoLogger;
 
+  constructor(
+    @Inject('SQL') private readonly sql: Sql,
+    @InjectPinoLogger(AuthService.name) logger: PinoLogger,
+  ) {
+    this.logger = logger;
+  }
   async getOrCreateUser(
     email: string,
     name: string | null,
@@ -126,13 +144,18 @@ export class AuthService {
     const [existing] = await this.sql<User[]>`
       SELECT * FROM users WHERE email = ${email}
     `;
-    if (existing) return existing;
+    if (existing) {
+      this.logger.debug({ userId: existing.id, email }, 'User already exists');
+      return existing;
+    }
 
     const [created] = await this.sql<User[]>`
       INSERT INTO users (email, name, picture_url)
       VALUES (${email}, ${name}, ${pictureUrl})
       RETURNING *
     `;
+    this.logger.debug({ userId: created.id, email }, 'Created new user');
+
     return created;
   }
 }

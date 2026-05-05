@@ -28,7 +28,7 @@ describe('ContactService', () => {
         { provide: 'SQL', useValue: sqlMock },
         { provide: 'TG_BOT', useValue: botMock },
         { provide: AppConfigService, useValue: configMock },
-        { provide: getLoggerToken(ContactService.name), useValue: { debug: jest.fn() } },
+        { provide: getLoggerToken(ContactService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
       ],
     }).compile();
 

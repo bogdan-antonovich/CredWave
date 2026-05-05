@@ -54,6 +54,8 @@ export class ReviewsService {
     `;
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
+    this.logger.debug({ restaurantId }, 'Restaurant found');
+
     const auth = new google.auth.OAuth2();
     auth.setCredentials({
       access_token: await this.getAccessToken(restaurant.user_id),
@@ -62,6 +64,8 @@ export class ReviewsService {
     const res = await auth.request<{ reviews?: GoogleReview[] }>({
       url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews`,
     });
+
+    this.logger.debug({ res }, 'Google reviews fetched');
 
     const reviews = res.data.reviews ?? [];
     let newReviews = 0;
@@ -98,6 +102,8 @@ export class ReviewsService {
     await this
       .sql`UPDATE restaurants SET last_synced_at = ${synced_at} WHERE id = ${restaurantId}`;
 
+    this.logger.debug({ synced_at }, 'Restaurant synced successfully');
+
     return { new_reviews: newReviews, synced_at };
   }
 
@@ -114,6 +120,8 @@ export class ReviewsService {
       FROM restaurants WHERE id = ${restaurantId}
     `;
     if (!restaurant) throw new NotFoundException('Restaurant not found');
+
+    this.logger.debug({ restaurantId }, 'Restaurant found');
 
     if (restaurant.is_stale) await this.syncReviews(restaurantId);
 
@@ -163,6 +171,8 @@ export class ReviewsService {
           ? Number(stats.replied)
           : Number(stats.total);
 
+    this.logger.debug({ filteredTotal }, 'Filtered total calculated');
+
     return {
       reviews,
       pagination: {
@@ -183,6 +193,9 @@ export class ReviewsService {
     const [row] = await this.sql<{ reviews: SerpReview[] }[]>`
       SELECT reviews FROM auto_demo_reviews WHERE place_id = ${placeId}
     `;
+
+    this.logger.debug({ row }, 'Demo reviews fetched from DB');
+
     return row?.reviews ?? null;
   }
 
@@ -193,6 +206,8 @@ export class ReviewsService {
       ON CONFLICT (place_id) DO UPDATE
       SET reviews = ${this.sql.json(reviews as unknown as Parameters<Sql['json']>[0])}, created_at = NOW()
     `;
+
+    this.logger.debug({ placeId, reviews }, 'Demo reviews saved to DB');
   }
 
   async generateDemoBlocks(
@@ -218,15 +233,21 @@ export class ReviewsService {
           }
         `;
 
+        this.logger.debug({ prompt }, 'Prompt generated');
+
         const completion = await this.openai.chat.completions.create({
           model: this.cfg.get('openai').model,
           messages: [{ role: 'developer', content: prompt }],
           response_format: { type: 'json_object' },
         });
 
+        this.logger.debug({ completion }, 'Completion received');
+
         const responses = JSON.parse(
           completion.choices[0].message.content!,
         ) as { empathetic: string; professional: string; casual: string };
+
+        this.logger.debug({ responses }, 'Responses parsed');
 
         return {
           reviewer_name: review.user.name,
@@ -237,12 +258,15 @@ export class ReviewsService {
       }),
     );
 
+    this.logger.debug({ blocks }, 'Demo blocks generated');
     return { blocks };
   }
 
   async getDemoReviews(placeId: string): Promise<{ reviews: SerpReview[] }> {
     const cached = await this.getDemoReviewsFromDb(placeId);
     if (cached) return { reviews: cached };
+
+    this.logger.debug('Fetching demo reviews from SerpApi');
 
     const data = (await getJson({
       engine: 'google_maps_reviews',
@@ -257,6 +281,9 @@ export class ReviewsService {
     const reviews = [...bad, ...others];
 
     await this.saveDemoReviews(placeId, reviews);
+
+    this.logger.debug({ placeId, reviews }, 'Demo reviews pulled from SerpApi');
+
     return { reviews };
   }
 }

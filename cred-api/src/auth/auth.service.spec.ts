@@ -8,6 +8,8 @@ import {
 } from './auth.service';
 import { getLoggerToken } from 'nestjs-pino';
 
+const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() };
+
 jest.mock('googleapis', () => ({
   google: {
     auth: {
@@ -39,7 +41,7 @@ describe('AppTokensService', () => {
           provide: JwtService,
           useValue: { sign: jest.fn().mockReturnValue('signed-token') },
         },
-        { provide: getLoggerToken(AppTokensService.name), useValue: { debug: jest.fn() } },
+        { provide: getLoggerToken(AppTokensService.name), useValue: mockLogger },
       ],
     }).compile();
 
@@ -91,7 +93,11 @@ describe('AuthService', () => {
     sql = jest.fn();
 
     const module = await Test.createTestingModule({
-      providers: [AuthService, { provide: 'SQL', useValue: sql }],
+      providers: [
+        AuthService,
+        { provide: 'SQL', useValue: sql },
+        { provide: getLoggerToken(AuthService.name), useValue: mockLogger },
+      ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
@@ -148,6 +154,7 @@ describe('GoogleTokensService', () => {
           provide: AppConfigService,
           useValue: { get: jest.fn().mockReturnValue('mock-value') },
         },
+        { provide: getLoggerToken(GoogleTokensService.name), useValue: mockLogger },
       ],
     }).compile();
 

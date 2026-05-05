@@ -31,7 +31,7 @@ describe('RestaurantsService', () => {
         RestaurantsService,
         { provide: 'SQL', useValue: sql },
         { provide: AppConfigService, useValue: configMock },
-        { provide: getLoggerToken(RestaurantsService.name), useValue: { debug: jest.fn() } },
+        { provide: getLoggerToken(RestaurantsService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
       ],
     }).compile();
 

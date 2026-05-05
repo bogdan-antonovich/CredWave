@@ -55,7 +55,7 @@ async function buildService(sql: SqlMock): Promise<ReviewsService> {
       { provide: 'SQL', useValue: sql },
       { provide: 'OPENAI', useValue: openaiMock },
       { provide: AppConfigService, useValue: configMock },
-      { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn() } },
+      { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
     ],
   }).compile();
   return module.get<ReviewsService>(ReviewsService);

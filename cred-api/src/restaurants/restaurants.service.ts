@@ -41,6 +41,8 @@ export class RestaurantsService {
       throw new Error('Access token not found');
     }
 
+    this.logger.debug({ userId }, 'Access token retrieved successfully');
+
     auth.setCredentials({ access_token: accessToken });
 
     const mybusiness = google.mybusinessbusinessinformation({
@@ -57,6 +59,11 @@ export class RestaurantsService {
       parent: accountName,
     });
 
+    this.logger.debug(
+      { accountName },
+      'Business locations retrieved successfully',
+    );
+
     return locations.data;
   }
 
@@ -67,6 +74,11 @@ export class RestaurantsService {
     const locations = googleData.locations ?? [];
 
     const result: Restaurant[] = [];
+
+    this.logger.debug(
+      { userId, locations_length: locations.length },
+      'Locations retrieved successfully',
+    );
 
     for (const location of locations) {
       const slug = location.title!.toLowerCase().replace(/\s+/g, '-');
@@ -95,6 +107,8 @@ export class RestaurantsService {
       result.push(row);
     }
 
+    this.logger.debug({ userId }, 'Restaurants retrieved successfully');
+
     return { restaurants: result };
   }
 
@@ -108,6 +122,7 @@ export class RestaurantsService {
           updated_at = NOW()
       WHERE id = ${id}
     `;
+    this.logger.debug({ id }, 'Restaurant info updated successfully');
   }
 
   async getAutoReply(id: string) {
@@ -119,6 +134,7 @@ export class RestaurantsService {
       FROM restaurants
       WHERE id = ${id}
     `;
+    this.logger.debug({ id }, 'Auto reply retrieved successfully');
     return row ?? null;
   }
 
@@ -132,6 +148,7 @@ export class RestaurantsService {
           updated_at = NOW()
       WHERE id = ${id}
     `;
+    this.logger.debug({ id }, 'Auto reply updated successfully');
   }
 
   async searchRestaurants(query: string) {
@@ -147,6 +164,8 @@ export class RestaurantsService {
         place_id: string;
       }[];
     };
+
+    this.logger.debug({ data }, 'Restaurant searching done');
 
     return {
       results: data.results.map((place) => ({

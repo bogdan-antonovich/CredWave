@@ -12,14 +12,22 @@ import {
 } from '@paddle/paddle-node-sdk';
 import { UnauthorizedException } from '@nestjs/common';
 import { AppConfigService } from '../config/config.service';
+import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
+@LogMethods()
 @Injectable()
 export class BillingService {
+  protected readonly logger: PinoLogger;
+
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     @Inject('PADDLE') private readonly paddle: Paddle,
     private readonly cfg: AppConfigService,
-  ) {}
+    @InjectPinoLogger(BillingService.name) logger: PinoLogger,
+  ) {
+    this.logger = logger;
+  }
 
   async getSubscription(userId: string): Promise<Subscription | null> {
     const [sub] = await this.sql<
@@ -35,7 +43,10 @@ export class BillingService {
     >`
       SELECT * FROM subscriptions WHERE user_id = ${userId}
     `;
-    if (!sub) return null;
+    if (!sub) {
+      this.logger.debug({ userId }, 'No subscription found');
+      return null;
+    }
 
     const [pm] = await this.sql<PaymentMethod[]>`
       SELECT brand, last4, expiry FROM payment_methods WHERE user_id = ${userId}
@@ -51,6 +62,7 @@ export class BillingService {
       )
     `;
 
+    this.logger.debug({ userId }, 'Subscription retrieved successfully');
     return {
       plan: {
         name: sub.plan_name,
@@ -86,6 +98,7 @@ export class BillingService {
       ORDER BY created_at DESC
     `;
 
+    this.logger.debug({ userId }, 'Invoices retrieved successfully');
     return {
       invoices: invoices.map((inv) => ({
         id: inv.id,
@@ -111,6 +124,10 @@ export class BillingService {
       [],
     );
 
+    this.logger.debug(
+      { userId },
+      'Customer portal session created successfully',
+    );
     return { url: session.urls.general.overview };
   }
 
@@ -140,12 +157,22 @@ export class BillingService {
       FROM users u WHERE u.paddle_customer_id = ${data.customerId}
     `;
 
+    this.logger.debug(
+      { userId: data.customerId },
+      'Subscription created successfully',
+    );
+
     await this.sql`
       UPDATE users SET paddle_customer_id = ${data.customerId}
       WHERE paddle_customer_id IS NULL AND id = (
         SELECT id FROM users WHERE paddle_customer_id = ${data.customerId}
       )
     `;
+
+    this.logger.debug(
+      { userId: data.customerId },
+      'Subscription linked to user successfully',
+    );
   }
 
   private async onSubscriptionUpdated(data: SubscriptionNotification) {
@@ -159,6 +186,11 @@ export class BillingService {
           updated_at = NOW()
       WHERE paddle_subscription_id = ${data.id}
     `;
+
+    this.logger.debug(
+      { subscriptionId: data.id },
+      'Subscription updated successfully',
+    );
   }
 
   private async onSubscriptionCanceled(data: SubscriptionNotification) {
@@ -167,6 +199,11 @@ export class BillingService {
       SET status = 'canceled', updated_at = NOW()
       WHERE paddle_subscription_id = ${data.id}
     `;
+
+    this.logger.debug(
+      { subscriptionId: data.id },
+      'Subscription canceled successfully',
+    );
   }
 
   private async onSubscriptionPastDue(data: SubscriptionNotification) {
@@ -175,6 +212,11 @@ export class BillingService {
       SET status = 'past_due', updated_at = NOW()
       WHERE paddle_subscription_id = ${data.id}
     `;
+
+    this.logger.debug(
+      { subscriptionId: data.id },
+      'Subscription past due successfully',
+    );
   }
 
   private async onTransactionCompleted(data: TransactionNotification) {
@@ -196,6 +238,11 @@ export class BillingService {
             expiry = EXCLUDED.expiry,
             updated_at = NOW()
       `;
+
+      this.logger.debug(
+        { transactionId: data.id },
+        'Payment method saved successfully',
+      );
     }
 
     await this.sql`
@@ -209,6 +256,8 @@ export class BillingService {
       FROM users u WHERE u.paddle_customer_id = ${data.customerId}
       ON CONFLICT (paddle_invoice_id) DO NOTHING
     `;
+
+    this.logger.debug({ invoiceId: data.id }, 'Invoice created successfully');
   }
 
   async handleWebhook(rawBody: Buffer, signature: string) {
@@ -245,6 +294,11 @@ export class BillingService {
       case EventName.TransactionPaymentFailed:
         break;
     }
+
+    this.logger.debug(
+      { eventType: event.eventType },
+      'Webhook event handled successfully',
+    );
 
     return { received: true };
   }

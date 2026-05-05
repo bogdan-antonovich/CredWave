@@ -20,7 +20,7 @@ async function buildService(sql: SqlMock): Promise<UsersService> {
     providers: [
       UsersService,
       { provide: 'SQL', useValue: sql },
-      { provide: getLoggerToken(UsersService.name), useValue: { debug: jest.fn() } },
+      { provide: getLoggerToken(UsersService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
     ],
   }).compile();
   return module.get<UsersService>(UsersService);

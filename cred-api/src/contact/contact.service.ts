@@ -32,5 +32,10 @@ export class ContactService {
         `💬 *Message:*\n${cf.message}`,
       { parse_mode: 'Markdown' },
     );
+
+    this.logger.debug(
+      { name: cf.name, email: cf.email },
+      'Contact form submitted successfully',
+    );
   }
 }

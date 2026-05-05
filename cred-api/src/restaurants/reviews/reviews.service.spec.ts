@@ -44,7 +44,7 @@ describe('ReviewsService', () => {
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
         { provide: AppConfigService, useValue: configMock },
-        { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn() } },
+        { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
       ],
     }).compile();
 
