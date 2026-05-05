@@ -21,6 +21,8 @@ import { LoggerModule } from 'nestjs-pino';
     AppConfigModule,
     LoggerModule.forRootAsync({
       inject: [AppConfigService],
+      imports: [AppConfigModule],
+
       useFactory: (config: AppConfigService) => {
         const isProd = config.get('nodeEnv') === 'production';
         // const level = config.get('logLevel');
