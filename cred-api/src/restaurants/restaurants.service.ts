@@ -152,9 +152,16 @@ export class RestaurantsService {
   }
 
   async searchRestaurants(query: string) {
-    const res = await fetch(
-      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&type=restaurant&key=${this.cfg.get('google').places.apiKey}`,
-    );
+    let res;
+    try {
+      res = await fetch(
+        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&type=restaurant&key=${this.cfg.get('google').places.apiKey}`,
+      );
+    } catch (e) {
+      this.logger.error(e, 'Restaurant searching failed');
+      return { results: [] };
+    }
+
     const data = (await res.json()) as {
       results: {
         name: string;
