@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
-import type { RestaurantsService } from './restaurants.service';
+import { RestaurantsService } from './restaurants.service';
 import type { RestaurantChanges, AutoReplyChanges } from './restaurants.types';
 import { BadRequestException } from '@nestjs/common';
 import {
