@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
-import { AuthController } from './auth/auth.controller';
 import { GoogleStrategy } from './auth/google.strategy';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './auth/jwt.strategy';
@@ -69,7 +68,6 @@ import { LoggerModule } from 'nestjs-pino';
     RestaurantsReviewsModule,
     DemoModule,
   ],
-  controllers: [AuthController],
   providers: [GoogleStrategy, JwtStrategy],
 })
 export class AppModule {}
