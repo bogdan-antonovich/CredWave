@@ -28,10 +28,6 @@ const ratingLabel = computed(() => {
   return { text: 'Negative', class: 'bg-red-50 text-red-600' }
 })
 
-const googleMapsUrl = computed(() => {
-  const q = encodeURIComponent(props.block.restaurant_name.replace(/-/g, ' '))
-  return `https://www.google.com/maps/search/${q}`
-})
 
 async function copyResponse() {
   try {
@@ -110,7 +106,8 @@ async function copyResponse() {
             {{ copied ? 'Copied!' : 'Copy response' }}
           </button>
           <a
-            :href="googleMapsUrl"
+            v-if="block.link"
+            :href="block.link"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all duration-200"

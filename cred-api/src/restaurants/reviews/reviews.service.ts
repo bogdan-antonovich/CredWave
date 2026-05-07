@@ -253,6 +253,7 @@ export class ReviewsService {
           reviewer_name: review.user.name,
           review_text: review.snippet,
           rating: review.rating,
+          link: review.link,
           ...responses,
         };
       }),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Search, Sparkles, MapPin, ChevronRight, Star } from 'lucide-vue-next'
 import { restaurantNameSchema } from '@/schemas/demo.schema'
@@ -92,6 +92,17 @@ const showLoading = computed(() => step.value === 'searching' || step.value === 
 const showDisambiguation = computed(() => step.value === 'disambiguation')
 const showResults = computed(() => step.value === 'results' && demoStore.blocks.length > 0)
 const showEmpty = computed(() => step.value === 'results' && demoStore.blocks.length === 0)
+
+onMounted(() => {
+  const saved = demoStore.restoreFromStorage()
+  if (!saved) return
+  if (saved.phase === 'results') {
+    step.value = 'results'
+  } else if (saved.phase === 'disambiguation') {
+    input.value = saved.query
+    step.value = 'disambiguation'
+  }
+})
 </script>
 
 <template>

@@ -4,6 +4,7 @@ export interface ReviewBlock {
   reviewer_name: string
   review_text: string
   rating: number
+  link?: string
   response_a: string
   response_b: string
   response_c: string

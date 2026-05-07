@@ -9,6 +9,7 @@ interface ApiDemoBlock {
   reviewer_name: string
   review_text: string
   rating: number
+  link: string
   empathetic: string
   professional: string
   casual: string
@@ -21,6 +22,7 @@ function mapApiBlock(b: ApiDemoBlock, index: number): ReviewBlock {
     reviewer_name: b.reviewer_name,
     review_text: b.review_text,
     rating: b.rating,
+    link: b.link,
     response_a: b.empathetic,
     response_b: b.professional,
     response_c: b.casual,
@@ -35,11 +37,45 @@ export interface SearchResult {
   review_count: number
 }
 
+const STORAGE_KEY = 'credwave_demo'
+
+interface StoredDemo {
+  phase: 'disambiguation' | 'results'
+  query: string
+  searchResults: SearchResult[]
+  blocks: ReviewBlock[]
+}
+
 export const useDemoStore = defineStore('demo', () => {
   const blocks = ref<ReviewBlock[]>([])
   const searchResults = ref<SearchResult[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const searchQuery = ref('')
+
+  function saveToStorage(phase: 'disambiguation' | 'results') {
+    const state: StoredDemo = {
+      phase,
+      query: searchQuery.value,
+      searchResults: searchResults.value,
+      blocks: blocks.value,
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  }
+
+  function restoreFromStorage(): { phase: 'disambiguation' | 'results'; query: string } | null {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (!raw) return null
+      const state = JSON.parse(raw) as StoredDemo
+      searchResults.value = state.searchResults
+      blocks.value = state.blocks
+      searchQuery.value = state.query
+      return { phase: state.phase, query: state.query }
+    } catch {
+      return null
+    }
+  }
 
   async function searchRestaurants(q: string) {
     loading.value = true
@@ -49,6 +85,8 @@ export const useDemoStore = defineStore('demo', () => {
         `/restaurants/search?q=${encodeURIComponent(q)}`,
       )
       searchResults.value = data.results
+      searchQuery.value = q
+      if (data.results.length > 0) saveToStorage('disambiguation')
       track('demo_searched', { query: q, results: data.results.length })
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Search failed'
@@ -67,6 +105,7 @@ export const useDemoStore = defineStore('demo', () => {
         name: restaurantName,
       })
       blocks.value = data.blocks.map(mapApiBlock)
+      saveToStorage('results')
       track('demo_generated', { restaurant: restaurantName, blocks: data.blocks.length })
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Generation failed'
@@ -95,7 +134,9 @@ export const useDemoStore = defineStore('demo', () => {
   function reset() {
     blocks.value = []
     searchResults.value = []
+    searchQuery.value = ''
     error.value = null
+    localStorage.removeItem(STORAGE_KEY)
   }
 
   return {
@@ -107,5 +148,6 @@ export const useDemoStore = defineStore('demo', () => {
     generateDemo,
     fetchAdminBlocks,
     reset,
+    restoreFromStorage,
   }
 })

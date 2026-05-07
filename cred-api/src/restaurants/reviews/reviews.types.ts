@@ -35,6 +35,7 @@ export interface GoogleReview {
 }
 
 export interface SerpReview {
+  link: string;
   rating: number;
   snippet: string;
   iso_date: string;
@@ -56,6 +57,7 @@ export interface DemoBlock {
   reviewer_name: string;
   review_text: string;
   rating: number;
+  link: string;
   empathetic: string;
   professional: string;
   casual: string;
