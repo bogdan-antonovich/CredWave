@@ -151,6 +151,7 @@ export class RestaurantsService {
     this.logger.debug({ id }, 'Auto reply updated successfully');
   }
 
+  // What?
   async searchRestaurants(query: string) {
     const res = await fetch(
       `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&type=restaurant&key=${this.cfg.get('google').places.apiKey}`,

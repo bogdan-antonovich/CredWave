@@ -142,17 +142,6 @@ jobs:
 
             envsubst < docker/docker-compose.yml > docker/docker-compose.resolved.yml
 
-            # Clear logs of previous containers
-            for SERVICE in cred-api_stack_api cred-api_stack_db cred-api_stack_migrate cred-api_stack_loki cred-api_stack_grafana; do
-              CONTAINER_ID=$(docker ps -q -f name=$SERVICE 2>/dev/null || true)
-              if [ -n "$CONTAINER_ID" ]; then
-                LOG_PATH=$(docker inspect --format='{{.LogPath}}' $CONTAINER_ID)
-                if [ -n "$LOG_PATH" ]; then
-                  truncate -s 0 "$LOG_PATH" || true
-                fi
-              fi
-            done
-
             docker stack deploy \
               --with-registry-auth \
               --prune \
