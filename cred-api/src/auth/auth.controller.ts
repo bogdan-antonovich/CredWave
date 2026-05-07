@@ -66,15 +66,6 @@ export class AuthController {
   async googleCallback(@Req() req: AuthenticatedRequest, @Res() res: Response) {
     this.logger.info('Google callback initiated');
 
-    this.logger.debug(
-      {
-        email: req.user.email,
-        name: req.user.name,
-        pictureUrl: req.user.pictureUrl,
-      },
-      'Google callback initiated',
-    );
-
     const user = await this.authService.getOrCreateUser(
       req.user.email,
       req.user.name,

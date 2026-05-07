@@ -19,7 +19,6 @@ import { AppConfigService } from '../config/config.service';
       inject: [AppConfigService],
       useFactory: (cfg: AppConfigService) => ({
         secret: cfg.get('jwt').secret,
-        signOptions: { expiresIn: cfg.get('jwt').expiresIn },
       }),
     }),
   ],
