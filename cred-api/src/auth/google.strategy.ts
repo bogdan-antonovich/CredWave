@@ -31,15 +31,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     refreshToken: string,
     params: { expires_in: number },
     profile: Profile,
-    done: VerifyCallback,
   ) {
-    done(null, {
+    return {
       email: profile.emails?.[0]?.value ?? null,
       name: profile.displayName,
       pictureUrl: profile.photos?.[0]?.value ?? null,
       accessToken,
       refreshToken,
       expiresIn: params.expires_in,
-    });
+    };
   }
 }
