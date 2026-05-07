@@ -8,6 +8,7 @@ import type {
   Restaurant,
 } from './restaurants.types';
 import { AppConfigService } from '../config/config.service';
+import { GoogleTokensService } from '../auth/auth.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -19,52 +20,38 @@ export class RestaurantsService {
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     private readonly cfg: AppConfigService,
+    private readonly googleTokens: GoogleTokensService,
     @InjectPinoLogger(RestaurantsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
   }
 
-  private async getAccessToken(userId: string): Promise<string | null> {
-    const [row] = await this.sql<{ token: string }[]>`
-      SELECT token
-      FROM gl_access_tokens
-      WHERE user_id = ${userId}
-    `;
-    return row?.token ?? null;
-  }
-
   async getBusinessLocations(userId: string) {
-    const auth = new google.auth.OAuth2();
+    return this.googleTokens.withAutoRefresh(userId, async (token) => {
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: token });
 
-    const accessToken = await this.getAccessToken(userId);
-    if (!accessToken) {
-      throw new Error('Access token not found');
-    }
+      const mybusiness = google.mybusinessbusinessinformation({
+        version: 'v1',
+        auth,
+      });
+      const accounts = await google
+        .mybusinessaccountmanagement({ version: 'v1', auth })
+        .accounts.list();
 
-    this.logger.debug({ userId }, 'Access token retrieved successfully');
+      const accountName = accounts.data.accounts![0].name!;
 
-    auth.setCredentials({ access_token: accessToken });
+      const locations = await mybusiness.accounts.locations.list({
+        parent: accountName,
+      });
 
-    const mybusiness = google.mybusinessbusinessinformation({
-      version: 'v1',
-      auth,
+      this.logger.debug(
+        { accountName },
+        'Business locations retrieved successfully',
+      );
+
+      return locations.data;
     });
-    const accounts = await google
-      .mybusinessaccountmanagement({ version: 'v1', auth })
-      .accounts.list();
-
-    const accountName = accounts.data.accounts![0].name!;
-
-    const locations = await mybusiness.accounts.locations.list({
-      parent: accountName,
-    });
-
-    this.logger.debug(
-      { accountName },
-      'Business locations retrieved successfully',
-    );
-
-    return locations.data;
   }
 
   async getRestaurants(userId: string): Promise<{

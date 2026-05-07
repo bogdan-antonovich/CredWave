@@ -83,6 +83,37 @@ export class GoogleTokensService {
     this.logger = logger;
   }
 
+  async getAccessToken(userId: string): Promise<string | null> {
+    const [row] = await this.sql<{ token: string }[]>`
+      SELECT token FROM gl_access_tokens WHERE user_id = ${userId}
+    `;
+    return row?.token ?? null;
+  }
+
+  async getRefreshToken(userId: string): Promise<string> {
+    const [row] = await this.sql<{ token: string }[]>`
+      SELECT token FROM gl_refresh_tokens WHERE user_id = ${userId}
+    `;
+    if (!row?.token) throw new Error(`No Google refresh token for user ${userId}`);
+    return row.token;
+  }
+
+  async withAutoRefresh<T>(
+    userId: string,
+    fn: (token: string) => Promise<T>,
+  ): Promise<T> {
+    const token = await this.getAccessToken(userId);
+    try {
+      return await fn(token!);
+    } catch (err) {
+      if (!isGoogleAuthError(err)) throw err;
+      this.logger.warn({ userId }, 'Google access token expired, refreshing');
+      const refreshToken = await this.getRefreshToken(userId);
+      const newToken = await this.refreshGoogleAccessToken(userId, refreshToken);
+      return fn(newToken);
+    }
+  }
+
   async saveAccessToken(userId: string, accessToken: string, expiresAt: Date) {
     await this.sql`
       INSERT INTO gl_access_tokens (user_id, token, expires_at)
@@ -158,4 +189,9 @@ export class AuthService {
 
     return created;
   }
+}
+
+function isGoogleAuthError(err: unknown): boolean {
+  const e = err as { response?: { status?: number } };
+  return e?.response?.status === 401;
 }

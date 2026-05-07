@@ -174,4 +174,78 @@ describe('GoogleTokensService', () => {
       expect(sql).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('getAccessToken', () => {
+    it('returns the token when a row exists', async () => {
+      sql.mockResolvedValueOnce([{ token: 'ya29.abc' }]);
+
+      const result = await service.getAccessToken('user-1');
+
+      expect(result).toBe('ya29.abc');
+    });
+
+    it('returns null when no row exists', async () => {
+      sql.mockResolvedValueOnce([]);
+
+      const result = await service.getAccessToken('user-1');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getRefreshToken', () => {
+    it('returns the refresh token when a row exists', async () => {
+      sql.mockResolvedValueOnce([{ token: 'refresh-abc' }]);
+
+      const result = await service.getRefreshToken('user-1');
+
+      expect(result).toBe('refresh-abc');
+    });
+
+    it('throws when no row exists', async () => {
+      sql.mockResolvedValueOnce([]);
+
+      await expect(service.getRefreshToken('user-1')).rejects.toThrow();
+    });
+  });
+
+  describe('withAutoRefresh', () => {
+    it('calls fn with the current access token and returns its result', async () => {
+      sql.mockResolvedValueOnce([{ token: 'ya29.current' }]);
+      const fn = jest.fn().mockResolvedValue('ok');
+
+      const result = await service.withAutoRefresh('user-1', fn);
+
+      expect(fn).toHaveBeenCalledWith('ya29.current');
+      expect(result).toBe('ok');
+    });
+
+    it('refreshes token and retries fn on 401 error', async () => {
+      sql
+        .mockResolvedValueOnce([{ token: 'ya29.expired' }])  // getAccessToken
+        .mockResolvedValueOnce([{ token: 'rt-valid' }])       // getRefreshToken
+        .mockResolvedValueOnce([]);                            // saveAccessToken inside refreshGoogleAccessToken
+
+      const authError = Object.assign(new Error('Unauthorized'), {
+        response: { status: 401 },
+      });
+      const fn = jest.fn()
+        .mockRejectedValueOnce(authError)
+        .mockResolvedValueOnce('retried');
+
+      const result = await service.withAutoRefresh('user-1', fn);
+
+      expect(fn).toHaveBeenCalledTimes(2);
+      expect(fn).toHaveBeenNthCalledWith(2, 'new-access-token');
+      expect(result).toBe('retried');
+    });
+
+    it('propagates non-auth errors without retrying', async () => {
+      sql.mockResolvedValueOnce([{ token: 'ya29.current' }]);
+      const fn = jest.fn().mockRejectedValueOnce(new Error('Network timeout'));
+
+      await expect(service.withAutoRefresh('user-1', fn)).rejects.toThrow('Network timeout');
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+  });
 });

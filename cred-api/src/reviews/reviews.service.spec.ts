@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { AppConfigService } from 'src/config/config.service';
+import { GoogleTokensService } from '../auth/auth.service';
 import { getLoggerToken } from 'nestjs-pino';
 import { google } from 'googleapis';
 import type { AuthPlus } from 'googleapis-common';
@@ -41,7 +42,10 @@ function makeSql(...rowSets: Record<string, unknown>[][]): SqlMock {
     .mockImplementation(() => Promise.resolve(rowSets[callIndex++] ?? []));
 }
 
-async function buildService(sql: SqlMock): Promise<ReviewsService> {
+async function buildService(
+  sql: SqlMock,
+  googleTokensOverride?: { withAutoRefresh: jest.Mock },
+): Promise<ReviewsService> {
   (sql as any).json = jest.fn((x: unknown) => x);
   const configMock: Partial<AppConfigService> = {
     get: jest.fn((key: string) => {
@@ -49,12 +53,18 @@ async function buildService(sql: SqlMock): Promise<ReviewsService> {
       throw new Error(`Unknown config key: ${key}`);
     }),
   };
+  const mockGoogleTokens = googleTokensOverride ?? {
+    withAutoRefresh: jest.fn().mockImplementation(
+      (_: string, fn: (token: string) => Promise<unknown>) => fn(FAKE_ACCESS_TOKEN),
+    ),
+  };
   const module = await Test.createTestingModule({
     providers: [
       ReviewsService,
       { provide: 'SQL', useValue: sql },
       { provide: 'OPENAI', useValue: openaiMock },
       { provide: AppConfigService, useValue: configMock },
+      { provide: GoogleTokensService, useValue: mockGoogleTokens },
       { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
     ],
   }).compile();
@@ -212,21 +222,12 @@ describe('ReviewsService', () => {
     });
 
     it('calls the Google My Business API with the correct URL and body', async () => {
-      const service = await buildService(
-        makeSql(
-          [reviewRow],
-          [FAKE_RESTAURANT_WITH_OAUTH],
-          [{ token: FAKE_ACCESS_TOKEN }],
-          [],
-        ),
-      );
+      const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], []));
       mockGoogleApiSuccess();
 
       const result = await service.replyToReview('review-1', 'Thank you!');
 
-      expect(mockSetCredentials).toHaveBeenCalledWith({
-        access_token: FAKE_ACCESS_TOKEN,
-      });
+      expect(mockSetCredentials).toHaveBeenCalledWith({ access_token: FAKE_ACCESS_TOKEN });
       expect(mockAuthRequest).toHaveBeenCalledWith(
         expect.objectContaining({
           method: 'PUT',
@@ -239,12 +240,7 @@ describe('ReviewsService', () => {
     });
 
     it('persists reply text and replied flag after a successful API call', async () => {
-      const sql = makeSql(
-        [reviewRow],
-        [FAKE_RESTAURANT_WITH_OAUTH],
-        [{ token: FAKE_ACCESS_TOKEN }],
-        [],
-      );
+      const sql = makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], []);
       const service = await buildService(sql);
       mockGoogleApiSuccess();
 
@@ -255,30 +251,15 @@ describe('ReviewsService', () => {
     });
 
     it('does not persist a reply when the Google API call throws', async () => {
-      const sql = makeSql(
-        [reviewRow],
-        [FAKE_RESTAURANT_WITH_OAUTH],
-        [{ token: FAKE_ACCESS_TOKEN }],
-      );
+      const sql = makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH]);
       const service = await buildService(sql);
-      mockAuthRequest.mockRejectedValueOnce(new Error('401 Unauthorized'));
+      mockAuthRequest.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(
         service.replyToReview('review-1', 'Thank you!'),
-      ).rejects.toThrow('401 Unauthorized');
+      ).rejects.toThrow('Network error');
 
-      expect(sql).toHaveBeenCalledTimes(3);
-    });
-
-    it('passes null to setCredentials when no access token row exists', async () => {
-      const service = await buildService(
-        makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], []),
-      );
-      mockGoogleApiSuccess();
-
-      await service.replyToReview('review-1', 'Thanks!');
-
-      expect(mockSetCredentials).toHaveBeenCalledWith({ access_token: null });
+      expect(sql).toHaveBeenCalledTimes(2);
     });
   });
 });

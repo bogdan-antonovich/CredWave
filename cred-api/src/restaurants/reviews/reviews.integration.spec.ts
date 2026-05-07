@@ -11,6 +11,8 @@ import type { Server } from 'http';
 import postgres, { type Sql } from 'postgres';
 import { AuthGuard } from '@nestjs/passport';
 import { AppConfigService } from 'src/config/config.service';
+import { GoogleTokensService } from '../../auth/auth.service';
+import { getLoggerToken } from 'nestjs-pino';
 import { google } from 'googleapis';
 import type { AuthPlus } from 'googleapis-common';
 import type { Credentials } from 'google-auth-library';
@@ -168,6 +170,7 @@ describe('/restaurants/:id/reviews', () => {
       controllers: [ReviewsController],
       providers: [
         ReviewsService,
+        GoogleTokensService,
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
         {
@@ -175,9 +178,14 @@ describe('/restaurants/:id/reviews', () => {
           useValue: {
             get: (key: string) => {
               if (key === 'serpapi') return { apiKey: 'fake-serp-key' };
+              if (key === 'google') return { clientId: '', clientSecret: '' };
               throw new Error(`Unknown config key: ${key}`);
             },
           },
+        },
+        {
+          provide: getLoggerToken(GoogleTokensService.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
         },
       ],
     })

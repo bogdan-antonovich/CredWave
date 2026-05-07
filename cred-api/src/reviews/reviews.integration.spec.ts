@@ -9,6 +9,8 @@ import {
 import request from 'supertest';
 import postgres, { type Sql } from 'postgres';
 import { AppConfigService } from 'src/config/config.service';
+import { GoogleTokensService } from '../auth/auth.service';
+import { getLoggerToken } from 'nestjs-pino';
 import { AuthGuard } from '@nestjs/passport';
 import { google } from 'googleapis';
 import type { AuthPlus } from 'googleapis-common';
@@ -120,6 +122,7 @@ describe('/reviews route', () => {
       controllers: [ReviewsController],
       providers: [
         ReviewsService,
+        GoogleTokensService,
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: openaiMock },
         {
@@ -127,9 +130,14 @@ describe('/reviews route', () => {
           useValue: {
             get: (key: string) => {
               if (key === 'openai') return { model: 'gpt-4o' };
+              if (key === 'google') return { clientId: '', clientSecret: '' };
               throw new Error(`Unknown config key: ${key}`);
             },
           },
+        },
+        {
+          provide: getLoggerToken(GoogleTokensService.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
         },
       ],
     })

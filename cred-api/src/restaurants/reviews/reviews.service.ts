@@ -13,6 +13,7 @@ import {
 import { google } from 'googleapis';
 import { getJson } from 'serpapi';
 import OpenAI from 'openai';
+import { GoogleTokensService } from '../../auth/auth.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -25,18 +26,10 @@ export class ReviewsService {
     @Inject('SQL') private readonly sql: Sql,
     @Inject('OPENAI') private readonly openai: OpenAI,
     private readonly cfg: AppConfigService,
+    private readonly googleTokens: GoogleTokensService,
     @InjectPinoLogger(ReviewsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
-  }
-
-  private async getAccessToken(userId: string): Promise<string | null> {
-    const [row] = await this.sql<{ token: string }[]>`
-      SELECT token
-      FROM gl_access_tokens
-      WHERE user_id = ${userId}
-    `;
-    return row?.token ?? null;
   }
 
   async syncReviews(
@@ -56,14 +49,16 @@ export class ReviewsService {
 
     this.logger.debug({ restaurantId }, 'Restaurant found');
 
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({
-      access_token: await this.getAccessToken(restaurant.user_id),
-    });
-
-    const res = await auth.request<{ reviews?: GoogleReview[] }>({
-      url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews`,
-    });
+    const res = await this.googleTokens.withAutoRefresh(
+      restaurant.user_id,
+      (token) => {
+        const auth = new google.auth.OAuth2();
+        auth.setCredentials({ access_token: token });
+        return auth.request<{ reviews?: GoogleReview[] }>({
+          url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews`,
+        });
+      },
+    );
 
     this.logger.debug({ res }, 'Google reviews fetched');
 

@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { RestaurantsService } from './restaurants.service';
 import { AppConfigService } from 'src/config/config.service';
+import { GoogleTokensService } from '../auth/auth.service';
 import { google } from 'googleapis';
 import { RestaurantChanges } from './restaurants.types';
 import { getLoggerToken } from 'nestjs-pino';
@@ -16,6 +17,7 @@ jest.mock('googleapis', () => ({
 describe('RestaurantsService', () => {
   let service: RestaurantsService;
   let sql: jest.Mock;
+  let mockGoogleTokens: { withAutoRefresh: jest.Mock };
 
   const configMock = {
     get: jest.fn((key: string) => {
@@ -25,13 +27,22 @@ describe('RestaurantsService', () => {
 
   beforeEach(async () => {
     sql = jest.fn();
+    mockGoogleTokens = {
+      withAutoRefresh: jest.fn().mockImplementation(
+        (_: string, fn: (token: string) => Promise<unknown>) => fn('TOKEN123'),
+      ),
+    };
 
     const module = await Test.createTestingModule({
       providers: [
         RestaurantsService,
         { provide: 'SQL', useValue: sql },
         { provide: AppConfigService, useValue: configMock },
-        { provide: getLoggerToken(RestaurantsService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
+        { provide: GoogleTokensService, useValue: mockGoogleTokens },
+        {
+          provide: getLoggerToken(RestaurantsService.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -42,26 +53,13 @@ describe('RestaurantsService', () => {
   });
 
   describe('getBusinessLocations', () => {
-    it('should throw if no token', async () => {
-      sql.mockResolvedValueOnce([]);
-
-      await expect(service.getBusinessLocations('u1')).rejects.toThrow(
-        'Access token not found',
-      );
-    });
-
-    it('should return locations', async () => {
-      const setCredentials = jest.fn();
-
+    it('should call withAutoRefresh with the userId', async () => {
       const OAuth2Mock = google.auth.OAuth2 as unknown as jest.Mock;
-      OAuth2Mock.mockImplementation(() => ({
-        setCredentials,
-      }));
+      OAuth2Mock.mockImplementation(() => ({ setCredentials: jest.fn() }));
 
       const accountsListMock = jest.fn().mockResolvedValue({
         data: { accounts: [{ name: 'accounts/123' }] },
       });
-
       const locationsListMock = jest.fn().mockResolvedValue({
         data: { locations: [{ name: 'loc1', title: 'Test Place' }] },
       });
@@ -69,17 +67,51 @@ describe('RestaurantsService', () => {
       (google.mybusinessaccountmanagement as jest.Mock).mockReturnValue({
         accounts: { list: accountsListMock },
       });
-
       (google.mybusinessbusinessinformation as jest.Mock).mockReturnValue({
         accounts: { locations: { list: locationsListMock } },
       });
 
-      sql.mockResolvedValueOnce([{ token: 'token' }]);
+      mockGoogleTokens.withAutoRefresh.mockImplementation(
+        (_: string, fn: (token: string) => Promise<unknown>) => fn('TOKEN123'),
+      );
 
       const result = await service.getBusinessLocations('u1');
 
-      expect(setCredentials).toHaveBeenCalled();
+      expect(mockGoogleTokens.withAutoRefresh).toHaveBeenCalledWith('u1', expect.any(Function));
       expect(result.locations?.length).toBe(1);
+    });
+
+    it('should pass the token to OAuth2 setCredentials', async () => {
+      const setCredentials = jest.fn();
+      const OAuth2Mock = google.auth.OAuth2 as unknown as jest.Mock;
+      OAuth2Mock.mockImplementation(() => ({ setCredentials }));
+
+      (google.mybusinessaccountmanagement as jest.Mock).mockReturnValue({
+        accounts: {
+          list: jest.fn().mockResolvedValue({ data: { accounts: [{ name: 'accounts/123' }] } }),
+        },
+      });
+      (google.mybusinessbusinessinformation as jest.Mock).mockReturnValue({
+        accounts: {
+          locations: {
+            list: jest.fn().mockResolvedValue({ data: { locations: [] } }),
+          },
+        },
+      });
+
+      mockGoogleTokens.withAutoRefresh.mockImplementation(
+        (_: string, fn: (token: string) => Promise<unknown>) => fn('TOKEN123'),
+      );
+
+      await service.getBusinessLocations('u1');
+
+      expect(setCredentials).toHaveBeenCalledWith({ access_token: 'TOKEN123' });
+    });
+
+    it('propagates errors from withAutoRefresh', async () => {
+      mockGoogleTokens.withAutoRefresh.mockRejectedValueOnce(new Error('No token'));
+
+      await expect(service.getBusinessLocations('u1')).rejects.toThrow('No token');
     });
   });
 

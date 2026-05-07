@@ -24,6 +24,6 @@ import { AppConfigService } from '../config/config.service';
   ],
   controllers: [AuthController],
   providers: [AuthService, AppTokensService, GoogleTokensService],
-  exports: [AppTokensService],
+  exports: [AppTokensService, GoogleTokensService],
 })
 export class AuthModule {}

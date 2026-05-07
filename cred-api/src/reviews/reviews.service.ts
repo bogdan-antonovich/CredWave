@@ -4,6 +4,7 @@ import { NotFoundException } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AppConfigService } from 'src/config/config.service';
 import { google } from 'googleapis';
+import { GoogleTokensService } from '../auth/auth.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -16,18 +17,10 @@ export class ReviewsService {
     @Inject('SQL') private readonly sql: Sql,
     @Inject('OPENAI') private readonly openai: OpenAI,
     private readonly cfg: AppConfigService,
+    private readonly googleTokens: GoogleTokensService,
     @InjectPinoLogger(ReviewsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
-  }
-
-  private async getAccessToken(userId: string): Promise<string | null> {
-    const [row] = await this.sql<{ token: string }[]>`
-      SELECT token
-      FROM gl_access_tokens
-      WHERE user_id = ${userId}
-    `;
-    return row?.token ?? null;
   }
 
   async generateResponses(reviewId: string, additionalContext?: string) {
@@ -132,14 +125,14 @@ export class ReviewsService {
       FROM restaurants WHERE id = ${review.restaurant_id}
     `;
 
-    const accessToken = await this.getAccessToken(restaurant.user_id);
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-
-    await auth.request({
-      url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews/${review.google_review_id}/reply`,
-      method: 'PUT',
-      body: JSON.stringify({ comment: text }),
+    await this.googleTokens.withAutoRefresh(restaurant.user_id, (token) => {
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: token });
+      return auth.request({
+        url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews/${review.google_review_id}/reply`,
+        method: 'PUT',
+        body: JSON.stringify({ comment: text }),
+      });
     });
 
     this.logger.debug({ reviewId, text }, 'Review reply sent to Google');

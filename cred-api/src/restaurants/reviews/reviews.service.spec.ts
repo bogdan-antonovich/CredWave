@@ -1,21 +1,16 @@
 import { Test } from '@nestjs/testing';
 import { ReviewsService } from './reviews.service';
 import { AppConfigService } from 'src/config/config.service';
+import { GoogleTokensService } from '../../auth/auth.service';
 import { NotFoundException } from '@nestjs/common';
 import { google } from 'googleapis';
 import { getJson } from 'serpapi';
 import { SerpReview } from './reviews.types';
 import { getLoggerToken } from 'nestjs-pino';
 
-jest.mock('googleapis', () => {
-  return {
-    google: {
-      auth: {
-        OAuth2: jest.fn(),
-      },
-    },
-  };
-});
+jest.mock('googleapis', () => ({
+  google: { auth: { OAuth2: jest.fn() } },
+}));
 
 jest.mock('serpapi', () => ({
   getJson: jest.fn(),
@@ -24,6 +19,7 @@ jest.mock('serpapi', () => ({
 describe('ReviewsService', () => {
   let service: ReviewsService;
   let sql: jest.Mock;
+  let mockGoogleTokens: { withAutoRefresh: jest.Mock };
 
   const configMock = {
     get: jest.fn((key: string) => {
@@ -38,13 +34,23 @@ describe('ReviewsService', () => {
     sql = jest.fn();
     (sql as any).json = jest.fn((x: unknown) => x);
 
+    mockGoogleTokens = {
+      withAutoRefresh: jest.fn().mockImplementation(
+        (_: string, fn: (token: string) => Promise<unknown>) => fn('TOKEN123'),
+      ),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ReviewsService,
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
         { provide: AppConfigService, useValue: configMock },
-        { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
+        { provide: GoogleTokensService, useValue: mockGoogleTokens },
+        {
+          provide: getLoggerToken(ReviewsService.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -54,63 +60,46 @@ describe('ReviewsService', () => {
     OAuth2Mock.mockReset();
   });
 
-  describe('getAccessToken', () => {
-    it('should use access token when syncing', async () => {
-      const setCredentialsMock = jest.fn();
-      const requestMock = jest
-        .fn()
-        .mockResolvedValue({ data: { reviews: [] } });
-
+  describe('syncReviews token delegation', () => {
+    it('should call withAutoRefresh with the restaurant user_id', async () => {
+      const mockRequest = jest.fn().mockResolvedValue({ data: { reviews: [] } });
       OAuth2Mock.mockImplementation(() => ({
-        setCredentials: setCredentialsMock,
-        request: requestMock,
+        setCredentials: jest.fn(),
+        request: mockRequest,
       }));
 
       sql
-        .mockResolvedValueOnce([
-          {
-            user_id: 'u1',
-            google_account_id: 'acc',
-            google_location_id: 'loc',
-          },
-        ]) // restaurant
-        .mockResolvedValueOnce([{ token: 'TOKEN123' }]) // token
-        .mockResolvedValueOnce([]); // update
-
-      await service.syncReviews('r1');
-
-      expect(setCredentialsMock).toHaveBeenCalledWith({
-        access_token: 'TOKEN123',
-      });
-    });
-
-    it('should handle missing access token', async () => {
-      const setCredentialsMock = jest.fn();
-      const requestMock = jest
-        .fn()
-        .mockResolvedValue({ data: { reviews: [] } });
-
-      OAuth2Mock.mockImplementation(() => ({
-        setCredentials: setCredentialsMock,
-        request: requestMock,
-      }));
-
-      sql
-        .mockResolvedValueOnce([
-          {
-            user_id: 'u1',
-            google_account_id: 'acc',
-            google_location_id: 'loc',
-          },
-        ])
-        .mockResolvedValueOnce([]) // no token
+        .mockResolvedValueOnce([{ user_id: 'u1', google_account_id: 'acc', google_location_id: 'loc' }])
         .mockResolvedValueOnce([]);
 
+      mockGoogleTokens.withAutoRefresh.mockImplementation(
+        (_: string, fn: (token: string) => Promise<unknown>) => fn('TOKEN123'),
+      );
+
       await service.syncReviews('r1');
 
-      expect(setCredentialsMock).toHaveBeenCalledWith({
-        access_token: null,
-      });
+      expect(mockGoogleTokens.withAutoRefresh).toHaveBeenCalledWith('u1', expect.any(Function));
+    });
+
+    it('should pass the token from withAutoRefresh to OAuth2 setCredentials', async () => {
+      const setCredentialsMock = jest.fn();
+      const requestMock = jest.fn().mockResolvedValue({ data: { reviews: [] } });
+      OAuth2Mock.mockImplementation(() => ({
+        setCredentials: setCredentialsMock,
+        request: requestMock,
+      }));
+
+      sql
+        .mockResolvedValueOnce([{ user_id: 'u1', google_account_id: 'acc', google_location_id: 'loc' }])
+        .mockResolvedValueOnce([]);
+
+      mockGoogleTokens.withAutoRefresh.mockImplementation(
+        (_: string, fn: (token: string) => Promise<unknown>) => fn('MY_TOKEN'),
+      );
+
+      await service.syncReviews('r1');
+
+      expect(setCredentialsMock).toHaveBeenCalledWith({ access_token: 'MY_TOKEN' });
     });
   });
 
@@ -118,9 +107,7 @@ describe('ReviewsService', () => {
     it('should throw NotFoundException if restaurantId is invalid', async () => {
       sql.mockResolvedValueOnce([]);
 
-      await expect(service.syncReviews('bad-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.syncReviews('bad-id')).rejects.toThrow(NotFoundException);
     });
 
     it('should sync reviews with google and insert new ones', async () => {
@@ -144,34 +131,21 @@ describe('ReviewsService', () => {
       }));
 
       sql
-        .mockResolvedValueOnce([
-          {
-            user_id: 'u1',
-            google_account_id: 'acc',
-            google_location_id: 'loc',
-          },
-        ]) // restaurant
-        .mockResolvedValueOnce([{ token: 'token' }]) // token
-        .mockResolvedValueOnce([{ inserted: true }]) // insert review
-        .mockResolvedValueOnce([]); // update last_synced_at
+        .mockResolvedValueOnce([{ user_id: 'u1', google_account_id: 'acc', google_location_id: 'loc' }])
+        .mockResolvedValueOnce([{ inserted: true }])
+        .mockResolvedValueOnce([]);
 
       const result = await service.syncReviews('r1');
 
       expect(result.new_reviews).toBe(1);
       expect(mockRequest).toHaveBeenCalled();
-      expect(sql).toHaveBeenCalledTimes(4);
+      expect(sql).toHaveBeenCalledTimes(3);
     });
 
     it('should handle update (not inserted)', async () => {
       const mockRequest = jest.fn().mockResolvedValue({
         data: {
-          reviews: [
-            {
-              reviewId: 'r1',
-              starRating: 'FIVE',
-              createTime: '2024-01-01',
-            },
-          ],
+          reviews: [{ reviewId: 'r1', starRating: 'FIVE', createTime: '2024-01-01' }],
         },
       });
 
@@ -181,15 +155,8 @@ describe('ReviewsService', () => {
       }));
 
       sql
-        .mockResolvedValueOnce([
-          {
-            user_id: 'u1',
-            google_account_id: 'acc',
-            google_location_id: 'loc',
-          },
-        ])
-        .mockResolvedValueOnce([{ token: 'token' }])
-        .mockResolvedValueOnce([{ inserted: false }]) // update case
+        .mockResolvedValueOnce([{ user_id: 'u1', google_account_id: 'acc', google_location_id: 'loc' }])
+        .mockResolvedValueOnce([{ inserted: false }])
         .mockResolvedValueOnce([]);
 
       const result = await service.syncReviews('r1');
@@ -202,9 +169,7 @@ describe('ReviewsService', () => {
     it('should throw if restaurant not found', async () => {
       sql.mockResolvedValueOnce([]);
 
-      await expect(service.getReviews('bad', 'all', 1, 10)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getReviews('bad', 'all', 1, 10)).rejects.toThrow(NotFoundException);
     });
 
     it('should trigger sync if stale', async () => {
@@ -213,9 +178,9 @@ describe('ReviewsService', () => {
         .mockResolvedValue({ new_reviews: 0, synced_at: new Date() });
 
       sql
-        .mockResolvedValueOnce([{ is_stale: true }]) // stale
-        .mockResolvedValueOnce([]) // statusFilter fragment
-        .mockResolvedValueOnce([]) // reviews
+        .mockResolvedValueOnce([{ is_stale: true }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ pending: 0, replied: 0, total: 0 }]);
 
       await service.getReviews('r1', 'all', 1, 10);
@@ -224,12 +189,10 @@ describe('ReviewsService', () => {
     });
 
     it('should return reviews with pagination and stats', async () => {
-      const now = new Date();
-
       sql
-        .mockResolvedValueOnce([{ is_stale: false }]) // not stale
-        .mockResolvedValueOnce([]) // statusFilter fragment
-        .mockResolvedValueOnce([{ id: 1 }]) // reviews
+        .mockResolvedValueOnce([{ is_stale: false }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 1, replied: 2, total: 3 }]);
 
       const result = await service.getReviews('r1', 'all', 1, 2);
@@ -240,11 +203,9 @@ describe('ReviewsService', () => {
     });
 
     it('should filter pending reviews', async () => {
-      const now = new Date();
-
       sql
-        .mockResolvedValueOnce([{ last_synced_at: now }])
-        .mockResolvedValueOnce([]) // statusFilter fragment
+        .mockResolvedValueOnce([{ last_synced_at: new Date() }])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 2, replied: 1, total: 3 }]);
 
@@ -254,11 +215,9 @@ describe('ReviewsService', () => {
     });
 
     it('should filter replied reviews', async () => {
-      const now = new Date();
-
       sql
-        .mockResolvedValueOnce([{ last_synced_at: now }])
-        .mockResolvedValueOnce([]) // statusFilter fragment
+        .mockResolvedValueOnce([{ last_synced_at: new Date() }])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 2, replied: 1, total: 3 }]);
 
@@ -311,10 +270,7 @@ describe('ReviewsService', () => {
 
     it('should fetch, filter and cache reviews if not cached', async () => {
       jest.spyOn(service, 'getDemoReviewsFromDb').mockResolvedValue(null);
-
-      const saveSpy = jest
-        .spyOn(service, 'saveDemoReviews')
-        .mockResolvedValue();
+      const saveSpy = jest.spyOn(service, 'saveDemoReviews').mockResolvedValue();
 
       (getJson as jest.Mock).mockResolvedValue({
         reviews: [
