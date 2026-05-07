@@ -19,6 +19,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
+  authorizationParams(): object {
+    return {
+      access_type: 'offline',
+      prompt: 'consent',
+    };
+  }
+
   validate(
     accessToken: string,
     refreshToken: string,
@@ -26,13 +33,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: Profile,
     done: VerifyCallback,
   ) {
+    console.log('RAW PROFILE:', JSON.stringify(profile));
     done(null, {
-      email: profile.emails![0].value,
+      email: profile.emails?.[0]?.value ?? null,
       name: profile.displayName,
-      pictureUrl: profile.photos![0].value,
+      pictureUrl: profile.photos?.[0]?.value ?? null,
       accessToken,
       refreshToken,
       expiresIn: params.expires_in,
     });
   }
-}
