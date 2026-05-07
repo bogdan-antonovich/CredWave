@@ -19,6 +19,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
+  authorizationParams(): object {
+    return {
+      access_type: 'offline',
+      prompt: 'consent',
+    };
+  }
+
   validate(
     accessToken: string,
     refreshToken: string,
