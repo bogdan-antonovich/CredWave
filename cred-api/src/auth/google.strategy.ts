@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-google-oauth20';
+import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { Profile } from 'passport-google-oauth20';
 import { AppConfigService } from '../config/config.service';
 
@@ -19,27 +19,20 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
-  authorizationParams(): object {
-    return {
-      access_type: 'offline',
-      prompt: 'consent',
-    };
-  }
-
   validate(
     accessToken: string,
     refreshToken: string,
     params: { expires_in: number },
     profile: Profile,
+    done: VerifyCallback,
   ) {
-    console.log('RAW PROFILE:', JSON.stringify(profile));
-    return {
-      email: profile.emails?.[0]?.value ?? null,
+    done(null, {
+      email: profile.emails![0].value,
       name: profile.displayName,
-      pictureUrl: profile.photos?.[0]?.value ?? null,
+      pictureUrl: profile.photos![0].value,
       accessToken,
       refreshToken,
       expiresIn: params.expires_in,
-    };
+    });
   }
 }
