@@ -94,7 +94,8 @@ export class GoogleTokensService {
     const [row] = await this.sql<{ token: string }[]>`
       SELECT token FROM gl_refresh_tokens WHERE user_id = ${userId}
     `;
-    if (!row?.token) throw new Error(`No Google refresh token for user ${userId}`);
+    if (!row?.token)
+      throw new Error(`No Google refresh token for user ${userId}`);
     return row.token;
   }
 
@@ -109,7 +110,10 @@ export class GoogleTokensService {
       if (!isGoogleAuthError(err)) throw err;
       this.logger.warn({ userId }, 'Google access token expired, refreshing');
       const refreshToken = await this.getRefreshToken(userId);
-      const newToken = await this.refreshGoogleAccessToken(userId, refreshToken);
+      const newToken = await this.refreshGoogleAccessToken(
+        userId,
+        refreshToken,
+      );
       return fn(newToken);
     }
   }
