@@ -34,7 +34,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback,
   ) {
     done(null, {
-      email: profile.emails![0].value,
+      email: profile.emails?.[0]?.value ?? null,
       name: profile.displayName,
       pictureUrl: profile.photos?.[0]?.value ?? null,
       accessToken,
