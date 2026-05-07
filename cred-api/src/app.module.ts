@@ -53,7 +53,11 @@ import { LoggerModule } from 'nestjs-pino';
             level,
             quietReqLogger: true,
             serializers: {
-              req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+              req: (req: { id: unknown; method: unknown; url: unknown }) => ({
+                id: req.id,
+                method: req.method,
+                url: req.url,
+              }),
             },
             transport: { targets },
           },
