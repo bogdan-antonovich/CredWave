@@ -112,6 +112,7 @@ export class RestaurantsService {
     this.logger.debug({ id }, 'Restaurant info updated successfully');
   }
 
+  //
   async getAutoReply(id: string) {
     const [row] = await this.sql<AutoReplyChanges[]>`
       SELECT
