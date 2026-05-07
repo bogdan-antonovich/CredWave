@@ -29,7 +29,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done(null, {
       email: profile.emails![0].value,
       name: profile.displayName,
-      pictureUrl: profile.photos![0].value,
+      pictureUrl: profile.photos?.[0]?.value ?? null,
       accessToken,
       refreshToken,
       expiresIn: params.expires_in,
