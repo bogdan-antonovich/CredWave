@@ -129,7 +129,7 @@ onMounted(() => {
       <section v-if="showInput" class="pb-24 px-6">
         <div class="max-w-[560px] mx-auto">
           <div class="hero-enter hero-enter-delay-3">
-            <div class="flex gap-2">
+            <div class="flex flex-col sm:flex-row gap-2">
               <div class="relative flex-1">
                 <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                 <input
@@ -141,7 +141,7 @@ onMounted(() => {
                 />
               </div>
               <button
-                class="px-6 py-3.5 bg-brand text-text-inverse text-sm font-semibold rounded-xl hover:bg-brand-subtle transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:pointer-events-none shadow-sm"
+                class="w-full sm:w-auto px-6 py-3.5 bg-brand text-text-inverse text-sm font-semibold rounded-xl hover:bg-brand-subtle transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:pointer-events-none shadow-sm"
                 @click="handleGenerate"
               >
                 Generate Demo
@@ -193,18 +193,17 @@ onMounted(() => {
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-semibold text-text-primary">{{ option.name }}</p>
-                <div class="flex items-center gap-2 mt-0.5">
-                  <p class="text-xs text-text-muted truncate">{{ option.location }}</p>
+                <p class="text-xs text-text-muted mt-0.5 leading-relaxed">{{ option.location }}</p>
+                <div class="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
                   <template v-if="option.rating">
-                    <span class="text-text-muted">·</span>
-                    <span class="flex items-center gap-0.5 text-xs text-text-muted shrink-0">
+                    <span class="flex items-center gap-0.5 text-xs text-text-muted">
                       <Star class="w-3 h-3 text-warning fill-warning" />
                       {{ option.rating }}
                     </span>
                   </template>
                   <template v-if="option.review_count">
-                    <span class="text-text-muted">·</span>
-                    <span class="text-xs text-text-muted shrink-0">{{ option.review_count }} reviews</span>
+                    <span class="text-text-muted text-xs">·</span>
+                    <span class="text-xs text-text-muted">{{ option.review_count }} reviews</span>
                   </template>
                 </div>
               </div>

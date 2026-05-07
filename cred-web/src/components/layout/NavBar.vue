@@ -1,14 +1,21 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { Menu, X } from 'lucide-vue-next'
 
 defineProps<{
   dark?: boolean
 }>()
 
 const route = useRoute()
+const mobileOpen = ref(false)
 
 function isActive(path: string) {
   return route.path === path || route.path.startsWith(path + '/')
+}
+
+function closeMenu() {
+  mobileOpen.value = false
 }
 </script>
 
@@ -20,7 +27,7 @@ function isActive(path: string) {
       : 'bg-white/80 backdrop-blur-lg border-b border-border-subtle'"
   >
     <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
-      <RouterLink to="/" class="flex items-center gap-2">
+      <RouterLink to="/" class="flex items-center gap-2" @click="closeMenu">
         <span
           class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-extrabold font-display tracking-tight leading-none"
           :class="dark ? 'bg-white/10 text-white' : 'bg-brand text-white'"
@@ -30,7 +37,9 @@ function isActive(path: string) {
           :class="dark ? 'text-white' : 'text-text-primary'"
         >CredWave</span>
       </RouterLink>
-      <div class="flex items-center gap-0">
+
+      <!-- Desktop nav -->
+      <div class="hidden md:flex items-center gap-0">
         <RouterLink
           to="/demo"
           class="text-sm transition-colors duration-200 px-3 py-2 text-center"
@@ -73,6 +82,64 @@ function isActive(path: string) {
           :class="dark
             ? 'bg-white text-brand hover:bg-white/90'
             : 'bg-brand text-text-inverse hover:bg-brand-subtle'"
+        >
+          Get Started
+        </RouterLink>
+      </div>
+
+      <!-- Mobile hamburger -->
+      <button
+        class="md:hidden p-2 rounded-lg transition-colors"
+        :class="dark ? 'text-white hover:bg-white/10' : 'text-text-primary hover:bg-surface-warm'"
+        @click="mobileOpen = !mobileOpen"
+      >
+        <X v-if="mobileOpen" class="w-5 h-5" />
+        <Menu v-else class="w-5 h-5" />
+      </button>
+    </div>
+
+    <!-- Mobile menu dropdown -->
+    <div
+      v-if="mobileOpen"
+      class="md:hidden border-t border-border-subtle bg-white/95 backdrop-blur-lg"
+    >
+      <div class="px-4 py-3 flex flex-col gap-1">
+        <RouterLink
+          to="/demo"
+          class="px-3 py-2.5 text-sm rounded-lg transition-colors"
+          :class="isActive('/demo') ? 'text-text-primary font-semibold bg-surface-warm' : 'text-text-secondary hover:bg-surface-warm'"
+          @click="closeMenu"
+        >
+          Demo
+        </RouterLink>
+        <RouterLink
+          to="/pricing"
+          class="px-3 py-2.5 text-sm rounded-lg transition-colors"
+          :class="isActive('/pricing') ? 'text-text-primary font-semibold bg-surface-warm' : 'text-text-secondary hover:bg-surface-warm'"
+          @click="closeMenu"
+        >
+          Pricing
+        </RouterLink>
+        <RouterLink
+          to="/contact"
+          class="px-3 py-2.5 text-sm rounded-lg transition-colors"
+          :class="isActive('/contact') ? 'text-text-primary font-semibold bg-surface-warm' : 'text-text-secondary hover:bg-surface-warm'"
+          @click="closeMenu"
+        >
+          Contact
+        </RouterLink>
+        <div class="border-t border-border-subtle my-1" />
+        <RouterLink
+          to="/auth"
+          class="px-3 py-2.5 text-sm text-text-secondary rounded-lg hover:bg-surface-warm transition-colors"
+          @click="closeMenu"
+        >
+          Sign in
+        </RouterLink>
+        <RouterLink
+          to="/pricing"
+          class="px-3 py-2.5 text-sm font-semibold text-center bg-brand text-text-inverse rounded-xl hover:bg-brand-subtle transition-all"
+          @click="closeMenu"
         >
           Get Started
         </RouterLink>
