@@ -88,7 +88,7 @@ export class ReviewsService {
           ${!!review.reviewReply},
           ${review.reviewReply?.comment ?? null},
           ${review.reviewReply?.updateTime ?? null},
-          https://search.google.com/local/reviews?placeid=${restaurantId}&reviewId=${review.reviewId}
+          ${`https://search.google.com/local/reviews?placeid=${restaurantId}&reviewId=${review.reviewId}`}
         )
         ON CONFLICT (google_review_id) DO UPDATE SET
           replied = ${!!review.reviewReply},

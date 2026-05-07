@@ -195,6 +195,7 @@ describe('Admin (integration)', () => {
         reviewerName: 'Alice',
         reviewText: 'Loved it!',
         rating: 5,
+        link: 'https://maps.google.com/review/1',
         responses: [
           { text: 'Thanks!', tone: 'friendly' },
           { text: 'We appreciate it.', tone: 'professional' },
@@ -221,6 +222,7 @@ describe('Admin (integration)', () => {
           reviewerName: 'X',
           reviewText: 'Y',
           rating: 3,
+          link: '',
           responses: [],
         })
         .expect(404);
