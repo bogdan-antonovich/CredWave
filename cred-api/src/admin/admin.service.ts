@@ -77,9 +77,10 @@ export class AdminService {
         reviewer_name: string;
         review_text: string;
         rating: number;
+        link: string;
       }[]
     >`
-      SELECT id, reviewer_name, review_text, rating
+      SELECT id, reviewer_name, review_text, rating, link
       FROM d_reviews
       WHERE restaurant_id = ${restaurant.id}
       ORDER BY created_at DESC
@@ -99,6 +100,7 @@ export class AdminService {
           reviewer_name: review.reviewer_name,
           review_text: review.review_text,
           rating: review.rating,
+          link: review.link,
           responses,
         };
       }),
@@ -145,8 +147,8 @@ export class AdminService {
       }
 
       const [review] = await tx<{ id: number }[]>`
-        INSERT INTO d_reviews (restaurant_id, reviewer_name, review_text, rating)
-        VALUES (${restaurant.id}, ${body.reviewerName}, ${body.reviewText}, ${body.rating})
+        INSERT INTO d_reviews (restaurant_id, reviewer_name, review_text, rating, link)
+        VALUES (${restaurant.id}, ${body.reviewerName}, ${body.reviewText}, ${body.rating}, ${body.link})
         RETURNING id
       `;
 

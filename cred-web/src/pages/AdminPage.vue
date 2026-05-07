@@ -33,6 +33,7 @@ interface AdminBlock {
   reviewer_name: string
   review_text: string
   rating: number
+  link: string
   responses: AdminResponse[]
 }
 
@@ -41,6 +42,7 @@ interface EditingBlock {
   reviewer_name: string
   review_text: string
   rating: number
+  link: string
   empathetic: string
   professional: string
   casual: string
@@ -175,6 +177,7 @@ function startEdit(block?: AdminBlock) {
       reviewer_name: block.reviewer_name,
       review_text: block.review_text,
       rating: block.rating,
+      link: block.link,
       empathetic: getResponse(block, 'empathetic'),
       professional: getResponse(block, 'professional'),
       casual: getResponse(block, 'casual'),
@@ -185,6 +188,7 @@ function startEdit(block?: AdminBlock) {
       reviewer_name: '',
       review_text: '',
       rating: 5,
+      link: '',
       empathetic: '',
       professional: '',
       casual: '',
@@ -208,6 +212,7 @@ async function handleSave() {
       reviewerName: editing.value.reviewer_name,
       reviewText: editing.value.review_text,
       rating: editing.value.rating,
+      link: editing.value.link,
       responses: toResponses(editing.value),
     }
 
@@ -539,6 +544,16 @@ const responseLabels: { key: 'empathetic' | 'professional' | 'casual'; label: st
                 rows="3"
                 placeholder="The customer's original review..."
                 class="w-full px-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-text-secondary mb-1.5">Google Review Link</label>
+              <input
+                v-model="editing.link"
+                type="url"
+                placeholder="https://..."
+                class="w-full px-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
               />
             </div>
 

@@ -10,6 +10,7 @@ export interface Review {
   replied: boolean;
   reply_text: string | null;
   replied_at: Date | null;
+  link: string | null;
   responses: {
     empathetic: string;
     professional: string;

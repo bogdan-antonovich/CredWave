@@ -42,6 +42,7 @@ export class DemoService {
           empathetic: byTone['empathetic'] ?? '',
           professional: byTone['professional'] ?? '',
           casual: byTone['casual'] ?? '',
+          link: b.link,
         } satisfies DemoBlock;
       }),
     };

@@ -75,7 +75,7 @@ export class ReviewsService {
         INSERT INTO reviews (
           restaurant_id, google_review_id, reviewer_name,
           reviewer_avatar_url, review_text, rating, posted_at,
-          replied, reply_text, replied_at
+          replied, reply_text, replied_at, link
         )
         VALUES (
           ${restaurantId},
@@ -87,7 +87,8 @@ export class ReviewsService {
           ${review.createTime},
           ${!!review.reviewReply},
           ${review.reviewReply?.comment ?? null},
-          ${review.reviewReply?.updateTime ?? null}
+          ${review.reviewReply?.updateTime ?? null},
+          https://search.google.com/local/reviews?placeid=${restaurantId}&reviewId=${review.reviewId}
         )
         ON CONFLICT (google_review_id) DO UPDATE SET
           replied = ${!!review.reviewReply},
@@ -145,6 +146,7 @@ export class ReviewsService {
           r.replied,
           r.reply_text           AS "replyText",
           r.replied_at           AS "repliedAt",
+          r.link,
           res.response_json      AS responses,
           res.responses_generated_at AS "responsesGeneratedAt"
         FROM reviews r

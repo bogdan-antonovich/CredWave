@@ -19,6 +19,7 @@ export interface Review {
   replied: boolean
   replyText: string | null
   repliedAt: string | null
+  link: string | null
   responses: ReviewResponses | null
   responsesGeneratedAt: string | null
 }

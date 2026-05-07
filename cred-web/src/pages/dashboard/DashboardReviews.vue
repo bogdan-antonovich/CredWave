@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Send, Check, Loader2, Zap, ChevronDown, RefreshCw, Sparkles, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { Send, Check, Loader2, Zap, ChevronDown, RefreshCw, Sparkles, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-vue-next'
 import StarRating from '@/components/shared/StarRating.vue'
 import { useUserStore } from '@/stores/user.store'
 import { useReviewsStore } from '@/stores/reviews.store'
@@ -292,7 +292,19 @@ function formatDate(iso: string) {
               />
 
               <div class="flex items-center justify-between mt-3">
-                <p class="text-[10px] text-text-muted">Edit the response above before sending, or send as-is.</p>
+                <div class="flex items-center gap-2">
+                  <p class="text-[10px] text-text-muted">Edit the response above before sending, or send as-is.</p>
+                  <a
+                    v-if="review.link"
+                    :href="review.link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 text-[10px] text-accent hover:underline shrink-0"
+                  >
+                    <ExternalLink class="w-3 h-3" />
+                    View on Google
+                  </a>
+                </div>
                 <button
                   class="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-lg transition-all duration-200 disabled:opacity-50"
                   :class="reviewsStore.sending[review.id] ? 'bg-accent/50 text-white' : 'bg-accent text-white hover:bg-accent-hover'"

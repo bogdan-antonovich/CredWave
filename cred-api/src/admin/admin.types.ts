@@ -14,5 +14,6 @@ export interface ReviewBlock {
   reviewerName: string;
   reviewText: string;
   rating: number;
+  link: string;
   responses: ReviewResponse[];
 }
