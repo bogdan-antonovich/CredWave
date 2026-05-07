@@ -43,3 +43,4 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       expiresIn: params.expires_in,
     });
   }
+}
