@@ -32,6 +32,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     params: { expires_in: number },
     profile: Profile,
   ) {
+    console.log('RAW PROFILE:', JSON.stringify(profile));
     return {
       email: profile.emails?.[0]?.value ?? null,
       name: profile.displayName,
