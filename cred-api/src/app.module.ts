@@ -25,14 +25,13 @@ import { LoggerModule } from 'nestjs-pino';
 
       useFactory: (config: AppConfigService) => {
         const isProd = config.get('nodeEnv') === 'production';
-        // const level = config.get('logLevel');
-        const level = 'debug';
+        const level = config.get('logLevel');
 
         const targets: any[] = [
           {
             target: 'pino-pretty',
             level,
-            options: { colorize: true, singleLine: false },
+            options: { colorize: true, singleLine: true },
           },
         ];
 
@@ -49,15 +48,16 @@ import { LoggerModule } from 'nestjs-pino';
           });
         }
 
-        const res = {
+        return {
           pinoHttp: {
             level,
+            quietReqLogger: true,
+            serializers: {
+              req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+            },
             transport: { targets },
           },
         };
-
-        console.log('PINO CONFIG:', JSON.stringify(res, null, 2));
-        return res;
       },
     }),
     DatabaseModule,
