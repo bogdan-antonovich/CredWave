@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { config } from '@/config/env'
 import { resetUser } from '@/services/analytics'
 
+const authUrl = `${config.appUrl}/auth`
+
 const ACCESS_KEY = 'cw_access_token'
 const REFRESH_KEY = 'cw_refresh_token'
 
@@ -64,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     resetUser()
     clearTokens()
-    window.location.href = '/auth'
+    window.location.href = authUrl
   }
 
   return {

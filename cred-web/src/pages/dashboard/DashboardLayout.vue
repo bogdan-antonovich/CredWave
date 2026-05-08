@@ -12,9 +12,9 @@ const userStore = useUserStore()
 const auth = useAuthStore()
 
 const navItems = [
-  { to: '/dashboard', label: 'Reviews', icon: LayoutDashboard, exact: true },
-  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
-  { to: '/dashboard/billing', label: 'Billing', icon: CreditCard },
+  { to: '/', label: 'Reviews', icon: LayoutDashboard, exact: true },
+  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/billing', label: 'Billing', icon: CreditCard },
 ]
 
 function isActive(item: typeof navItems[number]) {
@@ -115,7 +115,7 @@ function handleLogout() {
             class="absolute bottom-full left-0 right-0 mb-1 bg-white border border-border-subtle rounded-xl shadow-lg py-1 z-20"
           >
             <RouterLink
-              to="/dashboard/settings"
+              to="/settings"
               class="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:bg-surface-warm transition-colors"
               @click="showUserMenu = false"
             >
@@ -123,7 +123,7 @@ function handleLogout() {
               Settings
             </RouterLink>
             <RouterLink
-              to="/dashboard/billing"
+              to="/billing"
               class="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:bg-surface-warm transition-colors"
               @click="showUserMenu = false"
             >

@@ -125,8 +125,8 @@ function formatDate(iso: string) {
           <RefreshCw class="w-4 h-4" :class="reviewsStore.loading ? 'animate-spin' : ''" />
         </button>
 
-        <!-- Auto-reply controls -->
-        <div class="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-white">
+        <!-- Auto-reply controls (desktop only) -->
+        <div class="hidden md:flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-white">
           <div class="flex items-center gap-2">
             <Zap class="w-4 h-4" :class="userStore.autoReply.enabled ? 'text-accent' : 'text-text-muted'" />
             <span class="text-sm font-medium text-text-primary">Auto-reply</span>
@@ -168,6 +168,50 @@ function formatDate(iso: string) {
             />
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Auto-reply (mobile only) -->
+    <div class="md:hidden flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-white mb-6">
+      <div class="flex items-center gap-2">
+        <Zap class="w-4 h-4" :class="userStore.autoReply.enabled ? 'text-accent' : 'text-text-muted'" />
+        <span class="text-sm font-medium text-text-primary">Auto-reply</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <button
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border transition-colors"
+            :class="userStore.autoReply.enabled ? 'bg-accent/5 text-accent border-accent/20' : 'text-text-muted bg-surface-warm'"
+            @click="showToneDropdown = !showToneDropdown"
+          >
+            {{ toneLabels[userStore.autoReply.defaultTone] }}
+            <ChevronDown class="w-3 h-3" />
+          </button>
+          <div
+            v-if="showToneDropdown"
+            class="absolute top-full right-0 mt-1 w-36 bg-white border border-border-subtle rounded-lg shadow-lg py-1 z-10"
+          >
+            <button
+              v-for="(label, key) in toneLabels"
+              :key="key"
+              class="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-warm transition-colors"
+              :class="userStore.autoReply.defaultTone === key ? 'text-accent font-semibold' : 'text-text-secondary'"
+              @click="setAutoTone(key as 'empathetic' | 'professional' | 'casual')"
+            >
+              {{ label }}
+            </button>
+          </div>
+        </div>
+        <button
+          class="relative w-10 h-5.5 rounded-full transition-colors duration-200"
+          :class="userStore.autoReply.enabled ? 'bg-accent' : 'bg-border'"
+          @click="userStore.setAutoReplyEnabled(!userStore.autoReply.enabled)"
+        >
+          <span
+            class="absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all duration-200"
+            :class="userStore.autoReply.enabled ? 'left-[22px]' : 'left-0.5'"
+          />
+        </button>
       </div>
     </div>
 

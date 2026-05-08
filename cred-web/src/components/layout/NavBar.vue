@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { Menu, X, User } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth.store'
+import { config } from '@/config/env'
 
 defineProps<{
   dark?: boolean
@@ -88,16 +89,14 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
         >
           Contact
         </RouterLink>
-        <RouterLink
+        <a
           v-if="auth.isAuthenticated"
-          to="/dashboard"
+          :href="config.dashboardUrl || '/dashboard'"
           class="text-sm transition-colors duration-200 px-3 py-2 text-center"
-          :class="dark
-            ? (isActive('/dashboard') ? 'text-white' : 'text-white/40 hover:text-white/70')
-            : (isActive('/dashboard') ? 'text-text-primary' : 'text-text-muted hover:text-text-primary')"
+          :class="dark ? 'text-white/40 hover:text-white/70' : 'text-text-muted hover:text-text-primary'"
         >
           Dashboard
-        </RouterLink>
+        </a>
         <RouterLink
           v-else
           to="/auth"
@@ -181,14 +180,14 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
           Contact
         </RouterLink>
         <div class="border-t border-border-subtle my-1" />
-        <RouterLink
+        <a
           v-if="auth.isAuthenticated"
-          to="/dashboard"
+          :href="config.dashboardUrl || '/dashboard'"
           class="px-3 py-2.5 text-sm text-text-secondary rounded-lg hover:bg-surface-warm transition-colors"
           @click="closeMenu"
         >
           Dashboard
-        </RouterLink>
+        </a>
         <RouterLink
           v-else
           to="/auth"

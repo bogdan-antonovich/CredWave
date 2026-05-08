@@ -1,5 +1,7 @@
 export const config = {
   apiUrl: (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000/v1',
+  appUrl: (import.meta.env.VITE_APP_URL as string) || 'http://localhost:5173',
+  dashboardUrl: (import.meta.env.VITE_DASHBOARD_URL as string) || '',
   posthog: {
     key: (import.meta.env.VITE_POSTHOG_KEY as string) || '',
     host: (import.meta.env.VITE_POSTHOG_HOST as string) || 'https://eu.i.posthog.com',
