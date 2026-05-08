@@ -95,25 +95,27 @@ async function copyResponse() {
         <!-- Actions -->
         <div class="flex items-center gap-2 mt-4">
           <button
-            class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200"
+            class="inline-flex items-center gap-1.5 rounded-lg transition-all duration-200 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-medium"
             :class="copied
               ? 'bg-success/10 text-success'
               : 'bg-brand text-white hover:bg-brand-subtle'"
             :title="copied ? 'Copied!' : 'Copy response'"
             @click="copyResponse"
           >
-            <Check v-if="copied" class="w-3.5 h-3.5" />
-            <Copy v-else class="w-3.5 h-3.5" />
+            <Check v-if="copied" class="w-3.5 h-3.5 shrink-0" />
+            <Copy v-else class="w-3.5 h-3.5 shrink-0" />
+            <span class="hidden sm:inline">{{ copied ? 'Copied!' : 'Copy Response' }}</span>
           </button>
           <a
             v-if="block.link"
             :href="block.link"
             target="_blank"
             rel="noopener noreferrer"
-            class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all duration-200"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all duration-200 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-medium"
             title="Reply on Google"
           >
-            <ExternalLink class="w-3.5 h-3.5" />
+            <ExternalLink class="w-3.5 h-3.5 shrink-0" />
+            <span class="hidden sm:inline">Reply on Google</span>
           </a>
         </div>
       </div>

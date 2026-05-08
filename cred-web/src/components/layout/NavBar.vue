@@ -109,6 +109,7 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
           Sign in
         </RouterLink>
         <RouterLink
+          v-if="!auth.isAuthenticated"
           to="/pricing"
           class="text-sm px-5 py-1.5 rounded-full font-medium transition-all duration-200 hover:scale-[1.02] ml-3"
           :class="dark
@@ -117,7 +118,7 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
         >
           Get Started
         </RouterLink>
-        <div v-if="auth.isAuthenticated" class="relative ml-2" data-avatar-menu>
+        <div v-if="auth.isAuthenticated" class="relative ml-3" data-avatar-menu>
           <button
             class="w-8 h-8 rounded-full bg-neutral-400 flex items-center justify-center hover:bg-neutral-500 transition-colors"
             @click.stop="toggleAvatar"
@@ -197,6 +198,7 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
           Sign in
         </RouterLink>
         <RouterLink
+          v-if="!auth.isAuthenticated"
           to="/pricing"
           class="px-3 py-2.5 text-sm font-semibold text-center bg-brand text-text-inverse rounded-xl hover:bg-brand-subtle transition-all"
           @click="closeMenu"
