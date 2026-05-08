@@ -1,13 +1,33 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { config } from '@/config/env'
-import { openCheckout } from '@/services/paddle.service'
+import { openCheckout, waitForPaddle } from '@/services/paddle.service'
 import FooterSection from '@/components/layout/FooterSection.vue'
 import PricingCard from '@/components/pricing/PricingCard.vue'
 import { Shield, RotateCcw, Eye } from 'lucide-vue-next'
 import { useReveal } from '@/utils/useReveal'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth.store'
 
 useReveal()
+
+const router = useRouter()
+const auth = useAuthStore()
+
+const PENDING_KEY = 'cw_pending_checkout'
+
+onMounted(async () => {
+  const pending = localStorage.getItem(PENDING_KEY)
+  if (pending && auth.isAuthenticated) {
+    localStorage.removeItem(PENDING_KEY)
+    try {
+      await waitForPaddle()
+      openCheckout(pending)
+    } catch {
+      // paddle didn't load — ignore, user can click manually
+    }
+  }
+})
 
 const isAnnual = ref(true)
 
@@ -64,9 +84,15 @@ const plans = computed(() => [
 
 function handleSelect(plan: typeof plans.value[number]) {
   const priceId = isAnnual.value ? plan.paddlePriceAnnual : plan.paddlePriceMonthly
-  if (priceId) {
-    openCheckout(priceId)
+  if (!priceId) return
+
+  if (!auth.isAuthenticated) {
+    localStorage.setItem(PENDING_KEY, priceId)
+    void router.push('/auth')
+    return
   }
+
+  openCheckout(priceId)
 }
 
 const faq = [

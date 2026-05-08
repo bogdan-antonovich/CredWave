@@ -34,6 +34,17 @@ export function initPaddle(): void {
   document.head.appendChild(script)
 }
 
+export function waitForPaddle(timeoutMs = 5000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.Paddle) { resolve(); return }
+    const start = Date.now()
+    const interval = setInterval(() => {
+      if (window.Paddle) { clearInterval(interval); resolve() }
+      else if (Date.now() - start > timeoutMs) { clearInterval(interval); reject(new Error('Paddle load timeout')) }
+    }, 100)
+  })
+}
+
 export function openCheckout(priceId: string): void {
   if (!window.Paddle) {
     console.warn('Paddle not initialized')

@@ -2,20 +2,32 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import { api, ApiError } from '@/services/api'
 
 const router = useRouter()
 const auth = useAuthStore()
 
-onMounted(() => {
+onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
   const accessToken = params.get('access_token')
   const refreshToken = params.get('refresh_token')
 
-  if (accessToken && refreshToken) {
-    auth.setTokens(accessToken, refreshToken)
-    void router.replace('/dashboard')
-  } else {
+  if (!accessToken || !refreshToken) {
     void router.replace('/auth')
+    return
+  }
+
+  auth.setTokens(accessToken, refreshToken)
+
+  try {
+    await api.get('/billing/subscription')
+    void router.replace('/dashboard')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      void router.replace('/pricing')
+    } else {
+      void router.replace('/pricing')
+    }
   }
 })
 </script>

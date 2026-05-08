@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { Menu, X } from 'lucide-vue-next'
+import { Menu, X, User } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth.store'
 
 defineProps<{
   dark?: boolean
 }>()
 
 const route = useRoute()
+const auth = useAuthStore()
 const mobileOpen = ref(false)
+const avatarOpen = ref(false)
 
 function isActive(path: string) {
   return route.path === path || route.path.startsWith(path + '/')
@@ -17,6 +20,24 @@ function isActive(path: string) {
 function closeMenu() {
   mobileOpen.value = false
 }
+
+function toggleAvatar() {
+  avatarOpen.value = !avatarOpen.value
+}
+
+function closeAvatar() {
+  avatarOpen.value = false
+}
+
+function handleOutsideClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target.closest('[data-avatar-menu]')) {
+    avatarOpen.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('click', handleOutsideClick))
+onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
 </script>
 
 <template>
@@ -67,24 +88,54 @@ function closeMenu() {
         >
           Contact
         </RouterLink>
-        <RouterLink
-          to="/auth"
-          class="text-sm transition-colors duration-200 px-3 py-2 text-center"
-          :class="dark
-            ? (isActive('/auth') ? 'text-white' : 'text-white/40 hover:text-white/70')
-            : (isActive('/auth') ? 'text-text-primary' : 'text-text-muted hover:text-text-primary')"
-        >
-          Sign in
-        </RouterLink>
-        <RouterLink
-          to="/pricing"
-          class="text-sm px-5 py-1.5 rounded-full font-medium transition-all duration-200 hover:scale-[1.02] ml-3"
-          :class="dark
-            ? 'bg-white text-brand hover:bg-white/90'
-            : 'bg-brand text-text-inverse hover:bg-brand-subtle'"
-        >
-          Get Started
-        </RouterLink>
+        <template v-if="auth.isAuthenticated">
+          <div class="relative ml-3" data-avatar-menu>
+            <button
+              class="w-8 h-8 rounded-full bg-neutral-400 flex items-center justify-center hover:bg-neutral-500 transition-colors"
+              @click.stop="toggleAvatar"
+            >
+              <User class="w-4 h-4 text-white" />
+            </button>
+            <div
+              v-if="avatarOpen"
+              class="absolute right-0 top-full mt-2 w-44 bg-white border border-border-subtle rounded-xl shadow-lg overflow-hidden py-1 z-50"
+            >
+              <RouterLink
+                to="/dashboard"
+                class="flex items-center px-4 py-2.5 text-sm text-text-primary hover:bg-surface-warm transition-colors"
+                @click="closeAvatar"
+              >
+                Dashboard
+              </RouterLink>
+              <button
+                class="w-full text-left flex items-center px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                @click="auth.logout()"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <RouterLink
+            to="/auth"
+            class="text-sm transition-colors duration-200 px-3 py-2 text-center"
+            :class="dark
+              ? (isActive('/auth') ? 'text-white' : 'text-white/40 hover:text-white/70')
+              : (isActive('/auth') ? 'text-text-primary' : 'text-text-muted hover:text-text-primary')"
+          >
+            Sign in
+          </RouterLink>
+          <RouterLink
+            to="/pricing"
+            class="text-sm px-5 py-1.5 rounded-full font-medium transition-all duration-200 hover:scale-[1.02] ml-3"
+            :class="dark
+              ? 'bg-white text-brand hover:bg-white/90'
+              : 'bg-brand text-text-inverse hover:bg-brand-subtle'"
+          >
+            Get Started
+          </RouterLink>
+        </template>
       </div>
 
       <!-- Mobile hamburger -->
@@ -129,20 +180,37 @@ function closeMenu() {
           Contact
         </RouterLink>
         <div class="border-t border-border-subtle my-1" />
-        <RouterLink
-          to="/auth"
-          class="px-3 py-2.5 text-sm text-text-secondary rounded-lg hover:bg-surface-warm transition-colors"
-          @click="closeMenu"
-        >
-          Sign in
-        </RouterLink>
-        <RouterLink
-          to="/pricing"
-          class="px-3 py-2.5 text-sm font-semibold text-center bg-brand text-text-inverse rounded-xl hover:bg-brand-subtle transition-all"
-          @click="closeMenu"
-        >
-          Get Started
-        </RouterLink>
+        <template v-if="auth.isAuthenticated">
+          <RouterLink
+            to="/dashboard"
+            class="px-3 py-2.5 text-sm text-text-secondary rounded-lg hover:bg-surface-warm transition-colors"
+            @click="closeMenu"
+          >
+            Dashboard
+          </RouterLink>
+          <button
+            class="w-full text-left px-3 py-2.5 text-sm text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+            @click="auth.logout(); closeMenu()"
+          >
+            Sign out
+          </button>
+        </template>
+        <template v-else>
+          <RouterLink
+            to="/auth"
+            class="px-3 py-2.5 text-sm text-text-secondary rounded-lg hover:bg-surface-warm transition-colors"
+            @click="closeMenu"
+          >
+            Sign in
+          </RouterLink>
+          <RouterLink
+            to="/pricing"
+            class="px-3 py-2.5 text-sm font-semibold text-center bg-brand text-text-inverse rounded-xl hover:bg-brand-subtle transition-all"
+            @click="closeMenu"
+          >
+            Get Started
+          </RouterLink>
+        </template>
       </div>
     </div>
   </nav>
