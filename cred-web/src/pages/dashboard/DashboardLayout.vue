@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { LayoutDashboard, Settings, CreditCard, LogOut, ChevronDown } from 'lucide-vue-next'
+import { LayoutDashboard, Settings, CreditCard, LogOut, ChevronDown, Menu, X } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user.store'
 import { useAuthStore } from '@/stores/auth.store'
 
 const route = useRoute()
 const showUserMenu = ref(false)
+const sidebarOpen = ref(false)
 const userStore = useUserStore()
 const auth = useAuthStore()
 
@@ -21,6 +22,8 @@ function isActive(item: typeof navItems[number]) {
   return route.path.startsWith(item.to)
 }
 
+watch(() => route.path, () => { sidebarOpen.value = false })
+
 onMounted(() => void userStore.fetchAll())
 
 function handleLogout() {
@@ -30,8 +33,34 @@ function handleLogout() {
 
 <template>
   <div class="min-h-screen bg-surface-warm">
+
+    <!-- Mobile top bar -->
+    <div class="md:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-white border-b border-border-subtle flex items-center px-4 gap-3">
+      <button
+        class="p-2 rounded-lg hover:bg-surface-warm transition-colors text-text-primary"
+        @click="sidebarOpen = !sidebarOpen"
+      >
+        <X v-if="sidebarOpen" class="w-5 h-5" />
+        <Menu v-else class="w-5 h-5" />
+      </button>
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand text-white text-xs font-extrabold font-display tracking-tight leading-none">CW</span>
+      <span class="text-base font-bold tracking-tight text-text-primary font-display">CredWave</span>
+    </div>
+
+    <!-- Mobile backdrop -->
+    <Transition name="fade">
+      <div
+        v-if="sidebarOpen"
+        class="md:hidden fixed inset-0 z-40 bg-black/30"
+        @click="sidebarOpen = false"
+      />
+    </Transition>
+
     <!-- Sidebar — fixed full height -->
-    <aside class="fixed top-0 left-0 bottom-0 w-[240px] bg-white border-r border-border-subtle flex flex-col z-40">
+    <aside
+      class="fixed top-0 left-0 bottom-0 w-[240px] bg-white border-r border-border-subtle flex flex-col z-40 transition-transform duration-300 ease-in-out"
+      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
+    >
       <!-- Logo -->
       <div class="px-5 h-14 flex items-center gap-2 border-b border-border-subtle">
         <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand text-white text-xs font-extrabold font-display tracking-tight leading-none">CW</span>
@@ -114,9 +143,20 @@ function handleLogout() {
       </div>
     </aside>
 
-    <!-- Main content — offset by sidebar width -->
-    <div class="ml-[240px] min-h-screen overflow-y-auto">
+    <!-- Main content — offset by sidebar on desktop, top bar on mobile -->
+    <div class="md:ml-[240px] min-h-screen overflow-y-auto pt-14 md:pt-0">
       <RouterView />
     </div>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
