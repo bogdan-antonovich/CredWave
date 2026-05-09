@@ -2,19 +2,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { trackPageview } from '@/services/analytics'
 import { config } from '@/config/env'
-
-const dashboardHostname = config.dashboardUrl
-  ? new URL(config.dashboardUrl).hostname
-  : null
-
-const isDashboard =
-  dashboardHostname !== null &&
-  window.location.hostname === dashboardHostname
+import { isDashboardDomain } from '@/utils/domain'
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: isDashboard
+  routes: isDashboardDomain
     ? [
+        // ── Dashboard subdomain: routes live at root ──
         {
           path: '/',
           component: () => import('@/pages/dashboard/DashboardLayout.vue'),
@@ -43,9 +37,16 @@ const router = createRouter({
           component: () => import('@/pages/AdminPage.vue'),
           meta: { requiresAuth: true },
         },
+        // Auth callback lands here after being forwarded from credwave.app
+        {
+          path: '/auth/callback',
+          name: 'auth-callback',
+          component: () => import('@/pages/AuthCallbackPage.vue'),
+        },
         { path: '/:pathMatch(.*)*', redirect: '/' },
       ]
     : [
+        // ── Main domain: marketing + auth routes ──
         {
           path: '/',
           name: 'home',
@@ -82,12 +83,6 @@ const router = createRouter({
           component: () => import('@/pages/AuthCallbackPage.vue'),
         },
         {
-          path: '/admin',
-          name: 'admin',
-          component: () => import('@/pages/AdminPage.vue'),
-          meta: { requiresAuth: true },
-        },
-        {
           path: '/login',
           name: 'login',
           component: () => import('@/pages/LoginPage.vue'),
@@ -102,6 +97,19 @@ const router = createRouter({
           name: 'terms',
           component: () => import('@/pages/TermsPage.vue'),
         },
+        // Redirect /dashboard to the subdomain
+        {
+          path: '/dashboard',
+          redirect: () => {
+            window.location.href = config.dashboardUrl || '/dashboard'
+            return '/'
+          },
+        },
+        {
+          path: '/:pathMatch(.*)*',
+          name: 'not-found',
+          component: () => import('@/pages/NotFoundPage.vue'),
+        },
       ],
   scrollBehavior() {
     return { top: 0 }
@@ -112,7 +120,8 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
     const auth = useAuthStore()
     if (!auth.isAuthenticated) {
-      if (isDashboard) {
+      if (isDashboardDomain) {
+        // Unauthenticated on dashboard subdomain → send to main domain login
         window.location.href = `${config.appUrl}/auth`
         return false
       }
