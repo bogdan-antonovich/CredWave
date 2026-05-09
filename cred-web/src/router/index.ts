@@ -122,7 +122,7 @@ router.beforeEach((to) => {
     if (!auth.isAuthenticated) {
       if (isDashboardDomain) {
         // Unauthenticated on dashboard subdomain → send to main domain login
-        window.location.href = `${config.appUrl}/auth`
+        window.location.href = config.appUrl ? `${config.appUrl}/auth` : 'https://credwave.app/auth'
         return false
       }
       return { name: 'auth' }

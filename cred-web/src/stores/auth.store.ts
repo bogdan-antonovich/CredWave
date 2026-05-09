@@ -2,8 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { config } from '@/config/env'
 import { resetUser } from '@/services/analytics'
-
-const authUrl = `${config.appUrl}/auth`
+import { isDashboardDomain } from '@/utils/domain'
 
 const ACCESS_KEY = 'cw_access_token'
 const REFRESH_KEY = 'cw_refresh_token'
@@ -66,7 +65,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
     resetUser()
     clearTokens()
-    window.location.href = authUrl
+    window.location.href = isDashboardDomain
+      ? `${config.appUrl}/auth`
+      : '/auth'
   }
 
   return {

@@ -9,8 +9,13 @@ RUN npm ci
 COPY . .
 
 # Build args become env vars at build time
+ARG VITE_API_URL=https://credwave.app/api/v1
+ARG VITE_APP_URL=https://credwave.app
+ARG VITE_DASHBOARD_URL=https://dashboard.credwave.app
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_POSTHOG_KEY
+ARG VITE_POSTHOG_HOST=https://eu.i.posthog.com
 ARG VITE_PADDLE_VENDOR_ID
 ARG VITE_PADDLE_ENV=sandbox
 ARG VITE_PADDLE_PRICE_STARTER_MONTHLY
@@ -20,8 +25,6 @@ ARG VITE_PADDLE_PRICE_GROWTH_ANNUAL
 ARG VITE_PADDLE_PRICE_SCALE_MONTHLY
 ARG VITE_PADDLE_PRICE_SCALE_ANNUAL
 ARG VITE_ADMIN_PASSWORD=credwave2024
-ARG VITE_APP_URL=https://credwave.app
-ARG VITE_DASHBOARD_URL=https://dashboard.credwave.app
 
 RUN npm run build
 
