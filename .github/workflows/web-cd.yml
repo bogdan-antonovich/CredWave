@@ -43,6 +43,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=cred-web-prod
           build-args: |
             VITE_API_URL=${{ vars.VITE_API_URL }}
+            VITE_APP_URL=${{ vars.VITE_APP_URL }}
+            VITE_DASHBOARD_URL=${{ vars.VITE_DASHBOARD_URL }}
             VITE_POSTHOG_KEY=${{ vars.VITE_POSTHOG_KEY }}
             VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
             VITE_PADDLE_VENDOR_ID=${{ vars.VITE_PADDLE_VENDOR_ID }}
