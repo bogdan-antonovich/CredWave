@@ -2,7 +2,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
-import { api, ApiError } from '@/services/api'
+import { api } from '@/services/api'
 import { config } from '@/config/env'
 import { isDashboardDomain } from '@/utils/domain'
 
@@ -35,13 +35,9 @@ onMounted(async () => {
     target.searchParams.set('access_token', accessToken)
     target.searchParams.set('refresh_token', refreshToken)
     window.location.href = target.toString()
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      // No subscription → stay on main domain, go to pricing
-      void router.replace('/pricing')
-    } else {
-      void router.replace('/pricing')
-    }
+  } catch {
+    // No subscription → always send to main domain pricing page
+    window.location.href = `${config.appUrl}/pricing`
   }
 })
 </script>

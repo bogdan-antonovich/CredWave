@@ -1,6 +1,6 @@
 INSERT INTO users (id, email, name)
 OVERRIDING SYSTEM VALUE
-VALUES (1, 'admin@credwave.app', 'Admin')
+VALUES (1, 'l1qwiecsgo@gmail.com', 'Admin')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(
