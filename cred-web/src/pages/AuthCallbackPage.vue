@@ -36,8 +36,8 @@ onMounted(async () => {
     target.searchParams.set('refresh_token', refreshToken)
     window.location.href = target.toString()
   } catch {
-    // No subscription → go to pricing (auth callback is always on credwave.app)
-    void router.replace('/pricing')
+    // No subscription → pricing on main domain (absolute so it works regardless of which domain callback runs on)
+    window.location.href = `${config.appUrl}/pricing`
   }
 })
 </script>
