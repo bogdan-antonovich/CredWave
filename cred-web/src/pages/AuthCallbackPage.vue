@@ -2,7 +2,6 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
-import { api } from '@/services/api'
 import { config } from '@/config/env'
 import { isDashboardDomain } from '@/utils/domain'
 
@@ -27,16 +26,21 @@ onMounted(async () => {
     return
   }
 
-  // On main domain: check subscription and decide where to send the user
-  try {
-    await api.get('/billing/subscription')
+  // On main domain: check subscription and decide where to send the user.
+  // Use plain fetch — tokens are fresh, so no need for the api interceptor's
+  // auto-refresh/auto-logout, which would wipe credwave.app localStorage on any failure.
+  const res = await fetch(`${config.apiUrl}/billing/subscription`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).catch(() => null)
+
+  if (res?.ok) {
     // Has subscription → forward to dashboard subdomain with tokens
     const target = new URL(`${config.dashboardUrl}/auth/callback`)
     target.searchParams.set('access_token', accessToken)
     target.searchParams.set('refresh_token', refreshToken)
     window.location.href = target.toString()
-  } catch {
-    // No subscription → pricing on main domain (absolute so it works regardless of which domain callback runs on)
+  } else {
+    // No subscription (or network error) → pricing on main domain
     window.location.href = `${config.appUrl}/pricing`
   }
 })
