@@ -33,15 +33,19 @@ onMounted(async () => {
     headers: { Authorization: `Bearer ${accessToken}` },
   }).catch(() => null)
 
-  if (res?.ok) {
-    // Has subscription → forward to dashboard subdomain with tokens
+  const isAdmin = !res?.ok && (await fetch(`${config.apiUrl}/admin/restaurants`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).catch(() => null))?.ok
+
+  if (res?.ok || isAdmin) {
+    // Has subscription (or is admin) → forward to dashboard subdomain with tokens
     localStorage.removeItem('cw_pending_checkout')
     const target = new URL(`${config.dashboardUrl}/auth/callback`)
     target.searchParams.set('access_token', accessToken)
     target.searchParams.set('refresh_token', refreshToken)
     window.location.href = target.toString()
   } else {
-    // No subscription (or network error) → pricing on main domain
+    // No subscription → pricing on main domain
     // Any pending checkout priceId in localStorage will auto-open the Paddle checkout there
     window.location.href = `${config.appUrl}/pricing`
   }

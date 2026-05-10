@@ -33,7 +33,12 @@ onMounted(async () => {
   }).catch(() => null)
 
   if (!res?.ok) {
-    window.location.href = `${config.appUrl}/pricing`
+    const adminRes = await fetch(`${config.apiUrl}/admin/restaurants`, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+    }).catch(() => null)
+    if (!adminRes?.ok) {
+      window.location.href = `${config.appUrl}/pricing`
+    }
   }
 })
 
