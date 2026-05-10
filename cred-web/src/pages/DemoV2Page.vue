@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { Loader2, Sparkles } from 'lucide-vue-next'
 import { useDemoStore } from '@/stores/demo.store'
 import FooterSection from '@/components/layout/FooterSection.vue'
@@ -9,11 +9,16 @@ import { useReveal } from '@/utils/useReveal'
 
 useReveal()
 const route = useRoute()
+const router = useRouter()
 const demoStore = useDemoStore()
 
-function loadData() {
+async function loadData() {
   const name = route.params.restaurantName as string
-  if (name) void demoStore.fetchAdminBlocks(name)
+  if (!name) return
+  await demoStore.fetchAdminBlocks(name)
+  if (demoStore.error === 'not_found') {
+    void router.replace({ name: 'not-found' })
+  }
 }
 
 onMounted(loadData)
@@ -44,7 +49,7 @@ watch(() => route.params.restaurantName, loadData)
           </div>
 
           <div v-else-if="demoStore.error" class="text-center py-20">
-            <p class="text-sm text-error">{{ demoStore.error }}</p>
+            <p class="text-sm text-error">Something went wrong. Please try again later.</p>
           </div>
 
           <div v-else>

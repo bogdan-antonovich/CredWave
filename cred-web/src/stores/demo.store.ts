@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { api } from '@/services/api'
+import { api, ApiError } from '@/services/api'
 import { track } from '@/services/analytics'
 import type { ReviewBlock } from '@/types/demo.types'
 
@@ -124,7 +124,7 @@ export const useDemoStore = defineStore('demo', () => {
       blocks.value = data.blocks.map(mapApiBlock)
       track('demo_admin_viewed', { slug })
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load reviews'
+      error.value = e instanceof ApiError && e.status === 404 ? 'not_found' : 'error'
       blocks.value = []
     } finally {
       loading.value = false
