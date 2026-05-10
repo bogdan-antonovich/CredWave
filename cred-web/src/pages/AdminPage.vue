@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import {
   Plus,
   Trash2,
@@ -48,6 +48,7 @@ interface EditingBlock {
   casual: string
 }
 
+const router = useRouter()
 const authStore = useAuthStore()
 
 const restaurants = ref<AdminRestaurant[]>([])
@@ -87,7 +88,11 @@ function onNameInput() {
 }
 
 onMounted(async () => {
-  await loadRestaurants()
+  try {
+    await loadRestaurants()
+  } catch {
+    void router.replace('/')
+  }
 })
 
 async function loadRestaurants() {
