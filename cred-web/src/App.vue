@@ -3,13 +3,15 @@ import { computed, ref, provide } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import NavBar from '@/components/layout/NavBar.vue'
 import CookieBanner from '@/components/shared/CookieBanner.vue'
+import { isDashboardDomain } from '@/utils/domain'
 
 const route = useRoute()
 
 // Pages that hide the global nav entirely (they have their own sidebar)
 const hideNav = computed(() => {
+  if (isDashboardDomain) return true
   const path = route.path
-  return path.startsWith('/dashboard') || path === '/admin' || path === '/login'
+  return path === '/admin' || path === '/login'
 })
 
 // Auth page needs dark nav
