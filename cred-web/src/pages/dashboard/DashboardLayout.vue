@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { LayoutDashboard, Settings, CreditCard, LogOut, ChevronDown, Menu, X } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user.store'
 import { useAuthStore } from '@/stores/auth.store'
+import { config } from '@/config/env'
 
 const route = useRoute()
 const showUserMenu = ref(false)
@@ -24,7 +25,17 @@ function isActive(item: typeof navItems[number]) {
 
 watch(() => route.path, () => { sidebarOpen.value = false })
 
-onMounted(() => void userStore.fetchAll())
+onMounted(async () => {
+  void userStore.fetchAll()
+
+  const res = await fetch(`${config.apiUrl}/billing/subscription`, {
+    headers: { Authorization: `Bearer ${auth.accessToken}` },
+  }).catch(() => null)
+
+  if (!res?.ok) {
+    window.location.href = `${config.appUrl}/pricing`
+  }
+})
 
 function handleLogout() {
   void auth.logout()
