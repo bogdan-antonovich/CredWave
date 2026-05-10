@@ -18,8 +18,10 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
-  if (res.status === 204) return undefined as T
-  if (res.ok) return res.json() as Promise<T>
+  if (res.ok) {
+    const text = await res.text()
+    return (text ? JSON.parse(text) : undefined) as T
+  }
   const text = await res.text().catch(() => res.statusText)
   throw new ApiError(res.status, text)
 }
