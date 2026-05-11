@@ -30,14 +30,14 @@ onUnmounted(() => {
 })
 
 const stats = [
-  { value: '88%', label: 'of consumers use Google reviews to evaluate businesses' },
-  { value: '5–9%', label: 'revenue increase per one-star rating improvement' },
-  { value: '44.6%', label: 'still visit if the owner responds to negative reviews' },
-  { value: '35%', label: 'more revenue for businesses that respond to reviews' },
-  { value: '16.4%', label: 'higher conversion with review responses' },
+  { value: '75%', label: 'of restaurants never respond to a single online review' },
+  { value: '5.1 days', label: 'average restaurant review response time — among the worst of any industry' },
+  { value: '3.73★', label: 'average restaurant Google rating — among the lowest of any vertical' },
+  { value: '88%', label: 'of consumers choose a business that replies to all its reviews' },
+  { value: '47%', label: 'would use a business that ignores reviews entirely' },
+  { value: '35%', label: 'more revenue for businesses that respond to at least 25% of reviews' },
+  { value: '5–9%', label: 'revenue increase per one-star improvement in Google rating' },
   { value: '91%', label: 'of consumers reject businesses rated below 4 stars' },
-  { value: '52%', label: 'expect a response within 7 days' },
-  { value: '87%', label: 'reject businesses rated below 3 stars' },
 ]
 </script>
 
