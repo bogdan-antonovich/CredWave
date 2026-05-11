@@ -182,15 +182,17 @@ export class AdminService {
   }
 
   async getPromoCodes(): Promise<PromoCode[]> {
-    const rows = await this.sql<{
-      code: string;
-      duration_days: number;
-      max_uses: number | null;
-      use_count: number;
-      expires_at: Date | null;
-      is_active: boolean;
-      created_at: Date;
-    }[]>`
+    const rows = await this.sql<
+      {
+        code: string;
+        duration_days: number;
+        max_uses: number | null;
+        use_count: number;
+        expires_at: Date | null;
+        is_active: boolean;
+        created_at: Date;
+      }[]
+    >`
       SELECT * FROM promo_codes ORDER BY created_at DESC
     `;
     return rows.map((r) => ({
@@ -205,7 +207,12 @@ export class AdminService {
 
   async updatePromoCode(
     code: string,
-    data: { durationDays: number; maxUses?: number; expiresAt?: string; isActive: boolean },
+    data: {
+      durationDays: number;
+      maxUses?: number;
+      expiresAt?: string;
+      isActive: boolean;
+    },
   ) {
     await this.sql`
       UPDATE promo_codes

@@ -275,7 +275,13 @@ export class AdminController {
   @ApiNoContentResponse()
   async updatePromoCode(
     @Param('code') code: string,
-    @Body() body: { durationDays: number; maxUses?: number; expiresAt?: string; isActive: boolean },
+    @Body()
+    body: {
+      durationDays: number;
+      maxUses?: number;
+      expiresAt?: string;
+      isActive: boolean;
+    },
   ) {
     this.logger.info('Updating a promo code');
     return await this.adminService.updatePromoCode(code, body);

@@ -27,7 +27,8 @@ export class PromoService {
         FOR UPDATE
       `;
 
-      if (!promo) throw new BadRequestException('Invalid or expired promo code');
+      if (!promo)
+        throw new BadRequestException('Invalid or expired promo code');
 
       const [user] = await tx<{ promo_code: string | null }[]>`
         SELECT promo_code FROM users WHERE id = ${userId}
