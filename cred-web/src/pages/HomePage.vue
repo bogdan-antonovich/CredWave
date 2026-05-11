@@ -10,6 +10,8 @@ import {
     Zap,
 } from "lucide-vue-next";
 import FooterSection from "@/components/layout/FooterSection.vue";
+import HeroProductPreview from "@/components/home/HeroProductPreview.vue";
+import HowItWorksSection from "@/components/home/HowItWorksSection.vue";
 import { useReveal } from "@/utils/useReveal";
 import { useHead } from "@unhead/vue";
 
@@ -67,8 +69,8 @@ const stats = [
         label: "of consumers choose a restaurant that replies to all its reviews",
     },
     {
-        value: "47%",
-        label: "would use a restaurant that ignores reviews entirely",
+        value: "53%",
+        label: "refuse to use a restaurant that ignores reviews entirely",
     },
     {
         value: "35%",
@@ -90,47 +92,63 @@ const stats = [
         <!-- ═══════ HERO ═══════ -->
         <section
             ref="heroRef"
-            class="relative min-h-[92vh] flex items-center justify-center px-6 bg-surface-dark overflow-hidden"
+            class="relative min-h-[92vh] flex items-center px-6 bg-surface-dark overflow-hidden"
         >
             <!-- Ambient drifting orbs -->
             <div
-                class="absolute top-[40%] left-[45%] -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] rounded-full bg-accent/6 blur-[140px] pointer-events-none drift-1"
+                class="absolute top-[40%] left-[30%] -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] rounded-full bg-accent/6 blur-[140px] pointer-events-none drift-1"
             />
             <div
-                class="absolute top-[25%] right-[8%] w-[350px] h-[350px] rounded-full bg-indigo-500/4 blur-[100px] pointer-events-none drift-2"
+                class="absolute top-[20%] right-[5%] w-[400px] h-[400px] rounded-full bg-indigo-500/4 blur-[100px] pointer-events-none drift-2"
             />
             <div
-                class="absolute bottom-[15%] left-[12%] w-[250px] h-[250px] rounded-full bg-violet-500/4 blur-[90px] pointer-events-none drift-3"
+                class="absolute bottom-[15%] left-[8%] w-[250px] h-[250px] rounded-full bg-violet-500/4 blur-[90px] pointer-events-none drift-3"
             />
 
-            <div class="relative z-10 max-w-[760px] text-center">
-                <h1
-                    class="hero-enter hero-enter-delay-1 text-5xl md:text-[3.75rem] lg:text-7xl font-extrabold font-display leading-[1.05] tracking-tight text-white"
-                >
-                    Stop losing
-                    <span
-                        class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400"
-                        >35% revenue</span
-                    >
-                    to unanswered reviews
-                </h1>
+            <div class="relative z-10 w-full max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center py-20">
 
-                <p
-                    class="hero-enter hero-enter-delay-2 mt-7 text-lg md:text-xl text-white/50 leading-relaxed max-w-[560px] mx-auto font-body"
-                >
-                    Restaurants that respond to every Google review earn 35%
-                    more. CredWave writes perfect responses in seconds — so you
-                    never miss one.
-                </p>
-
-                <div class="hero-enter hero-enter-delay-3 mt-10">
-                    <RouterLink
-                        to="/demo"
-                        class="inline-flex items-center px-8 py-4 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-hover transition-all duration-300 hover:scale-[1.03] hover:-translate-y-[1px] shadow-[0_0_40px_-8px_rgba(79,70,229,0.5)]"
+                <!-- Left: text + CTA -->
+                <div>
+                    <h1
+                        class="hero-enter hero-enter-delay-1 text-5xl md:text-[3.25rem] lg:text-6xl font-extrabold font-display leading-[1.07] tracking-tight text-white"
                     >
-                        See it in action
-                    </RouterLink>
+                        Stop losing
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">35% revenue</span>
+                        to unanswered reviews
+                    </h1>
+
+                    <p
+                        class="hero-enter hero-enter-delay-2 mt-6 text-xl text-white/55 leading-relaxed max-w-[480px] font-body"
+                    >
+                        Restaurants that respond to every Google review earn 35% more.
+                        CredWave writes perfect responses in seconds — so you never miss one.
+                    </p>
+
+                    <div class="hero-enter hero-enter-delay-3 mt-10 flex flex-wrap gap-3">
+                        <RouterLink
+                            to="/demo"
+                            class="inline-flex items-center px-8 py-4 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-hover transition-all duration-300 hover:scale-[1.03] hover:-translate-y-[1px] shadow-[0_0_40px_-8px_rgba(79,70,229,0.5)]"
+                        >
+                            Try it on your restaurant
+                        </RouterLink>
+                        <RouterLink
+                            to="/pricing"
+                            class="inline-flex items-center px-8 py-4 text-sm font-semibold text-white/60 rounded-full border border-white/15 hover:border-white/30 hover:text-white transition-all duration-300"
+                        >
+                            See pricing
+                        </RouterLink>
+                    </div>
+
+                    <p class="hero-enter hero-enter-delay-3 mt-5 text-xs text-white/30">
+                        14-day free trial · No credit card required
+                    </p>
                 </div>
+
+                <!-- Right: product preview (all screen sizes) -->
+                <div class="hero-enter hero-enter-delay-2">
+                    <HeroProductPreview />
+                </div>
+
             </div>
         </section>
 
@@ -345,6 +363,9 @@ const stats = [
             </div>
         </section>
 
+        <!-- ═══════ HOW IT WORKS ═══════ -->
+        <HowItWorksSection />
+
         <!-- ═══════ FINAL CTA ═══════ -->
         <section class="py-28 px-6 bg-surface-warm relative overflow-hidden">
             <div
@@ -355,7 +376,7 @@ const stats = [
                 <h2
                     class="text-3xl md:text-[2.5rem] font-bold font-display tracking-tight text-text-primary leading-tight"
                 >
-                    Still writing review replies by hand?
+                    Every unanswered review is a customer choosing someone else.
                 </h2>
                 <p class="mt-4 text-text-secondary text-lg">
                     14-day free trial. No credit card. Cancel anytime.
@@ -364,16 +385,16 @@ const stats = [
                     class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3"
                 >
                     <RouterLink
-                        to="/pricing"
+                        to="/demo"
                         class="inline-flex items-center px-8 py-4 bg-brand text-text-inverse text-sm font-semibold rounded-full hover:bg-brand-subtle transition-all duration-300 hover:scale-[1.03] hover:-translate-y-[1px] shadow-xl shadow-brand/10"
                     >
-                        Start free trial
+                        Try it on your restaurant
                     </RouterLink>
                     <RouterLink
-                        to="/demo"
+                        to="/pricing"
                         class="inline-flex items-center px-8 py-4 text-sm font-semibold text-text-secondary rounded-full border border-border hover:border-brand hover:text-text-primary transition-all duration-300"
                     >
-                        Try the demo first
+                        Start free trial
                     </RouterLink>
                 </div>
             </div>
