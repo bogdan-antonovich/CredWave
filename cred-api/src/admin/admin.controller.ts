@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Put,
   UseGuards,
@@ -22,7 +23,11 @@ import {
 } from '@nestjs/swagger';
 import { AdminGuard } from '../shared/guards/admin.guard';
 import { AdminService } from './admin.service';
-import type { RestaurantCredentials, ReviewBlock } from './admin.types';
+import type {
+  RestaurantCredentials,
+  ReviewBlock,
+  PromoCode,
+} from './admin.types';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 @ApiTags('Admin')
@@ -202,5 +207,89 @@ export class AdminController {
   async deleteBlock(@Param('id') id: string) {
     this.logger.info('Deleting a demo review block');
     return await this.adminService.deleteBlock(Number(id));
+  }
+
+  @Post('/promo-codes')
+  @HttpCode(204)
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new promo code' })
+  @ApiBody({
+    schema: {
+      required: ['code', 'durationDays'],
+      properties: {
+        code: { type: 'string' },
+        durationDays: { type: 'integer' },
+        expiresAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  async createPromoCode(@Body() body: PromoCode) {
+    this.logger.info('Creating a new promo code');
+    return await this.adminService.createPromoCode(body);
+  }
+
+  @Get('/promo-codes')
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all promo codes' })
+  @ApiOkResponse({
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          durationDays: { type: 'integer' },
+          expiresAt: { type: 'string', format: 'date-time' },
+          maxUses: { type: 'integer' },
+          useCount: { type: 'integer' },
+          isActive: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  })
+  async getPromoCodes() {
+    this.logger.info('Getting all promo codes');
+    return await this.adminService.getPromoCodes();
+  }
+
+  @Patch('/promo-codes/:code')
+  @HttpCode(204)
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a promo code' })
+  @ApiParam({ name: 'code', type: 'string' })
+  @ApiBody({
+    schema: {
+      required: ['durationDays', 'isActive'],
+      properties: {
+        durationDays: { type: 'integer' },
+        maxUses: { type: 'integer' },
+        expiresAt: { type: 'string', format: 'date-time' },
+        isActive: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiNoContentResponse()
+  async updatePromoCode(
+    @Param('code') code: string,
+    @Body() body: { durationDays: number; maxUses?: number; expiresAt?: string; isActive: boolean },
+  ) {
+    this.logger.info('Updating a promo code');
+    return await this.adminService.updatePromoCode(code, body);
+  }
+
+  @Delete('/promo-codes/:code')
+  @HttpCode(204)
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a promo code' })
+  @ApiParam({ name: 'code', type: 'string' })
+  @ApiNoContentResponse()
+  async deletePromoCode(@Param('code') code: string) {
+    this.logger.info('Deleting a promo code');
+    return await this.adminService.deletePromoCode(code);
   }
 }

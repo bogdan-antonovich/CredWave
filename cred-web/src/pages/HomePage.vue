@@ -44,12 +44,55 @@ onMounted(() => {
         { threshold: 0 },
     );
     heroObserver.observe(el);
+    resetStatInterval();
 });
 
 onUnmounted(() => {
     heroObserver?.disconnect();
     heroVisible.value = false;
+    if (statInterval) clearInterval(statInterval);
 });
+
+// Stat swiper (mobile only)
+const currentStatIdx = ref(0)
+const statFading = ref(false)
+let statInterval: ReturnType<typeof setInterval> | null = null
+let touchStartX = 0
+
+function advanceStat(dir: 1 | -1 = 1) {
+    statFading.value = true
+    setTimeout(() => {
+        currentStatIdx.value = (currentStatIdx.value + dir + stats.length) % stats.length
+        statFading.value = false
+    }, 150)
+}
+
+function goToStat(idx: number) {
+    if (idx === currentStatIdx.value) return
+    statFading.value = true
+    setTimeout(() => {
+        currentStatIdx.value = idx
+        statFading.value = false
+    }, 150)
+    resetStatInterval()
+}
+
+function onStatTouchStart(e: TouchEvent) {
+    touchStartX = e.touches[0].clientX
+}
+
+function onStatTouchEnd(e: TouchEvent) {
+    const diff = touchStartX - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 50) {
+        advanceStat(diff > 0 ? 1 : -1)
+        resetStatInterval()
+    }
+}
+
+function resetStatInterval() {
+    if (statInterval) clearInterval(statInterval)
+    statInterval = setInterval(() => advanceStat(), 3000)
+}
 
 const stats = [
     {
@@ -177,20 +220,49 @@ const stats = [
                         competitor's.
                     </p>
                 </div>
-                <div class="reveal grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="reveal">
+                    <!-- Mobile: single-card swiper -->
                     <div
-                        v-for="(stat, i) in stats"
-                        :key="i"
-                        class="p-6 rounded-2xl bg-white/[0.04] border border-white/[0.06]"
+                        class="sm:hidden"
+                        @touchstart.passive="onStatTouchStart"
+                        @touchend.passive="onStatTouchEnd"
                     >
-                        <p
-                            class="text-3xl md:text-4xl font-extrabold font-display text-indigo-400"
+                        <div
+                            class="p-6 rounded-2xl bg-white/[0.04] border border-white/[0.06] transition-opacity duration-150"
+                            :class="statFading ? 'opacity-0' : 'opacity-100'"
                         >
-                            {{ stat.value }}
-                        </p>
-                        <p class="mt-2.5 text-sm text-white/40 leading-relaxed">
-                            {{ stat.label }}
-                        </p>
+                            <p class="text-3xl font-extrabold font-display text-indigo-400">
+                                {{ stats[currentStatIdx].value }}
+                            </p>
+                            <p class="mt-2.5 text-sm text-white/40 leading-relaxed">
+                                {{ stats[currentStatIdx].label }}
+                            </p>
+                        </div>
+                        <!-- Dot indicators -->
+                        <div class="flex justify-center items-center gap-1.5 mt-4">
+                            <button
+                                v-for="(_, i) in stats"
+                                :key="i"
+                                class="h-1.5 rounded-full transition-all duration-300"
+                                :class="i === currentStatIdx ? 'w-5 bg-indigo-400' : 'w-1.5 bg-white/20'"
+                                @click="goToStat(i)"
+                            />
+                        </div>
+                    </div>
+                    <!-- Tablet / desktop: full grid -->
+                    <div class="hidden sm:grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        <div
+                            v-for="(stat, i) in stats"
+                            :key="i"
+                            class="p-6 rounded-2xl bg-white/[0.04] border border-white/[0.06]"
+                        >
+                            <p class="text-3xl md:text-4xl font-extrabold font-display text-indigo-400">
+                                {{ stat.value }}
+                            </p>
+                            <p class="mt-2.5 text-sm text-white/40 leading-relaxed">
+                                {{ stat.label }}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

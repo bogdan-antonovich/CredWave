@@ -9,6 +9,7 @@ import {
   ReviewBlock,
   ReviewResponse,
   RestaurantCredentials,
+  PromoCode,
 } from './admin.types';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
@@ -164,6 +165,61 @@ export class AdminService {
   async deleteBlock(id: number) {
     await this.sql`
       DELETE FROM d_reviews WHERE id = ${id}
+    `;
+  }
+
+  async createPromoCode(promo: PromoCode) {
+    await this.sql`
+      INSERT INTO promo_codes (code, duration_days, max_uses, expires_at, is_active)
+      VALUES (
+        ${promo.code},
+        ${promo.durationDays},
+        ${promo.maxUses ?? null},
+        ${promo.expiresAt ?? null},
+        ${promo.isActive ?? true}
+      )
+    `;
+  }
+
+  async getPromoCodes(): Promise<PromoCode[]> {
+    const rows = await this.sql<{
+      code: string;
+      duration_days: number;
+      max_uses: number | null;
+      use_count: number;
+      expires_at: Date | null;
+      is_active: boolean;
+      created_at: Date;
+    }[]>`
+      SELECT * FROM promo_codes ORDER BY created_at DESC
+    `;
+    return rows.map((r) => ({
+      code: r.code,
+      durationDays: r.duration_days,
+      maxUses: r.max_uses ?? undefined,
+      useCount: r.use_count,
+      expiresAt: r.expires_at?.toISOString(),
+      isActive: r.is_active,
+    }));
+  }
+
+  async updatePromoCode(
+    code: string,
+    data: { durationDays: number; maxUses?: number; expiresAt?: string; isActive: boolean },
+  ) {
+    await this.sql`
+      UPDATE promo_codes
+      SET duration_days = ${data.durationDays},
+          max_uses      = ${data.maxUses ?? null},
+          expires_at    = ${data.expiresAt ?? null},
+          is_active     = ${data.isActive}
+      WHERE code = ${code}
+    `;
+  }
+
+  async deletePromoCode(code: string) {
+    await this.sql`
+      DELETE FROM promo_codes WHERE code = ${code}
     `;
   }
 }

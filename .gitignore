@@ -9,6 +9,7 @@ cred-api/node_modules
 cred-api/dist
 cred-api/coverage
 cred-api/docker/docker-compose.resolved.yml
+cred-api/API.md
 
 # OS
 .DS_Store

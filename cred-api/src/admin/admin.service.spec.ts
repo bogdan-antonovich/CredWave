@@ -128,6 +128,86 @@ describe('AdminService', () => {
     });
   });
 
+  describe('createPromoCode', () => {
+    it('inserts the promo code', async () => {
+      sql.mockResolvedValueOnce([]);
+
+      await service.createPromoCode({ code: 'LAUNCH20', durationDays: 30 });
+
+      expect(sql).toHaveBeenCalledTimes(1);
+    });
+
+    it('inserts with optional fields when provided', async () => {
+      sql.mockResolvedValueOnce([]);
+
+      await service.createPromoCode({
+        code: 'SUMMER',
+        durationDays: 14,
+        maxUses: 100,
+        expiresAt: '2026-12-31T00:00:00.000Z',
+      });
+
+      expect(sql).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getPromoCodes', () => {
+    it('returns mapped promo codes in camelCase', async () => {
+      sql.mockResolvedValueOnce([
+        {
+          code: 'LAUNCH20',
+          duration_days: 30,
+          max_uses: null,
+          use_count: 5,
+          expires_at: null,
+          is_active: true,
+          created_at: new Date('2026-01-01'),
+        },
+      ]);
+
+      const result = await service.getPromoCodes();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].code).toBe('LAUNCH20');
+      expect(result[0].durationDays).toBe(30);
+      expect(result[0].useCount).toBe(5);
+      expect(result[0].isActive).toBe(true);
+    });
+
+    it('returns empty array when no codes exist', async () => {
+      sql.mockResolvedValueOnce([]);
+
+      const result = await service.getPromoCodes();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('updatePromoCode', () => {
+    it('updates mutable fields', async () => {
+      sql.mockResolvedValueOnce([]);
+
+      await service.updatePromoCode('LAUNCH20', {
+        durationDays: 60,
+        maxUses: 200,
+        isActive: false,
+      });
+
+      expect(sql).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('deletePromoCode', () => {
+    it('deletes promo code by code value', async () => {
+      sql.mockResolvedValueOnce([]);
+
+      await service.deletePromoCode('LAUNCH20');
+
+      expect(sql).toHaveBeenCalledTimes(1);
+      expect(sql).toHaveBeenCalledWith(expect.anything(), 'LAUNCH20');
+    });
+  });
+
   describe('deleteRestaurant', () => {
     it('deletes restaurant by slug flow', async () => {
       const txMock = jest.fn();

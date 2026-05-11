@@ -70,24 +70,24 @@ onUnmounted(() => {
       <div class="border-t border-white/[0.08]">
 
         <!-- Tone tabs — underline style -->
-        <div class="flex px-6 border-b border-white/[0.08]">
+        <div class="flex sm:px-6 border-b border-white/[0.08]">
           <button
             v-for="(tone, i) in tones"
             :key="tone.key"
-            class="relative px-4 py-3 text-xs font-semibold transition-colors duration-200"
+            class="relative flex-1 text-center py-2.5 sm:py-3 text-[11px] sm:text-xs font-semibold transition-colors duration-200"
             :class="activeTab === i ? 'text-white' : 'text-white/35'"
           >
             {{ tone.label }}
             <span
               v-if="activeTab === i"
-              class="absolute bottom-0 left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+              class="absolute bottom-0 left-0 right-0 sm:left-4 sm:right-4 h-[2px] bg-indigo-400 rounded-full"
             />
           </button>
         </div>
 
         <!-- Response text — fixed height to prevent card resize -->
         <div class="px-6 pt-4 pb-5 bg-white/[0.03]">
-          <div class="h-[72px] overflow-hidden">
+          <div class="h-[96px] sm:h-[72px] overflow-hidden">
             <p class="text-sm text-white/65 leading-relaxed">{{ tones[activeTab].reply }}</p>
           </div>
 

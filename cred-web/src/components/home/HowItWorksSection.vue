@@ -128,12 +128,12 @@ onUnmounted(() => {
 <template>
     <section
         ref="sectionRef"
-        class="py-28 px-6"
+        class="py-12 sm:py-28 px-4 sm:px-6"
         style="background: linear-gradient(180deg, #13111a 0%, #0f0f0f 100%)"
     >
         <div class="max-w-[1200px] mx-auto">
             <!-- Header -->
-            <div class="reveal text-center mb-14">
+            <div class="reveal text-center mb-8 sm:mb-14">
                 <p
                     class="text-xs font-semibold text-indigo-400 uppercase tracking-[0.2em] mb-3"
                 >
@@ -154,7 +154,7 @@ onUnmounted(() => {
             <div class="max-w-[660px] mx-auto">
                 <!-- Browser chrome -->
                 <div
-                    class="rounded-t-2xl bg-white/[0.04] border border-white/10 px-4 py-3 flex items-center gap-2"
+                    class="rounded-t-2xl bg-white/[0.04] border border-white/10 px-3 py-2 sm:px-4 sm:py-3 flex items-center gap-2"
                 >
                     <div class="w-2.5 h-2.5 rounded-full bg-red-500/50" />
                     <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
@@ -170,7 +170,7 @@ onUnmounted(() => {
 
                 <!-- Dashboard bg -->
                 <div
-                    class="border border-t-0 border-white/10 rounded-b-2xl bg-white/[0.02] p-5"
+                    class="border border-t-0 border-white/10 rounded-b-2xl bg-white/[0.02] p-3 sm:p-5"
                 >
                     <!-- Review card -->
                     <div
@@ -178,7 +178,7 @@ onUnmounted(() => {
                     >
                         <!-- Review header -->
                         <div
-                            class="flex items-center justify-between px-6 pt-5 pb-0"
+                            class="flex items-center justify-between px-4 pt-4 pb-0 sm:px-6 sm:pt-5"
                         >
                             <div class="flex items-center gap-3">
                                 <div
@@ -217,9 +217,9 @@ onUnmounted(() => {
                         </div>
 
                         <!-- Review text (typed) — fixed on mobile to prevent growth, natural on sm+ -->
-                        <div class="px-6 pt-3 pb-5">
+                        <div class="px-4 pt-3 pb-4 sm:px-6 sm:pb-5">
                             <div
-                                class="h-24 sm:h-auto sm:min-h-[3rem] overflow-hidden"
+                                class="h-32 sm:h-auto sm:min-h-[3rem] overflow-hidden"
                             >
                                 <p
                                     class="text-sm text-white/55 leading-relaxed"
@@ -241,11 +241,11 @@ onUnmounted(() => {
                         <!-- Response section — always same structure, no height change -->
                         <div class="border-t border-white/[0.08]">
                             <!-- Tone tabs — always rendered, greyed until results -->
-                            <div class="flex px-6 border-b border-white/[0.08]">
+                            <div class="flex sm:px-6 border-b border-white/[0.08]">
                                 <button
                                     v-for="(reply, i) in REPLIES"
                                     :key="reply.key"
-                                    class="relative px-4 py-3 text-xs font-semibold transition-colors duration-200"
+                                    class="relative flex-1 text-center py-2.5 sm:py-3 text-[11px] sm:text-xs font-semibold transition-colors duration-200"
                                     :class="
                                         hasResults && activeTab === i
                                             ? 'text-white'
@@ -260,16 +260,16 @@ onUnmounted(() => {
                                     {{ reply.label }}
                                     <span
                                         v-if="hasResults && activeTab === i"
-                                        class="absolute bottom-0 left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                                        class="absolute bottom-0 left-0 right-0 sm:left-4 sm:right-4 h-[2px] bg-indigo-400 rounded-full"
                                     />
                                 </button>
                             </div>
 
                             <!-- Content area -->
-                            <div class="px-6 pt-4 pb-5 bg-white/[0.03]">
-                                <!-- Reply box — taller on mobile where text wraps to more lines -->
+                            <div class="px-3 pt-3 pb-3 sm:px-6 sm:pt-4 sm:pb-5 bg-white/[0.03]">
+                                <!-- Reply box — tall on mobile to show full reply, compact on sm+ -->
                                 <div
-                                    class="relative h-36 sm:h-24 w-full border border-white/10 rounded-xl bg-white/[0.04] overflow-hidden"
+                                    class="relative h-48 sm:h-24 w-full border border-white/10 rounded-xl bg-white/[0.04] overflow-hidden"
                                 >
                                     <!-- Idle / typing: faint placeholder lines -->
                                     <div
@@ -389,7 +389,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Steps — vertical on mobile, horizontal on sm+ -->
-            <div class="reveal mt-10 max-w-[660px] mx-auto">
+            <div class="reveal mt-6 sm:mt-10 max-w-[660px] mx-auto">
                 <div
                     class="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3 sm:gap-8"
                 >

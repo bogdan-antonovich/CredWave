@@ -65,7 +65,8 @@ describe('Admin (integration)', () => {
       TRUNCATE
         d_responses,
         d_reviews,
-        d_restaurants
+        d_restaurants,
+        promo_codes
       CASCADE
     `;
 
@@ -280,6 +281,82 @@ describe('Admin (integration)', () => {
         SELECT * FROM d_reviews WHERE id = 1
       `;
       expect(rows).toHaveLength(0);
+    });
+  });
+
+  describe('POST /admin/promo-codes', () => {
+    it('creates promo code and returns 204', async () => {
+      await request(server)
+        .post('/admin/promo-codes')
+        .send({ code: 'LAUNCH20', durationDays: 30 })
+        .expect(204);
+
+      const rows = await sql`SELECT * FROM promo_codes WHERE code = 'LAUNCH20'`;
+      expect(rows).toHaveLength(1);
+      expect(rows[0].duration_days).toBe(30);
+      expect(rows[0].is_active).toBe(true);
+    });
+
+    it('creates promo code with optional fields', async () => {
+      await request(server)
+        .post('/admin/promo-codes')
+        .send({ code: 'SUMMER', durationDays: 14, maxUses: 50 })
+        .expect(204);
+
+      const rows = await sql`SELECT * FROM promo_codes WHERE code = 'SUMMER'`;
+      expect(rows).toHaveLength(1);
+      expect(Number(rows[0].max_uses)).toBe(50);
+    });
+
+    it('returns 500 on duplicate code', async () => {
+      await sql`INSERT INTO promo_codes (code, duration_days) VALUES ('DUP', 7)`;
+
+      await request(server)
+        .post('/admin/promo-codes')
+        .send({ code: 'DUP', durationDays: 7 })
+        .expect(500);
+    });
+  });
+
+  describe('GET /admin/promo-codes', () => {
+    it('returns empty array when no codes exist', async () => {
+      const res = await request(server).get('/admin/promo-codes').expect(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it('returns all promo codes in camelCase', async () => {
+      await sql`
+        INSERT INTO promo_codes (code, duration_days, max_uses, is_active)
+        VALUES ('CODE1', 30, NULL, TRUE), ('CODE2', 7, 100, FALSE)
+      `;
+
+      const res = await request(server).get('/admin/promo-codes').expect(200);
+
+      const body = res.body as { code: string; durationDays: number; isActive: boolean }[];
+      expect(body).toHaveLength(2);
+
+      const codes = body.map((c) => c.code);
+      expect(codes).toContain('CODE1');
+      expect(codes).toContain('CODE2');
+
+      const code1 = body.find((c) => c.code === 'CODE1')!;
+      expect(code1.durationDays).toBe(30);
+      expect(code1.isActive).toBe(true);
+    });
+  });
+
+  describe('DELETE /admin/promo-codes/:code', () => {
+    it('deletes promo code and returns 204', async () => {
+      await sql`INSERT INTO promo_codes (code, duration_days) VALUES ('TODELETE', 14)`;
+
+      await request(server).delete('/admin/promo-codes/TODELETE').expect(204);
+
+      const rows = await sql`SELECT * FROM promo_codes WHERE code = 'TODELETE'`;
+      expect(rows).toHaveLength(0);
+    });
+
+    it('returns 204 even when code does not exist', async () => {
+      await request(server).delete('/admin/promo-codes/NONEXISTENT').expect(204);
     });
   });
 });

@@ -12,6 +12,7 @@ import { ContactModule } from './contact/contact.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { RestaurantsReviewsModule } from './restaurants/reviews/reviews.module';
 import { DemoModule } from './demo/demo.module';
+import { PromoModule } from './promo/promo.module';
 import { AppConfigModule } from './config/config.module';
 import { AppConfigService } from './config/config.service';
 import { LoggerModule } from 'nestjs-pino';
@@ -78,6 +79,7 @@ import { LoggerModule } from 'nestjs-pino';
     RestaurantsModule,
     RestaurantsReviewsModule,
     DemoModule,
+    PromoModule,
   ],
   providers: [GoogleStrategy, JwtStrategy],
 })

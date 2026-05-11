@@ -13,6 +13,9 @@ import {
   MessageSquare,
   Copy,
   Check,
+  Tag,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/services/api'
@@ -48,9 +51,31 @@ interface EditingBlock {
   casual: string
 }
 
+interface PromoCode {
+  code: string
+  durationDays: number
+  maxUses?: number
+  useCount?: number
+  expiresAt?: string
+  isActive: boolean
+}
+
+interface EditingPromo {
+  isNew: boolean
+  code: string
+  durationDays: number
+  maxUses: string
+  expiresAt: string
+  isActive: boolean
+}
+
 const router = useRouter()
 const authStore = useAuthStore()
 
+// Section
+const activeSection = ref<'restaurants' | 'promo'>('restaurants')
+
+// Restaurants
 const restaurants = ref<AdminRestaurant[]>([])
 const selectedSlug = ref('')
 const showNewRestaurant = ref(false)
@@ -66,6 +91,13 @@ const editing = ref<EditingBlock | null>(null)
 const saving = ref(false)
 
 const urlCopied = ref(false)
+
+// Promo codes
+const promoCodes = ref<PromoCode[]>([])
+const loadingPromo = ref(false)
+const editingPromo = ref<EditingPromo | null>(null)
+const savingPromo = ref(false)
+const promoError = ref<string | null>(null)
 
 const selectedRestaurant = computed(() =>
   restaurants.value.find((r) => r.slug === selectedSlug.value) ?? null,
@@ -263,6 +295,112 @@ const responseLabels: { key: 'empathetic' | 'professional' | 'casual'; label: st
   { key: 'professional', label: 'Professional' },
   { key: 'casual', label: 'Casual' },
 ]
+
+// Promo code functions
+async function switchToPromo() {
+  activeSection.value = 'promo'
+  await loadPromoCodes()
+}
+
+async function loadPromoCodes() {
+  loadingPromo.value = true
+  try {
+    promoCodes.value = await api.get<PromoCode[]>('/admin/promo-codes')
+  } catch {
+    promoCodes.value = []
+  } finally {
+    loadingPromo.value = false
+  }
+}
+
+function openCreatePromo() {
+  promoError.value = null
+  editingPromo.value = {
+    isNew: true,
+    code: '',
+    durationDays: 30,
+    maxUses: '',
+    expiresAt: '',
+    isActive: true,
+  }
+}
+
+function openEditPromo(promo: PromoCode) {
+  promoError.value = null
+  editingPromo.value = {
+    isNew: false,
+    code: promo.code,
+    durationDays: promo.durationDays,
+    maxUses: promo.maxUses != null ? String(promo.maxUses) : '',
+    expiresAt: promo.expiresAt ? promo.expiresAt.slice(0, 10) : '',
+    isActive: promo.isActive,
+  }
+}
+
+async function handleSavePromo() {
+  if (!editingPromo.value) return
+  promoError.value = null
+
+  const e = editingPromo.value
+  const code = e.code.trim().toUpperCase()
+
+  if (!code) { promoError.value = 'Code is required'; return }
+  if (!e.durationDays || e.durationDays < 1) { promoError.value = 'Duration must be at least 1 day'; return }
+
+  const maxUses = e.maxUses.trim() ? Number(e.maxUses) : undefined
+  if (maxUses !== undefined && (isNaN(maxUses) || maxUses < 1)) {
+    promoError.value = 'Max uses must be a positive number'
+    return
+  }
+
+  const expiresAt = e.expiresAt ? new Date(e.expiresAt).toISOString() : undefined
+
+  savingPromo.value = true
+  try {
+    if (e.isNew) {
+      await api.post('/admin/promo-codes', {
+        code,
+        durationDays: e.durationDays,
+        maxUses,
+        expiresAt,
+        isActive: e.isActive,
+      })
+    } else {
+      await api.patch(`/admin/promo-codes/${code}`, {
+        durationDays: e.durationDays,
+        maxUses,
+        expiresAt,
+        isActive: e.isActive,
+      })
+    }
+    await loadPromoCodes()
+    editingPromo.value = null
+  } catch {
+    promoError.value = e.isNew ? 'Failed to create code — it may already exist.' : 'Failed to save changes.'
+  } finally {
+    savingPromo.value = false
+  }
+}
+
+async function deletePromoCode(code: string) {
+  if (!confirm(`Delete promo code "${code}"?`)) return
+  try {
+    await api.del(`/admin/promo-codes/${code}`)
+    promoCodes.value = promoCodes.value.filter((p) => p.code !== code)
+  } catch {
+    // ignore
+  }
+}
+
+function formatExpiry(iso?: string) {
+  if (!iso) return 'Never'
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function formatUses(promo: PromoCode) {
+  const used = promo.useCount ?? 0
+  return promo.maxUses != null ? `${used} / ${promo.maxUses}` : `${used} / ∞`
+}
 </script>
 
 <template>
@@ -270,9 +408,34 @@ const responseLabels: { key: 'empathetic' | 'professional' | 'casual'; label: st
     <!-- Header -->
     <header class="bg-white border-b border-border-subtle">
       <div class="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand text-white text-xs font-extrabold font-display tracking-tight leading-none">CW</span>
-          <p class="text-sm font-bold font-display">Admin</p>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand text-white text-xs font-extrabold font-display tracking-tight leading-none">CW</span>
+            <p class="text-sm font-bold font-display">Admin</p>
+          </div>
+          <!-- Section tabs -->
+          <div class="flex items-center gap-1 bg-surface-warm rounded-lg p-1">
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all"
+              :class="activeSection === 'restaurants'
+                ? 'bg-white text-text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-secondary'"
+              @click="activeSection = 'restaurants'"
+            >
+              <Store class="w-3.5 h-3.5" />
+              Restaurants
+            </button>
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all"
+              :class="activeSection === 'promo'
+                ? 'bg-white text-text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-secondary'"
+              @click="switchToPromo"
+            >
+              <Tag class="w-3.5 h-3.5" />
+              Promo Codes
+            </button>
+          </div>
         </div>
         <button
           class="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors"
@@ -284,7 +447,8 @@ const responseLabels: { key: 'empathetic' | 'professional' | 'casual'; label: st
       </div>
     </header>
 
-    <div class="max-w-[1200px] mx-auto px-6 py-8 flex gap-8">
+    <!-- RESTAURANTS SECTION -->
+    <div v-if="activeSection === 'restaurants'" class="max-w-[1200px] mx-auto px-6 py-8 flex gap-8">
       <!-- Sidebar -->
       <aside class="w-[280px] shrink-0">
         <div class="flex items-center justify-between mb-4">
@@ -505,7 +669,91 @@ const responseLabels: { key: 'empathetic' | 'professional' | 'casual'; label: st
       </main>
     </div>
 
-    <!-- Edit modal -->
+    <!-- PROMO CODES SECTION -->
+    <div v-else class="max-w-[1200px] mx-auto px-6 py-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-lg font-bold font-display text-text-primary">Promo Codes</h2>
+          <p class="text-xs text-text-muted mt-0.5">{{ promoCodes.length }} code{{ promoCodes.length !== 1 ? 's' : '' }}</p>
+        </div>
+        <button
+          class="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-brand text-white rounded-lg hover:bg-brand-subtle transition-all"
+          @click="openCreatePromo"
+        >
+          <Plus class="w-4 h-4" />
+          Create Code
+        </button>
+      </div>
+
+      <div v-if="loadingPromo" class="flex justify-center py-20">
+        <Loader2 class="w-5 h-5 animate-spin text-text-muted" />
+      </div>
+
+      <template v-else>
+        <!-- Table header -->
+        <div v-if="promoCodes.length > 0" class="bg-white border border-border-subtle rounded-xl overflow-hidden">
+          <div class="grid grid-cols-[1fr_100px_90px_130px_80px_72px] gap-4 px-5 py-2.5 border-b border-border-subtle">
+            <p class="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Code</p>
+            <p class="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Duration</p>
+            <p class="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Uses</p>
+            <p class="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Expires</p>
+            <p class="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Status</p>
+            <p class="text-[10px] font-semibold text-text-muted uppercase tracking-wider"></p>
+          </div>
+
+          <div
+            v-for="promo in promoCodes"
+            :key="promo.code"
+            class="grid grid-cols-[1fr_100px_90px_130px_80px_72px] gap-4 items-center px-5 py-3.5 border-b border-border-subtle last:border-0 hover:bg-surface-warm/50 transition-colors"
+          >
+            <code class="text-sm font-mono font-semibold text-text-primary">{{ promo.code }}</code>
+            <p class="text-sm text-text-secondary">{{ promo.durationDays }}d</p>
+            <p class="text-sm text-text-secondary tabular-nums">{{ formatUses(promo) }}</p>
+            <p class="text-sm text-text-secondary">{{ formatExpiry(promo.expiresAt) }}</p>
+            <span
+              class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit"
+              :class="promo.isActive
+                ? 'bg-success/10 text-success'
+                : 'bg-border text-text-muted'"
+            >
+              <span class="w-1.5 h-1.5 rounded-full" :class="promo.isActive ? 'bg-success' : 'bg-text-muted'" />
+              {{ promo.isActive ? 'Active' : 'Inactive' }}
+            </span>
+            <div class="flex items-center gap-1 justify-end">
+              <button
+                class="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-warm transition-all"
+                title="Edit"
+                @click="openEditPromo(promo)"
+              >
+                <Pencil class="w-3.5 h-3.5" />
+              </button>
+              <button
+                class="p-1.5 rounded-lg text-text-muted hover:text-error hover:bg-error/5 transition-all"
+                title="Delete"
+                @click="deletePromoCode(promo.code)"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="text-center py-20 bg-white rounded-xl border border-border-subtle">
+          <Tag class="w-8 h-8 text-text-muted mx-auto mb-3" />
+          <p class="text-sm font-medium text-text-primary">No promo codes yet</p>
+          <p class="text-xs text-text-muted mt-1">Create your first code to give users trial access.</p>
+          <button
+            class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-brand text-white rounded-lg hover:bg-brand-subtle transition-all"
+            @click="openCreatePromo"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            Create Code
+          </button>
+        </div>
+      </template>
+    </div>
+
+    <!-- Review block edit modal -->
     <Teleport to="body">
       <div
         v-if="editing"
@@ -587,6 +835,103 @@ const responseLabels: { key: 'empathetic' | 'professional' | 'casual'; label: st
             >
               <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
               {{ saving ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Promo code edit modal -->
+    <Teleport to="body">
+      <div
+        v-if="editingPromo"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-6"
+        @click.self="editingPromo = null"
+      >
+        <div class="w-full max-w-[480px] bg-white rounded-2xl shadow-2xl">
+          <div class="flex items-center justify-between p-6 border-b border-border-subtle">
+            <p class="text-sm font-bold font-display">{{ editingPromo.isNew ? 'Create' : 'Edit' }} Promo Code</p>
+            <button class="p-1.5 hover:bg-surface-warm rounded-lg transition-colors" @click="editingPromo = null">
+              <X class="w-4 h-4" />
+            </button>
+          </div>
+
+          <div class="p-6 space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-text-secondary mb-1.5">Code</label>
+              <input
+                v-model="editingPromo.code"
+                type="text"
+                placeholder="e.g. LAUNCH30"
+                :readonly="!editingPromo.isNew"
+                class="w-full px-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent font-mono uppercase"
+                :class="!editingPromo.isNew ? 'bg-surface-warm text-text-muted cursor-not-allowed' : ''"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-text-secondary mb-1.5">Duration (days)</label>
+                <input
+                  v-model.number="editingPromo.durationDays"
+                  type="number"
+                  min="1"
+                  placeholder="30"
+                  class="w-full px-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-text-secondary mb-1.5">Max uses <span class="text-text-muted font-normal">(leave blank for unlimited)</span></label>
+                <input
+                  v-model="editingPromo.maxUses"
+                  type="number"
+                  min="1"
+                  placeholder="∞"
+                  class="w-full px-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-text-secondary mb-1.5">Expires on <span class="text-text-muted font-normal">(leave blank = never)</span></label>
+              <input
+                v-model="editingPromo.expiresAt"
+                type="date"
+                class="w-full px-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+              />
+            </div>
+
+            <div class="flex items-center justify-between py-1">
+              <div>
+                <p class="text-xs font-medium text-text-secondary">Active</p>
+                <p class="text-[10px] text-text-muted">Inactive codes cannot be redeemed</p>
+              </div>
+              <button
+                class="transition-colors"
+                @click="editingPromo.isActive = !editingPromo.isActive"
+              >
+                <ToggleRight v-if="editingPromo.isActive" class="w-8 h-8 text-success" />
+                <ToggleLeft v-else class="w-8 h-8 text-text-muted" />
+              </button>
+            </div>
+
+            <p v-if="promoError" class="text-xs text-error">{{ promoError }}</p>
+          </div>
+
+          <div class="flex justify-end gap-3 p-6 border-t border-border-subtle">
+            <button
+              class="px-4 py-2 text-sm text-text-secondary border border-border rounded-lg hover:bg-surface-warm transition-colors"
+              @click="editingPromo = null"
+            >
+              Cancel
+            </button>
+            <button
+              class="px-4 py-2 text-sm font-semibold bg-brand text-white rounded-lg hover:bg-brand-subtle transition-all disabled:opacity-50 flex items-center gap-2"
+              :disabled="savingPromo"
+              @click="handleSavePromo"
+            >
+              <Loader2 v-if="savingPromo" class="w-4 h-4 animate-spin" />
+              {{ savingPromo ? 'Saving...' : editingPromo.isNew ? 'Create' : 'Save' }}
             </button>
           </div>
         </div>

@@ -17,3 +17,12 @@ export interface ReviewBlock {
   link: string;
   responses: ReviewResponse[];
 }
+
+export interface PromoCode {
+  code: string;
+  durationDays: number;
+  expiresAt?: string;
+  maxUses?: number;
+  useCount?: number;
+  isActive?: boolean;
+}
