@@ -8,7 +8,6 @@ import {
     Shield,
     Clock,
     Zap,
-    Star,
 } from "lucide-vue-next";
 import FooterSection from "@/components/layout/FooterSection.vue";
 import { useReveal } from "@/utils/useReveal";
@@ -319,11 +318,11 @@ const stats = [
                             <TrendingUp class="w-5 h-5 text-indigo-400" />
                         </div>
                         <p class="font-semibold text-white mb-1.5">
-                            16.4% more conversions
+                            Pays for itself in one booking
                         </p>
                         <p class="text-sm text-white/40 leading-relaxed">
-                            Businesses with review responses convert 16.4%
-                            better. Respond to all of them — automatically.
+                            One extra table from better reviews covers your
+                            monthly plan. Everything else is pure upside.
                         </p>
                     </div>
                     <div
@@ -353,13 +352,6 @@ const stats = [
             />
 
             <div class="reveal max-w-[600px] mx-auto text-center relative z-10">
-                <div class="inline-flex items-center gap-1.5 mb-6">
-                    <Star class="w-4 h-4 text-warning fill-warning" />
-                    <Star class="w-4 h-4 text-warning fill-warning" />
-                    <Star class="w-4 h-4 text-warning fill-warning" />
-                    <Star class="w-4 h-4 text-warning fill-warning" />
-                    <Star class="w-4 h-4 text-warning fill-warning" />
-                </div>
                 <h2
                     class="text-3xl md:text-[2.5rem] font-bold font-display tracking-tight text-text-primary leading-tight"
                 >
