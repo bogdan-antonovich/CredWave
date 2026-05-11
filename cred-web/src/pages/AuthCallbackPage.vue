@@ -46,8 +46,9 @@ onMounted(async () => {
     window.location.href = target.toString()
   } else {
     // No subscription → pricing on main domain
-    // Any pending checkout priceId in localStorage will auto-open the Paddle checkout there
-    window.location.href = `${config.appUrl}/pricing`
+    // If a promo code is pending, land on the promo section so it auto-redeems
+    const hasPendingPromo = !!localStorage.getItem('cw_pending_promo')
+    window.location.href = `${config.appUrl}/pricing${hasPendingPromo ? '#promo' : ''}`
   }
 })
 </script>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick } from "vue";
 import { config } from "@/config/env";
 import { useHead } from "@unhead/vue";
 
@@ -19,10 +19,11 @@ useHead({
 import { openCheckout, waitForPaddle } from "@/services/paddle.service";
 import FooterSection from "@/components/layout/FooterSection.vue";
 import PricingCard from "@/components/pricing/PricingCard.vue";
-import { Shield, RotateCcw, Eye } from "lucide-vue-next";
+import { Shield, RotateCcw, Eye, CheckCircle2, Loader2 } from "lucide-vue-next";
 import { useReveal } from "@/utils/useReveal";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth.store";
+import { api, ApiError } from "@/services/api";
 
 useReveal();
 
@@ -30,8 +31,15 @@ const router = useRouter();
 const auth = useAuthStore();
 
 const PENDING_KEY = "cw_pending_checkout";
+const PROMO_KEY = "cw_pending_promo";
+
+// Promo state
+const promoCode = ref("");
+const promoState = ref<"idle" | "loading" | "success" | "error">("idle");
+const promoError = ref("");
 
 onMounted(async () => {
+    // Resume pending Paddle checkout after auth
     const pending = localStorage.getItem(PENDING_KEY);
     if (pending && auth.isAuthenticated) {
         localStorage.removeItem(PENDING_KEY);
@@ -42,7 +50,54 @@ onMounted(async () => {
             // paddle didn't load — ignore, user can click manually
         }
     }
+
+    // Auto-redeem pending promo code after auth
+    const pendingPromo = localStorage.getItem(PROMO_KEY);
+    if (pendingPromo && auth.isAuthenticated) {
+        localStorage.removeItem(PROMO_KEY);
+        promoCode.value = pendingPromo;
+        await nextTick();
+        await redeemCode(pendingPromo);
+    }
 });
+
+async function redeemCode(code: string) {
+    promoState.value = "loading";
+    promoError.value = "";
+    try {
+        await api.post("/promo/redeem", { promoCode: code });
+        promoState.value = "success";
+        setTimeout(() => {
+            if (config.dashboardUrl) {
+                const target = new URL(`${config.dashboardUrl}/auth/callback`);
+                target.searchParams.set("access_token", auth.accessToken!);
+                target.searchParams.set("refresh_token", auth.refreshToken!);
+                window.location.href = target.toString();
+            } else {
+                void router.push("/");
+            }
+        }, 2000);
+    } catch (e) {
+        promoState.value = "error";
+        promoError.value =
+            e instanceof ApiError && e.status === 400
+                ? "This code is invalid, expired, or has already been used."
+                : "Something went wrong. Please try again.";
+    }
+}
+
+function handlePromoRedeem() {
+    const code = promoCode.value.trim().toUpperCase();
+    if (!code) return;
+
+    if (!auth.isAuthenticated) {
+        localStorage.setItem(PROMO_KEY, code);
+        void router.push("/auth");
+        return;
+    }
+
+    void redeemCode(code);
+}
 
 const isAnnual = ref(true);
 
@@ -234,6 +289,93 @@ const faq = [
                             <Eye class="w-4 h-4" />
                             <span>No hidden fees</span>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ PROMO CODE ═══ -->
+            <section id="promo" class="py-20 px-6 border-t border-border-subtle">
+                <div class="max-w-[520px] mx-auto">
+                    <div class="reveal text-center mb-8">
+                        <span
+                            class="inline-block px-3 py-1 rounded-full bg-accent/8 text-accent text-xs font-semibold uppercase tracking-wider mb-4"
+                            >Promo code</span
+                        >
+                        <h2
+                            class="text-2xl font-bold font-display tracking-tight text-text-primary"
+                        >
+                            Have a code? Use it here.
+                        </h2>
+                        <p class="mt-2 text-text-secondary">
+                            Enter your code to unlock access — no credit card
+                            needed.
+                        </p>
+                    </div>
+
+                    <!-- Success -->
+                    <div
+                        v-if="promoState === 'success'"
+                        class="reveal flex flex-col items-center gap-3 py-4"
+                    >
+                        <div
+                            class="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center"
+                        >
+                            <CheckCircle2 class="w-6 h-6 text-success" />
+                        </div>
+                        <p class="text-sm font-semibold text-text-primary">
+                            Access unlocked!
+                        </p>
+                        <p class="text-sm text-text-secondary">
+                            Taking you to your dashboard…
+                        </p>
+                        <Loader2
+                            class="w-4 h-4 animate-spin text-text-muted mt-1"
+                        />
+                    </div>
+
+                    <!-- Input -->
+                    <div v-else class="reveal">
+                        <div class="flex gap-2">
+                            <input
+                                v-model="promoCode"
+                                type="text"
+                                placeholder="Enter your code"
+                                :disabled="promoState === 'loading'"
+                                class="flex-1 px-4 py-3 text-sm font-mono uppercase border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white placeholder:normal-case placeholder:font-sans disabled:opacity-50"
+                                @keydown.enter="handlePromoRedeem"
+                            />
+                            <button
+                                class="px-6 py-3 text-sm font-semibold bg-brand text-white rounded-xl hover:bg-brand-subtle transition-all disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                                :disabled="
+                                    promoState === 'loading' ||
+                                    !promoCode.trim()
+                                "
+                                @click="handlePromoRedeem"
+                            >
+                                <Loader2
+                                    v-if="promoState === 'loading'"
+                                    class="w-4 h-4 animate-spin"
+                                />
+                                {{
+                                    promoState === "loading"
+                                        ? "Redeeming…"
+                                        : "Redeem"
+                                }}
+                            </button>
+                        </div>
+                        <p
+                            v-if="promoState === 'error'"
+                            class="mt-3 text-sm text-error text-center"
+                        >
+                            {{ promoError }}
+                        </p>
+                        <p
+                            v-if="!auth.isAuthenticated"
+                            class="mt-3 text-xs text-text-muted text-center"
+                        >
+                            You'll be asked to sign in first — your code will be
+                            remembered.
+                        </p>
                     </div>
                 </div>
             </section>
