@@ -6,6 +6,9 @@ useHead({
   title: 'Terms of Service — CredWave',
   meta: [
     { name: 'description', content: 'CredWave terms of service and user agreement.' },
+    { property: 'og:image', content: 'https://credwave.app/meta.png' },
+    { property: 'og:image:width', content: '1200' },
+    { property: 'og:image:height', content: '630' },
   ],
 })
 

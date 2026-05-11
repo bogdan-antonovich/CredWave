@@ -11,6 +11,9 @@ useHead({
       content:
         'See AI-generated Google review responses for any restaurant in real time. No sign-up required.',
     },
+    { property: 'og:image', content: 'https://credwave.app/meta.png' },
+    { property: 'og:image:width', content: '1200' },
+    { property: 'og:image:height', content: '630' },
   ],
 })
 import { Search, Sparkles, MapPin, ChevronRight, Star } from 'lucide-vue-next'

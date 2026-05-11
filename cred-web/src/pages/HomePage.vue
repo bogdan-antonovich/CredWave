@@ -23,6 +23,9 @@ useHead({
             content:
                 "Restaurants that respond to every Google review earn 35% more. CredWave generates AI-written replies in 3 tones and posts them directly to Google — automatically.",
         },
+        { property: "og:image", content: "https://credwave.app/meta.png" },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
     ],
 });
 

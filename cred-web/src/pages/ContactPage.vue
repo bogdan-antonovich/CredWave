@@ -11,6 +11,9 @@ useHead({
   title: 'Contact — CredWave',
   meta: [
     { name: 'description', content: 'Get in touch with the CredWave team.' },
+    { property: 'og:image', content: 'https://credwave.app/meta.png' },
+    { property: 'og:image:width', content: '1200' },
+    { property: 'og:image:height', content: '630' },
   ],
 })
 

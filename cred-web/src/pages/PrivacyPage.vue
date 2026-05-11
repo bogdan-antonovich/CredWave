@@ -6,6 +6,9 @@ useHead({
   title: 'Privacy Policy — CredWave',
   meta: [
     { name: 'description', content: 'How CredWave collects, uses, and protects your data.' },
+    { property: 'og:image', content: 'https://credwave.app/meta.png' },
+    { property: 'og:image:width', content: '1200' },
+    { property: 'og:image:height', content: '630' },
   ],
 })
 
