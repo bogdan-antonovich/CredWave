@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useHead } from '@unhead/vue'
+
+useHead({
+  title: 'Live Demo — CredWave',
+  meta: [
+    {
+      name: 'description',
+      content:
+        'See AI-generated Google review responses for any restaurant in real time. No sign-up required.',
+    },
+  ],
+})
 import { Search, Sparkles, MapPin, ChevronRight, Star } from 'lucide-vue-next'
 import { restaurantNameSchema } from '@/schemas/demo.schema'
 import { useDemoStore, type SearchResult } from '@/stores/demo.store'

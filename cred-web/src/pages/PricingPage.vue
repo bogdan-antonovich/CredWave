@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { config } from '@/config/env'
+import { useHead } from '@unhead/vue'
+
+useHead({
+  title: 'Pricing — CredWave',
+  meta: [
+    {
+      name: 'description',
+      content:
+        'Start free for 14 days. Plans from $29/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.',
+    },
+  ],
+})
 import { openCheckout, waitForPaddle } from '@/services/paddle.service'
 import FooterSection from '@/components/layout/FooterSection.vue'
 import PricingCard from '@/components/pricing/PricingCard.vue'

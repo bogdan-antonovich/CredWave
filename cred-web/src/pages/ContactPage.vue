@@ -4,8 +4,15 @@ import { Send, Loader2, CheckCircle, Mail, MessageCircle } from 'lucide-vue-next
 import FooterSection from '@/components/layout/FooterSection.vue'
 import { useReveal } from '@/utils/useReveal'
 import { api } from '@/services/api'
+import { useHead } from '@unhead/vue'
 
 useReveal()
+useHead({
+  title: 'Contact — CredWave',
+  meta: [
+    { name: 'description', content: 'Get in touch with the CredWave team.' },
+  ],
+})
 
 const form = ref({
   name: '',

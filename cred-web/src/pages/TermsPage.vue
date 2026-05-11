@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import FooterSection from '@/components/layout/FooterSection.vue'
+import { useHead } from '@unhead/vue'
+
+useHead({
+  title: 'Terms of Service — CredWave',
+  meta: [
+    { name: 'description', content: 'CredWave terms of service and user agreement.' },
+  ],
+})
 
 const updated = 'May 4, 2026'
 </script>

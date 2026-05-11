@@ -12,8 +12,19 @@ import {
 } from "lucide-vue-next";
 import FooterSection from "@/components/layout/FooterSection.vue";
 import { useReveal } from "@/utils/useReveal";
+import { useHead } from "@unhead/vue";
 
 useReveal();
+useHead({
+    title: "CredWave — AI Google Review Management for Restaurants",
+    meta: [
+        {
+            name: "description",
+            content:
+                "Restaurants that respond to every Google review earn 35% more. CredWave generates AI-written replies in 3 tones and posts them directly to Google — automatically.",
+        },
+    ],
+});
 
 const heroVisible = inject<Ref<boolean>>("heroVisible", ref(false));
 const heroRef = ref<HTMLElement | null>(null);
