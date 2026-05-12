@@ -15,6 +15,15 @@ export class PromoService {
     this.logger = logger;
   }
 
+  async hasPromoAccess(userId: number): Promise<boolean> {
+    const [row] = await this.sql<{ has_access: boolean }[]>`
+      SELECT promo_access_until > NOW() AS has_access
+      FROM users
+      WHERE id = ${userId} AND promo_access_until IS NOT NULL
+    `;
+    return row?.has_access ?? false;
+  }
+
   async redeemPromoCode(code: string, userId: number): Promise<void> {
     await this.sql.begin(async (tx) => {
       // Lock the row and validate all conditions atomically to prevent race conditions

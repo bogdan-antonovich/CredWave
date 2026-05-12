@@ -24,6 +24,29 @@ describe('PromoService', () => {
     sql = jest.fn();
   });
 
+  describe('hasPromoAccess', () => {
+    it('returns true when user has active promo access', async () => {
+      sql.mockResolvedValueOnce([{ has_access: true }]);
+      const service = await buildService(sql);
+
+      await expect(service.hasPromoAccess(1)).resolves.toBe(true);
+    });
+
+    it('returns false when promo_access_until is in the past', async () => {
+      sql.mockResolvedValueOnce([{ has_access: false }]);
+      const service = await buildService(sql);
+
+      await expect(service.hasPromoAccess(1)).resolves.toBe(false);
+    });
+
+    it('returns false when user has no promo (empty result)', async () => {
+      sql.mockResolvedValueOnce([]);
+      const service = await buildService(sql);
+
+      await expect(service.hasPromoAccess(1)).resolves.toBe(false);
+    });
+  });
+
   describe('redeemPromoCode', () => {
     function setupBegin(tx: jest.Mock) {
       (sql as any).begin = jest.fn((cb: (tx: jest.Mock) => Promise<void>) =>

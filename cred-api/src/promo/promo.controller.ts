@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
+  NotFoundException,
   Post,
   Req,
   UseGuards,
@@ -10,6 +12,7 @@ import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
   ApiNoContentResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -29,6 +32,25 @@ export class PromoController {
     @InjectPinoLogger(PromoController.name)
     private readonly logger: PinoLogger,
   ) {}
+
+  @Get('/access')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Check if the current user has active promo access',
+  })
+  @ApiOkResponse({
+    schema: {
+      properties: { accessUntil: { type: 'string', format: 'date-time' } },
+    },
+  })
+  async checkAccess(@Req() req: Request) {
+    this.logger.info('Checking promo access for current user');
+    const userId = (req as unknown as { user: { id: number } }).user.id;
+    const hasAccess = await this.promoService.hasPromoAccess(userId);
+    if (!hasAccess) throw new NotFoundException('No active promo access');
+    return { ok: true };
+  }
 
   @Post('/redeem')
   @HttpCode(204)

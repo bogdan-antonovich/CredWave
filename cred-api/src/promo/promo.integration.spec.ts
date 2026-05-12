@@ -59,6 +59,34 @@ describe('/promo route (integration)', () => {
     await app.close();
   });
 
+  describe('GET /promo/access', () => {
+    it('returns 200 when user has active promo access', async () => {
+      await sql`INSERT INTO promo_codes (code, duration_days, is_active) VALUES ('VALID30', 30, TRUE)`;
+      await sql`
+        UPDATE users
+        SET promo_access_until = NOW() + INTERVAL '30 days', promo_code = 'VALID30'
+        WHERE id = 1
+      `;
+
+      await request(server).get('/promo/access').expect(200);
+    });
+
+    it('returns 404 when user has no promo access', async () => {
+      await request(server).get('/promo/access').expect(404);
+    });
+
+    it('returns 404 when promo access has expired', async () => {
+      await sql`INSERT INTO promo_codes (code, duration_days, is_active) VALUES ('OLD30', 30, TRUE)`;
+      await sql`
+        UPDATE users
+        SET promo_access_until = NOW() - INTERVAL '1 day', promo_code = 'OLD30'
+        WHERE id = 1
+      `;
+
+      await request(server).get('/promo/access').expect(404);
+    });
+  });
+
   describe('POST /promo/redeem', () => {
     it('returns 204 on successful redemption', async () => {
       await sql`

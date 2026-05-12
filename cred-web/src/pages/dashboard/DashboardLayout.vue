@@ -28,17 +28,16 @@ watch(() => route.path, () => { sidebarOpen.value = false })
 onMounted(async () => {
   void userStore.fetchAll()
 
-  const res = await fetch(`${config.apiUrl}/billing/subscription`, {
-    headers: { Authorization: `Bearer ${auth.accessToken}` },
-  }).catch(() => null)
+  const headers = { Authorization: `Bearer ${auth.accessToken}` }
 
-  if (!res?.ok) {
-    const adminRes = await fetch(`${config.apiUrl}/admin/restaurants`, {
-      headers: { Authorization: `Bearer ${auth.accessToken}` },
-    }).catch(() => null)
-    if (!adminRes?.ok) {
-      window.location.href = `${config.appUrl}/pricing`
-    }
+  const [subRes, promoRes, adminRes] = await Promise.all([
+    fetch(`${config.apiUrl}/billing/subscription`, { headers }).catch(() => null),
+    fetch(`${config.apiUrl}/promo/access`, { headers }).catch(() => null),
+    fetch(`${config.apiUrl}/admin/restaurants`, { headers }).catch(() => null),
+  ])
+
+  if (!subRes?.ok && !promoRes?.ok && !adminRes?.ok) {
+    window.location.href = `${config.appUrl}/pricing`
   }
 })
 
