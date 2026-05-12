@@ -61,7 +61,7 @@ async function handleSave() {
 
         <div class="flex items-center gap-4 mb-5">
           <div class="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-            <span class="text-lg font-bold text-accent">{{ userStore.restaurant.ownerName.charAt(0) }}</span>
+            <span class="text-lg font-bold text-accent">{{ (userStore.restaurant.ownerName || userStore.profile.name || '?').charAt(0).toUpperCase() }}</span>
           </div>
           <div>
             <p class="text-sm font-semibold text-text-primary">{{ userStore.restaurant.ownerName }}</p>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { Menu, X, User } from 'lucide-vue-next'
+import { Menu, X } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth.store'
+import { useUserStore } from '@/stores/user.store'
 import { config } from '@/config/env'
 
 defineProps<{
@@ -11,6 +12,7 @@ defineProps<{
 
 const route = useRoute()
 const auth = useAuthStore()
+const userStore = useUserStore()
 const mobileOpen = ref(false)
 const avatarOpen = ref(false)
 
@@ -37,7 +39,12 @@ function handleOutsideClick(e: MouseEvent) {
   }
 }
 
-onMounted(() => document.addEventListener('click', handleOutsideClick))
+onMounted(() => {
+  document.addEventListener('click', handleOutsideClick)
+  if (auth.isAuthenticated && !userStore.profile.name) {
+    void userStore.fetchAll()
+  }
+})
 onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
 </script>
 
@@ -119,10 +126,12 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
         </RouterLink>
         <div v-if="auth.isAuthenticated" class="relative ml-3" data-avatar-menu>
           <button
-            class="w-8 h-8 rounded-full bg-neutral-400 flex items-center justify-center hover:bg-neutral-500 transition-colors"
+            class="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center hover:bg-accent/20 transition-colors"
             @click.stop="toggleAvatar"
           >
-            <User class="w-4 h-4 text-white" />
+            <span class="text-xs font-bold text-accent">
+              {{ (userStore.restaurant.ownerName || userStore.profile.name || '?').charAt(0).toUpperCase() }}
+            </span>
           </button>
           <div
             v-if="avatarOpen"
