@@ -355,6 +355,27 @@ describe('Admin (integration)', () => {
       expect(rows).toHaveLength(0);
     });
 
+    it('nulls promo_code on users who redeemed it', async () => {
+      await sql`INSERT INTO promo_codes (code, duration_days) VALUES ('REDEEMED', 30)`;
+      const [user] = await sql<{ id: number }[]>`
+        INSERT INTO users (email, name) VALUES ('redeemer@test.com', 'Redeemer') RETURNING id
+      `;
+      await sql`
+        UPDATE users
+        SET promo_code = 'REDEEMED', promo_access_until = NOW() + INTERVAL '30 days'
+        WHERE id = ${user.id}
+      `;
+
+      await request(server).delete('/admin/promo-codes/REDEEMED').expect(204);
+
+      const [row] = await sql<{ promo_code: string | null }[]>`
+        SELECT promo_code FROM users WHERE id = ${user.id}
+      `;
+      expect(row.promo_code).toBeNull();
+      const codes = await sql`SELECT * FROM promo_codes WHERE code = 'REDEEMED'`;
+      expect(codes).toHaveLength(0);
+    });
+
     it('returns 204 even when code does not exist', async () => {
       await request(server).delete('/admin/promo-codes/NONEXISTENT').expect(204);
     });

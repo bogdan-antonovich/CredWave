@@ -198,13 +198,45 @@ describe('AdminService', () => {
   });
 
   describe('deletePromoCode', () => {
-    it('deletes promo code by code value', async () => {
-      sql.mockResolvedValueOnce([]);
+    function setupBegin(tx: jest.Mock) {
+      (sql as any).begin = jest.fn((cb: (tx: jest.Mock) => Promise<void>) =>
+        cb(tx),
+      );
+    }
+
+    it('runs inside a transaction', async () => {
+      const tx = jest.fn()
+        .mockResolvedValueOnce([]) // SELECT users with this promo_code (none)
+        .mockResolvedValueOnce(undefined); // DELETE promo_code
+      setupBegin(tx);
 
       await service.deletePromoCode('LAUNCH20');
 
-      expect(sql).toHaveBeenCalledTimes(1);
-      expect(sql).toHaveBeenCalledWith(expect.anything(), 'LAUNCH20');
+      expect((sql as any).begin).toHaveBeenCalledTimes(1);
+    });
+
+    it('nulls promo_code on users before deleting', async () => {
+      const tx = jest.fn()
+        .mockResolvedValueOnce([{ id: 10 }, { id: 11 }]) // two users have this code
+        .mockResolvedValueOnce(undefined) // UPDATE user 10
+        .mockResolvedValueOnce(undefined) // UPDATE user 11
+        .mockResolvedValueOnce(undefined); // DELETE promo_code
+      setupBegin(tx);
+
+      await service.deletePromoCode('LAUNCH20');
+
+      expect(tx).toHaveBeenCalledTimes(4);
+    });
+
+    it('deletes the promo code even when no users have redeemed it', async () => {
+      const tx = jest.fn()
+        .mockResolvedValueOnce([]) // no users
+        .mockResolvedValueOnce(undefined); // DELETE promo_code
+      setupBegin(tx);
+
+      await service.deletePromoCode('LAUNCH20');
+
+      expect(tx).toHaveBeenCalledTimes(2);
     });
   });
 

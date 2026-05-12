@@ -225,8 +225,18 @@ export class AdminService {
   }
 
   async deletePromoCode(code: string) {
-    await this.sql`
-      DELETE FROM promo_codes WHERE code = ${code}
-    `;
+    await this.sql.begin(async (tx) => {
+      const users = await tx<{ id: number }[]>`
+        SELECT id FROM users WHERE promo_code = ${code}
+        `;
+      for (const user of users) {
+        await tx`
+          UPDATE users SET promo_code = NULL WHERE id = ${user.id}
+        `;
+      }
+      await tx`
+        DELETE FROM promo_codes WHERE code = ${code}
+      `;
+    });
   }
 }
