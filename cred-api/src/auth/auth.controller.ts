@@ -88,7 +88,12 @@ export class AuthController {
 
     await this.googleTokens.saveRefreshToken(user.id, req.user.refreshToken);
 
-    const accessToken = this.jwt.sign({ sub: user.id });
+    // StringValue (ms package) expects a branded string type; the config value is compatible at runtime
+    const jwtOpts = { expiresIn: this.cfg.get('jwt').expiresIn };
+    const accessToken = this.jwt.sign(
+      { sub: user.id },
+      jwtOpts as Parameters<typeof this.jwt.sign>[1],
+    );
     const refreshToken = randomBytes(64).toString('hex');
 
     await this.appTokens.saveRefreshToken(user.id, refreshToken);
