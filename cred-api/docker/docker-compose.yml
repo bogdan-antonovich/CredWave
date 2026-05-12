@@ -45,6 +45,8 @@ services:
         target: OPENAI_API_KEY_FILE
       - source: ADMIN_PASSWORD_FILE
         target: ADMIN_PASSWORD_FILE
+      - source: RESEND_API_KEY_FILE
+        target: RESEND_API_KEY_FILE
     networks:
       - credwave
     ports:
@@ -183,6 +185,9 @@ secrets:
   POSTGRES_PASSWORD_FILE:
     external: true
     name: POSTGRES_PASSWORD_FILE_${TAG}
+  RESEND_API_KEY_FILE:
+    external: true
+    name: RESEND_API_KEY_FILE_${TAG}
 
 configs:
   loki_config:

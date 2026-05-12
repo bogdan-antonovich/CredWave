@@ -84,6 +84,7 @@ jobs:
             ADMIN_PASSWORD,
             POSTGRES_PASSWORD,
             GRAFANA_PASSWORD,
+            RESEND_API_KEY,
           script: |
             set -euo pipefail
 
@@ -123,6 +124,7 @@ jobs:
             sync_secret "OPENAI_API_KEY_FILE"         "$OPENAI_API_KEY"
             sync_secret "ADMIN_PASSWORD_FILE"         "$ADMIN_PASSWORD"
             sync_secret "POSTGRES_PASSWORD_FILE"      "$POSTGRES_PASSWORD"
+            sync_secret "RESEND_API_KEY_FILE"         "$RESEND_API_KEY"
 
             sync_config "loki_config"        ~/cred-api/cfg/loki-config.yml
             sync_config "grafana_datasource" ~/cred-api/cfg/grafana-datasource.yml
@@ -242,3 +244,4 @@ jobs:
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
