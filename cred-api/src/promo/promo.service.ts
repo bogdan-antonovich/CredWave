@@ -49,7 +49,9 @@ export class PromoService {
       if (!promo)
         throw new BadRequestException('Invalid or expired promo code');
 
-      const [user] = await tx<{ promo_code: string | null; email: string; name: string }[]>`
+      const [user] = await tx<
+        { promo_code: string | null; email: string; name: string }[]
+      >`
         SELECT promo_code, email, name FROM users WHERE id = ${userId}
       `;
 
@@ -72,8 +74,16 @@ export class PromoService {
 
       this.logger.debug({ userId, code }, 'Promo code redeemed');
 
-      const accessUntil = updated.promo_access_until.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      void this.email.sendPromoRedeemed(user.email, user.name ?? 'there', code, accessUntil);
+      const accessUntil = updated.promo_access_until.toLocaleDateString(
+        'en-US',
+        { month: 'short', day: 'numeric', year: 'numeric' },
+      );
+      void this.email.sendPromoRedeemed(
+        user.email,
+        user.name ?? 'there',
+        code,
+        accessUntil,
+      );
     });
   }
 }

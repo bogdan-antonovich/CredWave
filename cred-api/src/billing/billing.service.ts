@@ -147,9 +147,7 @@ export class BillingService {
     return { url: session.urls.general.overview };
   }
 
-  private async onSubscriptionCreated(
-    data: SubscriptionCreatedNotification,
-  ) {
+  private async onSubscriptionCreated(data: SubscriptionCreatedNotification) {
     const planLimits: Record<string, number> = {
       starter: 50,
       growth: 200,
@@ -197,7 +195,10 @@ export class BillingService {
       const price = data.items[0]?.price;
       const planName = price?.name ?? 'Starter';
       const nextBillingDate = data.currentBillingPeriod?.endsAt
-        ? new Date(data.currentBillingPeriod.endsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        ? new Date(data.currentBillingPeriod.endsAt).toLocaleDateString(
+            'en-US',
+            { month: 'short', day: 'numeric', year: 'numeric' },
+          )
         : '—';
       void this.email.sendSubscriptionStarted(
         user.email,
@@ -239,14 +240,30 @@ export class BillingService {
       'Subscription canceled successfully',
     );
 
-    const [sub] = await this.sql<{ email: string; name: string; plan_name: string; current_period_end: Date }[]>`
+    const [sub] = await this.sql<
+      {
+        email: string;
+        name: string;
+        plan_name: string;
+        current_period_end: Date;
+      }[]
+    >`
       SELECT u.email, u.name, s.plan_name, s.current_period_end
       FROM subscriptions s JOIN users u ON u.id = s.user_id
       WHERE s.paddle_subscription_id = ${data.id}
     `;
     if (sub) {
-      const accessUntil = sub.current_period_end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      void this.email.sendSubscriptionCanceled(sub.email, sub.name ?? 'there', sub.plan_name, accessUntil);
+      const accessUntil = sub.current_period_end.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      void this.email.sendSubscriptionCanceled(
+        sub.email,
+        sub.name ?? 'there',
+        sub.plan_name,
+        accessUntil,
+      );
     }
   }
 
@@ -262,13 +279,19 @@ export class BillingService {
       'Subscription past due successfully',
     );
 
-    const [sub] = await this.sql<{ email: string; name: string; plan_name: string }[]>`
+    const [sub] = await this.sql<
+      { email: string; name: string; plan_name: string }[]
+    >`
       SELECT u.email, u.name, s.plan_name
       FROM subscriptions s JOIN users u ON u.id = s.user_id
       WHERE s.paddle_subscription_id = ${data.id}
     `;
     if (sub) {
-      void this.email.sendPaymentFailed(sub.email, sub.name ?? 'there', sub.plan_name);
+      void this.email.sendPaymentFailed(
+        sub.email,
+        sub.name ?? 'there',
+        sub.plan_name,
+      );
     }
   }
 
@@ -314,15 +337,28 @@ export class BillingService {
 
     if (data.customerId && data.subscriptionId) {
       const user = await this.getUserByCustomerId(data.customerId);
-      const [sub] = await this.sql<{ plan_name: string; current_period_end: Date }[]>`
+      const [sub] = await this.sql<
+        { plan_name: string; current_period_end: Date }[]
+      >`
         SELECT plan_name, current_period_end FROM subscriptions
         WHERE paddle_subscription_id = ${data.subscriptionId}
       `;
       if (user && sub) {
-        const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: data.currencyCode ?? 'USD' })
-          .format(Number(total) / 100);
-        const nextBillingDate = sub.current_period_end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        void this.email.sendSubscriptionRenewed(user.email, user.name ?? 'there', sub.plan_name, amount, nextBillingDate);
+        const amount = new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: data.currencyCode ?? 'USD',
+        }).format(Number(total) / 100);
+        const nextBillingDate = sub.current_period_end.toLocaleDateString(
+          'en-US',
+          { month: 'short', day: 'numeric', year: 'numeric' },
+        );
+        void this.email.sendSubscriptionRenewed(
+          user.email,
+          user.name ?? 'there',
+          sub.plan_name,
+          amount,
+          nextBillingDate,
+        );
       }
     }
   }

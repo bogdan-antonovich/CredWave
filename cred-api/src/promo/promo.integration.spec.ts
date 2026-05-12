@@ -7,6 +7,7 @@ import request from 'supertest';
 import type { Server } from 'http';
 import { PromoController } from './promo.controller';
 import { PromoService } from './promo.service';
+import { EmailService } from '../email/email.serivice';
 
 class MockAuthGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
@@ -44,6 +45,7 @@ describe('/promo route (integration)', () => {
       providers: [
         PromoService,
         { provide: 'SQL', useValue: sql },
+        { provide: EmailService, useValue: { sendPromoRedeemed: jest.fn() } },
       ],
     })
       .overrideGuard(AuthGuard('jwt'))

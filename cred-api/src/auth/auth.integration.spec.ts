@@ -11,6 +11,7 @@ import postgres, { type Sql } from 'postgres';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
 import { AppConfigService } from '../config/config.service';
+import { EmailService } from '../email/email.serivice';
 import { AuthController } from './auth.controller';
 import {
   AppTokensService,
@@ -92,6 +93,10 @@ describe('/auth route', () => {
         JwtService,
         { provide: 'SQL', useValue: sql },
         { provide: 'JWT_MODULE_OPTIONS', useValue: { secret: 'test-secret' } },
+        {
+          provide: EmailService,
+          useValue: { sendWelcome: jest.fn(), sendNewLogin: jest.fn() },
+        },
         {
           provide: AppConfigService,
           useValue: {

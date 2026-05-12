@@ -328,9 +328,11 @@ export class ReviewsService {
         response_format: { type: 'json_object' },
       });
 
-      const responses = JSON.parse(
-        completion.choices[0].message.content!,
-      ) as { empathetic: string; professional: string; casual: string };
+      const responses = JSON.parse(completion.choices[0].message.content!) as {
+        empathetic: string;
+        professional: string;
+        casual: string;
+      };
 
       const replyText = responses[tone];
 
@@ -365,7 +367,7 @@ export class ReviewsService {
         );
       }
     } catch (err) {
-      this.logger.error({ err }, 'Auto-reply failed');
+      this.logger.error({ err: err as Error }, 'Auto-reply failed');
     }
   }
 

@@ -12,6 +12,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
 import { AppConfigService } from '../config/config.service';
+import { EmailService } from '../email/email.serivice';
 
 type SubscriptionResponse = {
   plan: {
@@ -103,6 +104,15 @@ describe('/billing route', () => {
         BillingService,
         { provide: 'SQL', useValue: sql },
         { provide: 'PADDLE', useValue: mockPaddle },
+        {
+          provide: EmailService,
+          useValue: {
+            sendSubscriptionStarted: jest.fn(),
+            sendSubscriptionRenewed: jest.fn(),
+            sendSubscriptionCanceled: jest.fn(),
+            sendPaymentFailed: jest.fn(),
+          },
+        },
         {
           provide: AppConfigService,
           useValue: {

@@ -70,8 +70,14 @@ export class EmailService {
   }
 
   private async send(to: string, subject: string, html: string) {
-    const { error } = await this.resend.emails.send({ from: FROM, to, subject, html });
-    if (error) this.logger.error({ error, to, subject }, 'Failed to send email');
+    const { error } = await this.resend.emails.send({
+      from: FROM,
+      to,
+      subject,
+      html,
+    });
+    if (error)
+      this.logger.error({ error, to, subject }, 'Failed to send email');
   }
 
   async sendWelcome(to: string, name: string) {
@@ -80,10 +86,12 @@ export class EmailService {
       'Welcome to CredWave!',
       template(
         `Welcome, ${name}! 👋`,
-        p('Thanks for signing up. CredWave helps you stay on top of your Google reviews — generating AI-crafted replies in seconds so you never leave a customer unanswered.') +
-        p('Connect your Google Business Profile and you\'re ready to go.') +
-        btn('Go to dashboard', 'https://dashboard.credwave.app') +
-        p('If you have any questions, just reply to this email.'),
+        p(
+          'Thanks for signing up. CredWave helps you stay on top of your Google reviews — generating AI-crafted replies in seconds so you never leave a customer unanswered.',
+        ) +
+          p("Connect your Google Business Profile and you're ready to go.") +
+          btn('Go to dashboard', 'https://dashboard.credwave.app') +
+          p('If you have any questions, just reply to this email.'),
       ),
     );
   }
@@ -100,15 +108,19 @@ export class EmailService {
       `You're on the ${planName} plan — let's get to work`,
       template(
         'Subscription confirmed',
-        p(`Hi ${name}, your <strong>${planName}</strong> subscription is now active.`) +
-        detailTable(
-          detail('Plan', planName) +
-          detail('Billing', period === 'year' ? 'Annual' : 'Monthly') +
-          detail('Next billing', nextBillingDate),
+        p(
+          `Hi ${name}, your <strong>${planName}</strong> subscription is now active.`,
         ) +
-        btn('Go to dashboard', 'https://dashboard.credwave.app') +
-        divider() +
-        p('You can manage your subscription, update your payment method, or cancel anytime from your billing page.'),
+          detailTable(
+            detail('Plan', planName) +
+              detail('Billing', period === 'year' ? 'Annual' : 'Monthly') +
+              detail('Next billing', nextBillingDate),
+          ) +
+          btn('Go to dashboard', 'https://dashboard.credwave.app') +
+          divider() +
+          p(
+            'You can manage your subscription, update your payment method, or cancel anytime from your billing page.',
+          ),
       ),
     );
   }
@@ -125,15 +137,19 @@ export class EmailService {
       'Your CredWave subscription has been renewed',
       template(
         'Subscription renewed',
-        p(`Hi ${name}, your <strong>${planName}</strong> plan has been renewed successfully.`) +
-        detailTable(
-          detail('Plan', planName) +
-          detail('Amount charged', amount) +
-          detail('Next billing', nextBillingDate),
+        p(
+          `Hi ${name}, your <strong>${planName}</strong> plan has been renewed successfully.`,
         ) +
-        btn('View invoice', 'https://dashboard.credwave.app/billing') +
-        divider() +
-        p('If you have any questions about your invoice, reply to this email and we\'ll sort it out.'),
+          detailTable(
+            detail('Plan', planName) +
+              detail('Amount charged', amount) +
+              detail('Next billing', nextBillingDate),
+          ) +
+          btn('View invoice', 'https://dashboard.credwave.app/billing') +
+          divider() +
+          p(
+            "If you have any questions about your invoice, reply to this email and we'll sort it out.",
+          ),
       ),
     );
   }
@@ -149,12 +165,18 @@ export class EmailService {
       'Your CredWave subscription has been canceled',
       template(
         'Subscription canceled',
-        p(`Hi ${name}, your <strong>${planName}</strong> subscription has been canceled.`) +
-        p(`You\'ll keep full access to CredWave until <strong>${accessUntil}</strong>. After that, your account will be downgraded.`) +
-        detailTable(detail('Access until', accessUntil)) +
-        btn('Reactivate', 'https://credwave.app/pricing') +
-        divider() +
-        p('Changed your mind? You can reactivate at any time before your access expires.'),
+        p(
+          `Hi ${name}, your <strong>${planName}</strong> subscription has been canceled.`,
+        ) +
+          p(
+            `You'll keep full access to CredWave until <strong>${accessUntil}</strong>. After that, your account will be downgraded.`,
+          ) +
+          detailTable(detail('Access until', accessUntil)) +
+          btn('Reactivate', 'https://credwave.app/pricing') +
+          divider() +
+          p(
+            'Changed your mind? You can reactivate at any time before your access expires.',
+          ),
       ),
     );
   }
@@ -165,11 +187,20 @@ export class EmailService {
       'Payment failed — action required',
       template(
         'Payment failed',
-        p(`Hi ${name}, we couldn\'t process your payment for the <strong>${planName}</strong> plan.`) +
-        p('Please update your payment method to keep your account active. If this isn\'t resolved soon, your subscription will be suspended.') +
-        btn('Update payment method', 'https://dashboard.credwave.app/billing') +
-        divider() +
-        p('If you think this is an error, reply to this email and we\'ll help you right away.'),
+        p(
+          `Hi ${name}, we couldn't process your payment for the <strong>${planName}</strong> plan.`,
+        ) +
+          p(
+            "Please update your payment method to keep your account active. If this isn't resolved soon, your subscription will be suspended.",
+          ) +
+          btn(
+            'Update payment method',
+            'https://dashboard.credwave.app/billing',
+          ) +
+          divider() +
+          p(
+            "If you think this is an error, reply to this email and we'll help you right away.",
+          ),
       ),
     );
   }
@@ -185,14 +216,17 @@ export class EmailService {
       'Your promo code is active — enjoy CredWave',
       template(
         'Promo code redeemed',
-        p(`Hi ${name}, your promo code <strong>${code}</strong> has been applied successfully.`) +
-        detailTable(
-          detail('Code', code) +
-          detail('Access until', accessUntil),
+        p(
+          `Hi ${name}, your promo code <strong>${code}</strong> has been applied successfully.`,
         ) +
-        btn('Go to dashboard', 'https://dashboard.credwave.app') +
-        divider() +
-        p('Make the most of your access — connect your Google Business Profile and start managing reviews today.'),
+          detailTable(
+            detail('Code', code) + detail('Access until', accessUntil),
+          ) +
+          btn('Go to dashboard', 'https://dashboard.credwave.app') +
+          divider() +
+          p(
+            'Make the most of your access — connect your Google Business Profile and start managing reviews today.',
+          ),
       ),
     );
   }
@@ -204,13 +238,12 @@ export class EmailService {
       template(
         'New sign-in detected',
         p(`Hi ${name}, we noticed a new sign-in to your CredWave account.`) +
-        detailTable(
-          detail('IP address', ip) +
-          detail('Time', time),
-        ) +
-        p('If this was you, no action is needed.') +
-        divider() +
-        p('If you don\'t recognise this sign-in, please <a href="https://credwave.app/auth" style="color:#4f46e5">secure your account</a> immediately.'),
+          detailTable(detail('IP address', ip) + detail('Time', time)) +
+          p('If this was you, no action is needed.') +
+          divider() +
+          p(
+            'If you don\'t recognise this sign-in, please <a href="https://credwave.app/auth" style="color:#4f46e5">secure your account</a> immediately.',
+          ),
       ),
     );
   }
@@ -226,8 +259,9 @@ export class EmailService {
       `Your reply at ${restaurantName} was posted on Google`,
       template(
         'Reply posted to Google',
-        p(`Hi ${name}, your reply to a review from <strong>${reviewerName}</strong> at <strong>${restaurantName}</strong> has been successfully posted on Google Maps.`) +
-        btn('View on CredWave', 'https://dashboard.credwave.app'),
+        p(
+          `Hi ${name}, your reply to a review from <strong>${reviewerName}</strong> at <strong>${restaurantName}</strong> has been successfully posted on Google Maps.`,
+        ) + btn('View on CredWave', 'https://dashboard.credwave.app'),
       ),
     );
   }
@@ -245,14 +279,15 @@ export class EmailService {
       `CredWave auto-replied to a review at ${restaurantName}`,
       template(
         'Auto-reply posted',
-        p(`Hi ${name}, CredWave automatically replied to a new review at <strong>${restaurantName}</strong>.`) +
-        detailTable(
-          detail('Reviewer', reviewerName) +
-          detail('Rating', stars),
+        p(
+          `Hi ${name}, CredWave automatically replied to a new review at <strong>${restaurantName}</strong>.`,
         ) +
-        btn('View on CredWave', 'https://dashboard.credwave.app') +
-        divider() +
-        p('You can view or edit the reply from your CredWave dashboard.'),
+          detailTable(
+            detail('Reviewer', reviewerName) + detail('Rating', stars),
+          ) +
+          btn('View on CredWave', 'https://dashboard.credwave.app') +
+          divider() +
+          p('You can view or edit the reply from your CredWave dashboard.'),
       ),
     );
   }
@@ -277,13 +312,15 @@ export class EmailService {
       `New ${rating}-star review for ${restaurantName}`,
       template(
         'New review received',
-        p(`Hi ${name}, <strong>${restaurantName}</strong> just received a new Google review.`) +
-        `<div style="background:#f5f4f0;border-radius:10px;padding:16px 20px;margin:16px 0 24px">
+        p(
+          `Hi ${name}, <strong>${restaurantName}</strong> just received a new Google review.`,
+        ) +
+          `<div style="background:#f5f4f0;border-radius:10px;padding:16px 20px;margin:16px 0 24px">
           <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#1a1a1a">${reviewerName}</p>
           <p style="margin:0 0 8px;font-size:16px;color:#f59e0b;letter-spacing:2px">${stars}</p>
           <p style="margin:0;font-size:14px;color:#555;line-height:1.6;font-style:italic">"${snippet}"</p>
         </div>` +
-        btn('Reply on CredWave', 'https://dashboard.credwave.app'),
+          btn('Reply on CredWave', 'https://dashboard.credwave.app'),
       ),
     );
   }

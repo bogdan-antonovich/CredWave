@@ -199,15 +199,25 @@ export class AuthService {
     return created;
   }
 
-  async handleLoginIp(userId: string, ip: string, userEmail: string, userName: string) {
+  async handleLoginIp(
+    userId: string,
+    ip: string,
+    userEmail: string,
+    userName: string,
+  ) {
     const [row] = await this.sql<{ last_login_ip: string | null }[]>`
       SELECT last_login_ip FROM users WHERE id = ${userId}
     `;
 
     if (row?.last_login_ip && row.last_login_ip !== ip) {
       const time = new Date().toLocaleString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'UTC',
+        timeZoneName: 'short',
       });
       void this.email.sendNewLogin(userEmail, userName ?? 'there', ip, time);
     }
