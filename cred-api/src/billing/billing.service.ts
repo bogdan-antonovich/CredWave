@@ -48,6 +48,11 @@ export class BillingService {
       return null;
     }
 
+    if (sub.status === 'canceled' && sub.current_period_end < new Date()) {
+      this.logger.debug({ userId }, 'Subscription canceled and period expired');
+      return null;
+    }
+
     const [pm] = await this.sql<PaymentMethod[]>`
       SELECT brand, last4, expiry FROM payment_methods WHERE user_id = ${userId}
     `;

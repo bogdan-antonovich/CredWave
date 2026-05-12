@@ -60,7 +60,7 @@ describe('/promo route (integration)', () => {
   });
 
   describe('GET /promo/access', () => {
-    it('returns 200 when user has active promo access', async () => {
+    it('returns 200 with code and accessUntil when user has active promo access', async () => {
       await sql`INSERT INTO promo_codes (code, duration_days, is_active) VALUES ('VALID30', 30, TRUE)`;
       await sql`
         UPDATE users
@@ -68,7 +68,8 @@ describe('/promo route (integration)', () => {
         WHERE id = 1
       `;
 
-      await request(server).get('/promo/access').expect(200);
+      const res = await request(server).get('/promo/access').expect(200);
+      expect(res.body).toMatchObject({ code: 'VALID30', accessUntil: expect.any(String) });
     });
 
     it('returns 404 when user has no promo access', async () => {

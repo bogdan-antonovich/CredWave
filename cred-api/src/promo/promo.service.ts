@@ -15,13 +15,21 @@ export class PromoService {
     this.logger = logger;
   }
 
-  async hasPromoAccess(userId: number): Promise<boolean> {
-    const [row] = await this.sql<{ has_access: boolean }[]>`
-      SELECT promo_access_until > NOW() AS has_access
+  async getPromoAccess(
+    userId: number,
+  ): Promise<{ code: string; accessUntil: string } | null> {
+    const [row] = await this.sql<
+      { promo_code: string; promo_access_until: Date }[]
+    >`
+      SELECT promo_code, promo_access_until
       FROM users
-      WHERE id = ${userId} AND promo_access_until IS NOT NULL
+      WHERE id = ${userId} AND promo_access_until > NOW()
     `;
-    return row?.has_access ?? false;
+    if (!row) return null;
+    return {
+      code: row.promo_code,
+      accessUntil: row.promo_access_until.toISOString(),
+    };
   }
 
   async redeemPromoCode(code: string, userId: number): Promise<void> {

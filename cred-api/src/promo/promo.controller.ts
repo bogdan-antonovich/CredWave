@@ -47,9 +47,9 @@ export class PromoController {
   async checkAccess(@Req() req: Request) {
     this.logger.info('Checking promo access for current user');
     const userId = (req as unknown as { user: { id: number } }).user.id;
-    const hasAccess = await this.promoService.hasPromoAccess(userId);
-    if (!hasAccess) throw new NotFoundException('No active promo access');
-    return { ok: true };
+    const access = await this.promoService.getPromoAccess(userId);
+    if (!access) throw new NotFoundException('No active promo access');
+    return access;
   }
 
   @Post('/redeem')

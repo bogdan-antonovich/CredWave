@@ -39,9 +39,15 @@ interface Invoice {
   download_url: string | null
 }
 
+interface PromoAccess {
+  code: string
+  accessUntil: string
+}
+
 export const useBillingStore = defineStore('billing', () => {
   const subscription = ref<Subscription | null>(null)
   const invoices = ref<Invoice[]>([])
+  const promoAccess = ref<PromoAccess | null>(null)
   const loading = ref(false)
   const portalLoading = ref(false)
   const hasSubscription = ref(true)
@@ -66,9 +72,17 @@ export const useBillingStore = defineStore('billing', () => {
     }
   }
 
+  async function fetchPromoAccess() {
+    try {
+      promoAccess.value = await api.get<PromoAccess>('/promo/access')
+    } catch {
+      promoAccess.value = null
+    }
+  }
+
   async function fetchAll() {
     loading.value = true
-    await Promise.all([fetchSubscription(), fetchInvoices()])
+    await Promise.all([fetchSubscription(), fetchInvoices(), fetchPromoAccess()])
     loading.value = false
   }
 
@@ -86,6 +100,7 @@ export const useBillingStore = defineStore('billing', () => {
   return {
     subscription,
     invoices,
+    promoAccess,
     loading,
     portalLoading,
     hasSubscription,

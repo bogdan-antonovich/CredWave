@@ -154,6 +154,36 @@ describe('/billing route', () => {
       expect(body.plan.name).toBe('starter');
       expect(body.usage.reviewsLimit).toBe(50);
     });
+
+    it('returns 404 when subscription is canceled and period has expired', async () => {
+      await sql`
+        INSERT INTO subscriptions (
+          user_id, plan_name, price, period, status,
+          current_period_end, paddle_subscription_id, reviews_limit
+        )
+        VALUES (
+          1, 'starter', 10, 'month', 'canceled',
+          NOW() - INTERVAL '1 day', 'sub_expired', 50
+        )
+      `;
+
+      await request(server).get('/billing/subscription').expect(404);
+    });
+
+    it('returns 200 when subscription is canceled but period has not expired yet', async () => {
+      await sql`
+        INSERT INTO subscriptions (
+          user_id, plan_name, price, period, status,
+          current_period_end, paddle_subscription_id, reviews_limit
+        )
+        VALUES (
+          1, 'starter', 10, 'month', 'canceled',
+          NOW() + INTERVAL '5 days', 'sub_canceling', 50
+        )
+      `;
+
+      await request(server).get('/billing/subscription').expect(200);
+    });
   });
 
   describe('GET /billing/invoices', () => {

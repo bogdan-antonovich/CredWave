@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { CreditCard, Download, ExternalLink, Check, AlertCircle, Loader2 } from 'lucide-vue-next'
+import { CreditCard, Download, ExternalLink, Check, AlertCircle, Loader2, Tag } from 'lucide-vue-next'
 import { useBillingStore } from '@/stores/billing.store'
 
 const billingStore = useBillingStore()
@@ -16,6 +16,11 @@ const usagePercent = computed(() => {
 function formatDate(iso: string | null) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function daysRemaining(iso: string) {
+  const ms = new Date(iso).getTime() - Date.now()
+  return Math.max(0, Math.ceil(ms / 86400000))
 }
 
 function formatAmount(amount: number, currency: string) {
@@ -43,12 +48,55 @@ function statusLabel(status: string) {
     </div>
 
     <!-- No subscription -->
-    <div v-else-if="!billingStore.hasSubscription" class="text-center py-20">
-      <p class="text-sm text-text-muted">You don't have an active subscription yet.</p>
-      <p class="text-xs text-text-muted mt-1">Choose a plan from the pricing page to get started.</p>
+    <div v-else-if="!billingStore.hasSubscription" class="space-y-6">
+      <div v-if="!billingStore.promoAccess" class="text-center py-20">
+        <p class="text-sm text-text-muted">You don't have an active subscription yet.</p>
+        <p class="text-xs text-text-muted mt-1">Choose a plan from the pricing page to get started.</p>
+      </div>
+
+      <!-- Promo-only user -->
+      <section v-if="billingStore.promoAccess" class="bg-white border border-border-subtle rounded-2xl p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <Tag class="w-4 h-4 text-accent" />
+          <h2 class="text-sm font-bold text-text-primary">Promo Access</h2>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="space-y-1">
+            <p class="text-sm text-text-secondary">
+              Code: <span class="font-mono font-semibold text-text-primary">{{ billingStore.promoAccess.code }}</span>
+            </p>
+            <p class="text-sm text-text-secondary">
+              Expires: <span class="font-medium text-text-primary">{{ formatDate(billingStore.promoAccess.accessUntil) }}</span>
+            </p>
+            <p class="text-xs text-text-muted">
+              {{ daysRemaining(billingStore.promoAccess.accessUntil) }} days remaining
+            </p>
+          </div>
+          <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+            Active
+          </span>
+        </div>
+      </section>
     </div>
 
     <div v-else class="space-y-6">
+      <!-- Promo banner inside subscription view -->
+      <section v-if="billingStore.promoAccess" class="bg-accent/5 border border-accent/20 rounded-2xl p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <Tag class="w-4 h-4 text-accent shrink-0" />
+          <div>
+            <p class="text-sm font-semibold text-text-primary">
+              Promo code active: <span class="font-mono">{{ billingStore.promoAccess.code }}</span>
+            </p>
+            <p class="text-xs text-text-muted mt-0.5">
+              Access via promo until {{ formatDate(billingStore.promoAccess.accessUntil) }} · {{ daysRemaining(billingStore.promoAccess.accessUntil) }} days remaining
+            </p>
+          </div>
+        </div>
+        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/10 text-accent shrink-0">
+          Active
+        </span>
+      </section>
       <!-- ═══ Current Plan ═══ -->
       <section class="bg-white border border-border-subtle rounded-2xl overflow-hidden">
         <div class="p-6">

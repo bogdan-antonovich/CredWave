@@ -24,26 +24,21 @@ describe('PromoService', () => {
     sql = jest.fn();
   });
 
-  describe('hasPromoAccess', () => {
-    it('returns true when user has active promo access', async () => {
-      sql.mockResolvedValueOnce([{ has_access: true }]);
+  describe('getPromoAccess', () => {
+    it('returns code and accessUntil when user has active promo access', async () => {
+      const until = new Date(Date.now() + 86400000);
+      sql.mockResolvedValueOnce([{ promo_code: 'LAUNCH30', promo_access_until: until }]);
       const service = await buildService(sql);
 
-      await expect(service.hasPromoAccess(1)).resolves.toBe(true);
+      const result = await service.getPromoAccess(1);
+      expect(result).toEqual({ code: 'LAUNCH30', accessUntil: until.toISOString() });
     });
 
-    it('returns false when promo_access_until is in the past', async () => {
-      sql.mockResolvedValueOnce([{ has_access: false }]);
-      const service = await buildService(sql);
-
-      await expect(service.hasPromoAccess(1)).resolves.toBe(false);
-    });
-
-    it('returns false when user has no promo (empty result)', async () => {
+    it('returns null when user has no active promo (empty result)', async () => {
       sql.mockResolvedValueOnce([]);
       const service = await buildService(sql);
 
-      await expect(service.hasPromoAccess(1)).resolves.toBe(false);
+      await expect(service.getPromoAccess(1)).resolves.toBeNull();
     });
   });
 
