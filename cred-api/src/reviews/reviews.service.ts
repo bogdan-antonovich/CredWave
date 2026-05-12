@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 import { AppConfigService } from 'src/config/config.service';
 import { google } from 'googleapis';
 import { GoogleTokensService } from '../auth/auth.service';
+import { EmailService } from '../email/email.serivice';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -18,6 +19,7 @@ export class ReviewsService {
     @Inject('OPENAI') private readonly openai: OpenAI,
     private readonly cfg: AppConfigService,
     private readonly googleTokens: GoogleTokensService,
+    private readonly email: EmailService,
     @InjectPinoLogger(ReviewsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
@@ -106,9 +108,10 @@ export class ReviewsService {
       {
         google_review_id: string;
         restaurant_id: number;
+        reviewer_name: string | null;
       }[]
     >`
-      SELECT google_review_id, restaurant_id FROM reviews WHERE id = ${reviewId}
+      SELECT google_review_id, restaurant_id, reviewer_name FROM reviews WHERE id = ${reviewId}
     `;
     if (!review) throw new NotFoundException('Review not found');
 
@@ -119,9 +122,10 @@ export class ReviewsService {
         user_id: string;
         google_account_id: string;
         google_location_id: string;
+        name: string;
       }[]
     >`
-      SELECT user_id, google_account_id, google_location_id
+      SELECT user_id, google_account_id, google_location_id, name
       FROM restaurants WHERE id = ${review.restaurant_id}
     `;
 
@@ -151,6 +155,18 @@ export class ReviewsService {
       { reviewId, replied_at },
       'Review reply updated in database',
     );
+
+    const [user] = await this.sql<{ email: string; name: string }[]>`
+      SELECT email, name FROM users WHERE id = ${restaurant.user_id}
+    `;
+    if (user) {
+      void this.email.sendReplyPosted(
+        user.email,
+        user.name ?? 'there',
+        restaurant.name,
+        review.reviewer_name ?? 'Anonymous',
+      );
+    }
 
     return { success: true, replied_at };
   }

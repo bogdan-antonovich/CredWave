@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import type { Sql } from 'postgres';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import { EmailService } from '../email/email.serivice';
 
 @LogMethods()
 @Injectable()
@@ -10,6 +11,7 @@ export class PromoService {
 
   constructor(
     @Inject('SQL') private readonly sql: Sql,
+    private readonly email: EmailService,
     @InjectPinoLogger(PromoService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
@@ -47,18 +49,19 @@ export class PromoService {
       if (!promo)
         throw new BadRequestException('Invalid or expired promo code');
 
-      const [user] = await tx<{ promo_code: string | null }[]>`
-        SELECT promo_code FROM users WHERE id = ${userId}
+      const [user] = await tx<{ promo_code: string | null; email: string; name: string }[]>`
+        SELECT promo_code, email, name FROM users WHERE id = ${userId}
       `;
 
       if (user?.promo_code)
         throw new BadRequestException('Promo code already redeemed');
 
-      await tx`
+      const [updated] = await tx<{ promo_access_until: Date }[]>`
         UPDATE users
         SET promo_access_until = NOW() + (${promo.duration_days} || ' days')::INTERVAL,
             promo_code = ${code}
         WHERE id = ${userId}
+        RETURNING promo_access_until
       `;
 
       await tx`
@@ -68,6 +71,9 @@ export class PromoService {
       `;
 
       this.logger.debug({ userId, code }, 'Promo code redeemed');
+
+      const accessUntil = updated.promo_access_until.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      void this.email.sendPromoRedeemed(user.email, user.name ?? 'there', code, accessUntil);
     });
   }
 }

@@ -2,12 +2,16 @@ import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getLoggerToken } from 'nestjs-pino';
 import { PromoService } from './promo.service';
+import { EmailService } from '../email/email.serivice';
+
+const mockEmailService = { sendPromoRedeemed: jest.fn() };
 
 async function buildService(sql: jest.Mock): Promise<PromoService> {
   const module = await Test.createTestingModule({
     providers: [
       PromoService,
       { provide: 'SQL', useValue: sql },
+      { provide: EmailService, useValue: mockEmailService },
       {
         provide: getLoggerToken(PromoService.name),
         useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
@@ -51,10 +55,10 @@ describe('PromoService', () => {
 
     function validTx(): jest.Mock {
       return jest.fn()
-        .mockResolvedValueOnce([{ duration_days: 30 }]) // promo found
-        .mockResolvedValueOnce([{ promo_code: null }])  // user hasn't redeemed yet
-        .mockResolvedValueOnce(undefined)               // UPDATE users
-        .mockResolvedValueOnce(undefined);              // UPDATE promo_codes
+        .mockResolvedValueOnce([{ duration_days: 30 }])                                     // promo found
+        .mockResolvedValueOnce([{ promo_code: null, email: 'u@test.com', name: 'User' }])   // user hasn't redeemed yet
+        .mockResolvedValueOnce([{ promo_access_until: new Date() }])                        // UPDATE users RETURNING
+        .mockResolvedValueOnce(undefined);                                                   // UPDATE promo_codes
     }
 
     it('resolves when code is valid and user has not redeemed before', async () => {

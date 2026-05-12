@@ -2,11 +2,17 @@ import { Test } from '@nestjs/testing';
 import { ReviewsService } from './reviews.service';
 import { AppConfigService } from 'src/config/config.service';
 import { GoogleTokensService } from '../../auth/auth.service';
+import { EmailService } from '../../email/email.serivice';
 import { NotFoundException } from '@nestjs/common';
 import { google } from 'googleapis';
 import { getJson } from 'serpapi';
 import { SerpReview } from './reviews.types';
 import { getLoggerToken } from 'nestjs-pino';
+
+const mockEmailService = {
+  sendNewReview: jest.fn(),
+  sendAutoReply: jest.fn(),
+};
 
 jest.mock('googleapis', () => ({
   google: { auth: { OAuth2: jest.fn() } },
@@ -24,6 +30,7 @@ describe('ReviewsService', () => {
   const configMock = {
     get: jest.fn((key: string) => {
       if (key === 'serpapi') return { apiKey: 'fake-key' };
+      if (key === 'openai') return { model: 'gpt-4o' };
       return null;
     }),
   };
@@ -47,6 +54,7 @@ describe('ReviewsService', () => {
         { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
         { provide: AppConfigService, useValue: configMock },
         { provide: GoogleTokensService, useValue: mockGoogleTokens },
+        { provide: EmailService, useValue: mockEmailService },
         {
           provide: getLoggerToken(ReviewsService.name),
           useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
@@ -162,6 +170,138 @@ describe('ReviewsService', () => {
       const result = await service.syncReviews('r1');
 
       expect(result.new_reviews).toBe(0);
+    });
+
+    it('posts an auto-reply to Google when auto_reply_enabled is true', async () => {
+      const openaiCreate = (service as any).openai.chat.completions.create as jest.Mock;
+      openaiCreate.mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              empathetic: 'We appreciate your feedback!',
+              professional: 'Thank you for your review.',
+              casual: 'Thanks for visiting!',
+            }),
+          },
+        }],
+      });
+
+      const mockRequest = jest.fn()
+        .mockResolvedValueOnce({
+          data: {
+            reviews: [{
+              reviewId: 'r1',
+              starRating: 'THREE',
+              comment: 'It was okay',
+              createTime: '2024-01-01',
+              reviewer: { displayName: 'Bob', profilePhotoUrl: '' },
+            }],
+          },
+        })
+        .mockResolvedValueOnce({ data: {} }); // auto-reply PUT response
+
+      OAuth2Mock.mockImplementation(() => ({
+        setCredentials: jest.fn(),
+        request: mockRequest,
+      }));
+
+      sql
+        .mockResolvedValueOnce([{
+          user_id: 'u1',
+          google_account_id: 'acc',
+          google_location_id: 'loc',
+          name: 'Pasta Place',
+          last_synced_at: new Date(),
+          auto_reply_enabled: true,
+          auto_reply_default_tone: 'professional',
+        }])
+        .mockResolvedValueOnce([{ inserted: true }])       // INSERT review
+        .mockResolvedValueOnce([{ email: 'u@test.com', name: 'Alice' }]) // SELECT user
+        .mockResolvedValueOnce([])                          // UPDATE reviews SET replied
+        .mockResolvedValueOnce([]);                         // UPDATE restaurants SET last_synced_at
+
+      const result = await service.syncReviews('r1');
+
+      expect(result.new_reviews).toBe(1);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ comment: 'Thank you for your review.' }),
+        }),
+      );
+      expect(mockEmailService.sendAutoReply).toHaveBeenCalledWith(
+        'u@test.com',
+        'Alice',
+        'Pasta Place',
+        'Bob',
+        3,
+      );
+    });
+
+    it('does not auto-reply when auto_reply_enabled is false', async () => {
+      const mockRequest = jest.fn().mockResolvedValue({ data: { reviews: [] } });
+      OAuth2Mock.mockImplementation(() => ({
+        setCredentials: jest.fn(),
+        request: mockRequest,
+      }));
+
+      sql
+        .mockResolvedValueOnce([{
+          user_id: 'u1',
+          google_account_id: 'acc',
+          google_location_id: 'loc',
+          name: 'Pasta Place',
+          last_synced_at: new Date(),
+          auto_reply_enabled: false,
+        }])
+        .mockResolvedValueOnce([]); // UPDATE restaurants SET last_synced_at
+
+      await service.syncReviews('r1');
+
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockEmailService.sendAutoReply).not.toHaveBeenCalled();
+    });
+
+    it('logs an error and continues sync if auto-reply fails', async () => {
+      const openaiCreate = (service as any).openai.chat.completions.create as jest.Mock;
+      openaiCreate.mockRejectedValueOnce(new Error('OpenAI error'));
+
+      const mockRequest = jest.fn().mockResolvedValueOnce({
+        data: {
+          reviews: [{
+            reviewId: 'r1',
+            starRating: 'FOUR',
+            comment: 'Nice',
+            createTime: '2024-01-01',
+            reviewer: { displayName: 'Carol', profilePhotoUrl: '' },
+          }],
+        },
+      });
+
+      OAuth2Mock.mockImplementation(() => ({
+        setCredentials: jest.fn(),
+        request: mockRequest,
+      }));
+
+      sql
+        .mockResolvedValueOnce([{
+          user_id: 'u1',
+          google_account_id: 'acc',
+          google_location_id: 'loc',
+          name: 'Pasta Place',
+          last_synced_at: new Date(),
+          auto_reply_enabled: true,
+          auto_reply_default_tone: 'casual',
+        }])
+        .mockResolvedValueOnce([{ inserted: true }])
+        .mockResolvedValueOnce([{ email: 'u@test.com', name: 'Alice' }])
+        .mockResolvedValueOnce([]); // UPDATE restaurants SET last_synced_at
+
+      const result = await service.syncReviews('r1');
+
+      expect(result.new_reviews).toBe(1);
+      expect(mockEmailService.sendAutoReply).not.toHaveBeenCalled();
     });
   });
 

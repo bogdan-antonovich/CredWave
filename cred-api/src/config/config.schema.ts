@@ -20,4 +20,6 @@ export const configValidationSchema = Joi.object({
   ADMIN_ID: Joi.number().integer().required(),
 
   FRONTEND_URL: Joi.string().uri().required(),
+
+  RESEND_API_KEY: Joi.string().required(),
 });

@@ -19,6 +19,7 @@ import type { GaxiosOptions, GaxiosResponse } from 'gaxios';
 import type OpenAI from 'openai';
 import { ReviewsService } from './reviews.service';
 import { ReviewsController } from './reviews.controller';
+import { EmailService } from '../email/email.serivice';
 import type { Server } from 'http';
 
 class MockJwtGuard implements CanActivate {
@@ -125,6 +126,7 @@ describe('/reviews route', () => {
         GoogleTokensService,
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: openaiMock },
+        { provide: EmailService, useValue: { sendReplyPosted: jest.fn(), sendAutoReply: jest.fn() } },
         {
           provide: AppConfigService,
           useValue: {
@@ -137,6 +139,10 @@ describe('/reviews route', () => {
         },
         {
           provide: getLoggerToken(GoogleTokensService.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+        },
+        {
+          provide: getLoggerToken(ReviewsService.name),
           useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
         },
       ],

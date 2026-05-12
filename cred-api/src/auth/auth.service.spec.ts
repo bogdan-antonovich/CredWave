@@ -6,7 +6,10 @@ import {
   GoogleTokensService,
   AuthService,
 } from './auth.service';
+import { EmailService } from '../email/email.serivice';
 import { getLoggerToken } from 'nestjs-pino';
+
+const mockEmailService = { sendWelcome: jest.fn() };
 
 const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() };
 
@@ -96,6 +99,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: 'SQL', useValue: sql },
+        { provide: EmailService, useValue: mockEmailService },
         { provide: getLoggerToken(AuthService.name), useValue: mockLogger },
       ],
     }).compile();

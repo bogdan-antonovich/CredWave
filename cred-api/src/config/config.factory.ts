@@ -49,4 +49,5 @@ export const configFactory = (): AppConfig => ({
     password: readSecret('ADMIN_PASSWORD_FILE'),
   },
   frontendUrl: process.env.FRONTEND_URL!,
+  resendApiKey: readSecret('RESEND_API_KEY_FILE'),
 });

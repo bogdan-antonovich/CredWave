@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { AppConfigService } from 'src/config/config.service';
 import { GoogleTokensService } from '../auth/auth.service';
+import { EmailService } from '../email/email.serivice';
 import { getLoggerToken } from 'nestjs-pino';
 import { google } from 'googleapis';
 import type { AuthPlus } from 'googleapis-common';
@@ -42,6 +43,10 @@ function makeSql(...rowSets: Record<string, unknown>[][]): SqlMock {
     .mockImplementation(() => Promise.resolve(rowSets[callIndex++] ?? []));
 }
 
+const mockEmailService = {
+  sendReplyPosted: jest.fn(),
+};
+
 async function buildService(
   sql: SqlMock,
   googleTokensOverride?: { withAutoRefresh: jest.Mock },
@@ -65,6 +70,7 @@ async function buildService(
       { provide: 'OPENAI', useValue: openaiMock },
       { provide: AppConfigService, useValue: configMock },
       { provide: GoogleTokensService, useValue: mockGoogleTokens },
+      { provide: EmailService, useValue: mockEmailService },
       { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
     ],
   }).compile();
@@ -87,6 +93,12 @@ const FAKE_RESTAURANT_WITH_OAUTH: Record<string, unknown> = {
   user_id: 'user-1',
   google_account_id: 'accounts/123',
   google_location_id: 'locations/456',
+  name: 'Pasta Place',
+};
+
+const FAKE_USER: Record<string, unknown> = {
+  email: 'user@example.com',
+  name: 'Bob',
 };
 
 const FAKE_ACCESS_TOKEN = 'ya29.fake-token';
@@ -211,6 +223,7 @@ describe('ReviewsService', () => {
     const reviewRow: Record<string, unknown> = {
       google_review_id: 'review-abc',
       restaurant_id: 'rest-1',
+      reviewer_name: 'Alice',
     };
 
     it('throws NotFoundException when the review does not exist', async () => {
@@ -222,7 +235,7 @@ describe('ReviewsService', () => {
     });
 
     it('calls the Google My Business API with the correct URL and body', async () => {
-      const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], []));
+      const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], [FAKE_USER]));
       mockGoogleApiSuccess();
 
       const result = await service.replyToReview('review-1', 'Thank you!');
@@ -240,14 +253,15 @@ describe('ReviewsService', () => {
     });
 
     it('persists reply text and replied flag after a successful API call', async () => {
-      const sql = makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], []);
+      const sql = makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], [FAKE_USER]);
       const service = await buildService(sql);
       mockGoogleApiSuccess();
 
       await service.replyToReview('review-1', 'Thank you!');
 
-      const lastCall = sql.mock.calls[sql.mock.calls.length - 1];
-      expect(lastCall).toContain('Thank you!');
+      // index 2 is the UPDATE reviews call (0: select review, 1: select restaurant, 2: update, 3: select user)
+      const updateCall = sql.mock.calls[2];
+      expect(updateCall).toContain('Thank you!');
     });
 
     it('does not persist a reply when the Google API call throws', async () => {
@@ -260,6 +274,29 @@ describe('ReviewsService', () => {
       ).rejects.toThrow('Network error');
 
       expect(sql).toHaveBeenCalledTimes(2);
+    });
+
+    it('sends a reply posted email after successfully posting to Google', async () => {
+      const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], [FAKE_USER]));
+      mockGoogleApiSuccess();
+
+      await service.replyToReview('review-1', 'Thank you!');
+
+      expect(mockEmailService.sendReplyPosted).toHaveBeenCalledWith(
+        'user@example.com',
+        'Bob',
+        'Pasta Place',
+        'Alice',
+      );
+    });
+
+    it('does not send email when user is not found', async () => {
+      const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], []));
+      mockGoogleApiSuccess();
+
+      await service.replyToReview('review-1', 'Thank you!');
+
+      expect(mockEmailService.sendReplyPosted).not.toHaveBeenCalled();
     });
   });
 });

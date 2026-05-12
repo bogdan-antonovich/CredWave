@@ -72,6 +72,9 @@ export class AuthController {
       req.user.pictureUrl,
     );
 
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip ?? 'unknown';
+    void this.authService.handleLoginIp(user.id, ip, user.email, user.name);
+
     const expiresAt = new Date(Date.now() + req.user.expiresIn * 1000);
 
     await this.googleTokens.saveAccessToken(

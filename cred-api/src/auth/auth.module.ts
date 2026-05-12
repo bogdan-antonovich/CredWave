@@ -9,11 +9,13 @@ import {
 import { DatabaseModule } from '../database/database.module';
 import { AppConfigModule } from '../config/config.module';
 import { AppConfigService } from '../config/config.service';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
     DatabaseModule,
     AppConfigModule,
+    EmailModule,
     JwtModule.registerAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],

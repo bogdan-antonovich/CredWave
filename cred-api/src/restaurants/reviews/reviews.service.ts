@@ -14,6 +14,7 @@ import { google } from 'googleapis';
 import { getJson } from 'serpapi';
 import OpenAI from 'openai';
 import { GoogleTokensService } from '../../auth/auth.service';
+import { EmailService } from '../../email/email.serivice';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -27,6 +28,7 @@ export class ReviewsService {
     @Inject('OPENAI') private readonly openai: OpenAI,
     private readonly cfg: AppConfigService,
     private readonly googleTokens: GoogleTokensService,
+    private readonly email: EmailService,
     @InjectPinoLogger(ReviewsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
@@ -40,12 +42,19 @@ export class ReviewsService {
         user_id: string;
         google_account_id: string;
         google_location_id: string;
+        name: string;
+        last_synced_at: Date | null;
+        auto_reply_enabled: boolean;
+        auto_reply_default_tone: string | null;
       }[]
     >`
-      SELECT user_id, google_account_id, google_location_id
+      SELECT user_id, google_account_id, google_location_id, name, last_synced_at,
+             auto_reply_enabled, auto_reply_default_tone
       FROM restaurants WHERE id = ${restaurantId}
     `;
     if (!restaurant) throw new NotFoundException('Restaurant not found');
+
+    const isInitialSync = restaurant.last_synced_at == null;
 
     this.logger.debug({ restaurantId }, 'Restaurant found');
 
@@ -91,7 +100,27 @@ export class ReviewsService {
           replied_at = ${review.reviewReply?.updateTime ?? null}
         RETURNING (xmax = 0) AS inserted
       `;
-      if (row.inserted) newReviews++;
+      if (row.inserted) {
+        newReviews++;
+        if (!isInitialSync) {
+          const [user] = await this.sql<{ email: string; name: string }[]>`
+            SELECT email, name FROM users WHERE id = ${restaurant.user_id}
+          `;
+          if (user) {
+            void this.email.sendNewReview(
+              user.email,
+              user.name ?? 'there',
+              restaurant.name,
+              review.reviewer?.displayName ?? 'Anonymous',
+              ratingToNumber(review.starRating),
+              review.comment ?? null,
+            );
+          }
+          if (restaurant.auto_reply_enabled) {
+            await this.performAutoReply(restaurantId, review, restaurant, user);
+          }
+        }
+      }
     }
 
     const synced_at = new Date();
@@ -258,6 +287,86 @@ export class ReviewsService {
 
     this.logger.debug({ blocks }, 'Demo blocks generated');
     return { blocks };
+  }
+
+  private async performAutoReply(
+    restaurantId: string,
+    review: GoogleReview,
+    restaurant: {
+      user_id: string;
+      google_account_id: string;
+      google_location_id: string;
+      name: string;
+      auto_reply_default_tone: string | null;
+    },
+    user: { email: string; name: string } | undefined,
+  ): Promise<void> {
+    try {
+      const tone = (restaurant.auto_reply_default_tone || 'professional') as
+        | 'empathetic'
+        | 'professional'
+        | 'casual';
+
+      const prompt = `
+        You are an employee of a restaurant named "${restaurant.name}".
+        Generate 3 different responses to the following Google review.
+        Reviewer: ${review.reviewer?.displayName ?? 'Anonymous'};
+        Rating: ${ratingToNumber(review.starRating)}/5;
+        Review: ${review.comment ?? 'No written review'};
+
+        Return ONLY a valid JSON object (no markdown, no extra text):
+        {
+          "empathetic": "...",
+          "professional": "...",
+          "casual": "..."
+        }
+      `;
+
+      const completion = await this.openai.chat.completions.create({
+        model: this.cfg.get('openai').model,
+        messages: [{ role: 'developer', content: prompt }],
+        response_format: { type: 'json_object' },
+      });
+
+      const responses = JSON.parse(
+        completion.choices[0].message.content!,
+      ) as { empathetic: string; professional: string; casual: string };
+
+      const replyText = responses[tone];
+
+      await this.googleTokens.withAutoRefresh(restaurant.user_id, (token) => {
+        const auth = new google.auth.OAuth2();
+        auth.setCredentials({ access_token: token });
+        return auth.request({
+          url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews/${review.reviewId}/reply`,
+          method: 'PUT',
+          body: JSON.stringify({ comment: replyText }),
+        });
+      });
+
+      await this.sql`
+        UPDATE reviews
+        SET replied = true, reply_text = ${replyText}, replied_at = NOW()
+        WHERE google_review_id = ${review.reviewId} AND restaurant_id = ${restaurantId}
+      `;
+
+      this.logger.debug(
+        { restaurantId, reviewId: review.reviewId },
+        'Auto-reply posted',
+      );
+
+      if (user) {
+        void this.email.sendAutoReply(
+          user.email,
+          user.name ?? 'there',
+          restaurant.name,
+          review.reviewer?.displayName ?? 'Anonymous',
+          ratingToNumber(review.starRating),
+        );
+      }
+    } catch (err) {
+      this.logger.error({ err }, 'Auto-reply failed');
+    }
   }
 
   async getDemoReviews(placeId: string): Promise<{ reviews: SerpReview[] }> {

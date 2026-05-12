@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
 import { google } from 'googleapis';
 import { AppConfigService } from '../config/config.service';
+import { EmailService } from '../email/email.serivice';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -167,10 +168,12 @@ export class AuthService {
 
   constructor(
     @Inject('SQL') private readonly sql: Sql,
+    private readonly email: EmailService,
     @InjectPinoLogger(AuthService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
   }
+
   async getOrCreateUser(
     email: string,
     name: string | null,
@@ -191,7 +194,27 @@ export class AuthService {
     `;
     this.logger.debug({ userId: created.id, email }, 'Created new user');
 
+    void this.email.sendWelcome(created.email, created.name ?? 'there');
+
     return created;
+  }
+
+  async handleLoginIp(userId: string, ip: string, userEmail: string, userName: string) {
+    const [row] = await this.sql<{ last_login_ip: string | null }[]>`
+      SELECT last_login_ip FROM users WHERE id = ${userId}
+    `;
+
+    if (row?.last_login_ip && row.last_login_ip !== ip) {
+      const time = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short',
+      });
+      void this.email.sendNewLogin(userEmail, userName ?? 'there', ip, time);
+    }
+
+    await this.sql`
+      UPDATE users SET last_login_ip = ${ip}, last_login_at = NOW() WHERE id = ${userId}
+    `;
   }
 }
 

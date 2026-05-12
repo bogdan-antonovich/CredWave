@@ -20,6 +20,7 @@ import type { GaxiosOptions, GaxiosResponse } from 'gaxios';
 import * as serpapi from 'serpapi';
 import { ReviewsService } from './reviews.service';
 import { ReviewsController } from './reviews.controller';
+import { EmailService } from '../../email/email.serivice';
 import type { GoogleReview, SerpReview } from './reviews.types';
 
 // type AuthRequestFn = <T>(opts: GaxiosOptions) => Promise<GaxiosResponse<T>>;
@@ -173,11 +174,13 @@ describe('/restaurants/:id/reviews', () => {
         GoogleTokensService,
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
+        { provide: EmailService, useValue: { sendNewReview: jest.fn(), sendAutoReply: jest.fn() } },
         {
           provide: AppConfigService,
           useValue: {
             get: (key: string) => {
               if (key === 'serpapi') return { apiKey: 'fake-serp-key' };
+              if (key === 'openai') return { model: 'gpt-4o' };
               if (key === 'google') return { clientId: '', clientSecret: '' };
               throw new Error(`Unknown config key: ${key}`);
             },
@@ -185,6 +188,10 @@ describe('/restaurants/:id/reviews', () => {
         },
         {
           provide: getLoggerToken(GoogleTokensService.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+        },
+        {
+          provide: getLoggerToken(ReviewsService.name),
           useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
         },
       ],

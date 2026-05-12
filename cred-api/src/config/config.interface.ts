@@ -37,4 +37,5 @@ export interface AppConfig {
     password: string;
   };
   frontendUrl: string;
+  resendApiKey: string;
 }

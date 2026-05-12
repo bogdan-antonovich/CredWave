@@ -12,6 +12,7 @@ import {
 } from '@paddle/paddle-node-sdk';
 import { UnauthorizedException } from '@nestjs/common';
 import { AppConfigService } from '../config/config.service';
+import { EmailService } from '../email/email.serivice';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -24,9 +25,19 @@ export class BillingService {
     @Inject('SQL') private readonly sql: Sql,
     @Inject('PADDLE') private readonly paddle: Paddle,
     private readonly cfg: AppConfigService,
+    private readonly email: EmailService,
     @InjectPinoLogger(BillingService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
+  }
+
+  private async getUserByCustomerId(
+    customerId: string,
+  ): Promise<{ email: string; name: string } | null> {
+    const [user] = await this.sql<{ email: string; name: string }[]>`
+      SELECT email, name FROM users WHERE paddle_customer_id = ${customerId}
+    `;
+    return user ?? null;
   }
 
   async getSubscription(userId: string): Promise<Subscription | null> {
@@ -136,7 +147,9 @@ export class BillingService {
     return { url: session.urls.general.overview };
   }
 
-  private async onSubscriptionCreated(data: SubscriptionCreatedNotification) {
+  private async onSubscriptionCreated(
+    data: SubscriptionCreatedNotification,
+  ) {
     const planLimits: Record<string, number> = {
       starter: 50,
       growth: 200,
@@ -178,6 +191,22 @@ export class BillingService {
       { userId: data.customerId },
       'Subscription linked to user successfully',
     );
+
+    const user = await this.getUserByCustomerId(data.customerId);
+    if (user) {
+      const price = data.items[0]?.price;
+      const planName = price?.name ?? 'Starter';
+      const nextBillingDate = data.currentBillingPeriod?.endsAt
+        ? new Date(data.currentBillingPeriod.endsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '—';
+      void this.email.sendSubscriptionStarted(
+        user.email,
+        user.name ?? 'there',
+        planName,
+        data.billingCycle.interval,
+        nextBillingDate,
+      );
+    }
   }
 
   private async onSubscriptionUpdated(data: SubscriptionNotification) {
@@ -209,6 +238,16 @@ export class BillingService {
       { subscriptionId: data.id },
       'Subscription canceled successfully',
     );
+
+    const [sub] = await this.sql<{ email: string; name: string; plan_name: string; current_period_end: Date }[]>`
+      SELECT u.email, u.name, s.plan_name, s.current_period_end
+      FROM subscriptions s JOIN users u ON u.id = s.user_id
+      WHERE s.paddle_subscription_id = ${data.id}
+    `;
+    if (sub) {
+      const accessUntil = sub.current_period_end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      void this.email.sendSubscriptionCanceled(sub.email, sub.name ?? 'there', sub.plan_name, accessUntil);
+    }
   }
 
   private async onSubscriptionPastDue(data: SubscriptionNotification) {
@@ -222,6 +261,15 @@ export class BillingService {
       { subscriptionId: data.id },
       'Subscription past due successfully',
     );
+
+    const [sub] = await this.sql<{ email: string; name: string; plan_name: string }[]>`
+      SELECT u.email, u.name, s.plan_name
+      FROM subscriptions s JOIN users u ON u.id = s.user_id
+      WHERE s.paddle_subscription_id = ${data.id}
+    `;
+    if (sub) {
+      void this.email.sendPaymentFailed(sub.email, sub.name ?? 'there', sub.plan_name);
+    }
   }
 
   private async onTransactionCompleted(data: TransactionNotification) {
@@ -263,6 +311,20 @@ export class BillingService {
     `;
 
     this.logger.debug({ invoiceId: data.id }, 'Invoice created successfully');
+
+    if (data.customerId && data.subscriptionId) {
+      const user = await this.getUserByCustomerId(data.customerId);
+      const [sub] = await this.sql<{ plan_name: string; current_period_end: Date }[]>`
+        SELECT plan_name, current_period_end FROM subscriptions
+        WHERE paddle_subscription_id = ${data.subscriptionId}
+      `;
+      if (user && sub) {
+        const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: data.currencyCode ?? 'USD' })
+          .format(Number(total) / 100);
+        const nextBillingDate = sub.current_period_end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        void this.email.sendSubscriptionRenewed(user.email, user.name ?? 'there', sub.plan_name, amount, nextBillingDate);
+      }
+    }
   }
 
   async handleWebhook(rawBody: Buffer, signature: string) {
