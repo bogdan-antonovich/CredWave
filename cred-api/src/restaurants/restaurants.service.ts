@@ -57,46 +57,66 @@ export class RestaurantsService {
   async getRestaurants(userId: string): Promise<{
     restaurants: Restaurant[];
   }> {
-    const googleData = await this.getBusinessLocations(userId);
-    const locations = googleData.locations ?? [];
+    try {
+      const googleData = await this.getBusinessLocations(userId);
+      const locations = googleData.locations ?? [];
 
-    const result: Restaurant[] = [];
+      const result: Restaurant[] = [];
 
-    this.logger.debug(
-      { userId, locations_length: locations.length },
-      'Locations retrieved successfully',
-    );
+      this.logger.debug(
+        { userId, locations_length: locations.length },
+        'Locations retrieved successfully',
+      );
 
-    for (const location of locations) {
-      const slug = location.title!.toLowerCase().replace(/\s+/g, '-');
+      for (const location of locations) {
+        const slug = location.title!.toLowerCase().replace(/\s+/g, '-');
 
-      const [row] = await this.sql<Restaurant[]>`
-        INSERT INTO restaurants (user_id, google_location_id, name, slug, address)
-        VALUES (
-          ${userId},
-          ${location.name!},
-          ${location.title!},
-          ${slug},
-          ${location.storefrontAddress?.addressLines?.join(', ') ?? null}
-        )
-        ON CONFLICT (google_location_id) DO UPDATE
-        SET name = ${location.title!},
-            updated_at = NOW()
-        RETURNING
+        const [row] = await this.sql<Restaurant[]>`
+          INSERT INTO restaurants (user_id, google_location_id, name, slug, address)
+          VALUES (
+            ${userId},
+            ${location.name!},
+            ${location.title!},
+            ${slug},
+            ${location.storefrontAddress?.addressLines?.join(', ') ?? null}
+          )
+          ON CONFLICT (google_location_id) DO UPDATE
+          SET name = ${location.title!},
+              updated_at = NOW()
+          RETURNING
+            id,
+            name,
+            slug,
+            address,
+            owner_name       AS "ownerName",
+            additional_info  AS "additionalInfo",
+            updated_at       AS "updatedAt"
+        `;
+        result.push(row);
+      }
+
+      this.logger.debug({ userId }, 'Restaurants retrieved successfully');
+
+      return { restaurants: result };
+    } catch (err) {
+      this.logger.warn(
+        { err: err as Error },
+        'Google API unavailable, falling back to DB data',
+      );
+      const rows = await this.sql<Restaurant[]>`
+        SELECT
           id,
           name,
           slug,
           address,
-          owner_name       AS "ownerName",
-          additional_info  AS "additionalInfo",
-          updated_at       AS "updatedAt"
+          owner_name      AS "ownerName",
+          additional_info AS "additionalInfo",
+          updated_at      AS "updatedAt"
+        FROM restaurants
+        WHERE user_id = ${userId}
       `;
-      result.push(row);
+      return { restaurants: rows };
     }
-
-    this.logger.debug({ userId }, 'Restaurants retrieved successfully');
-
-    return { restaurants: result };
   }
 
   async updateRestaurantInfo(id: string, data: RestaurantChanges) {

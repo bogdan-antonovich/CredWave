@@ -86,7 +86,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function saveSettings() {
-    if (!restaurantId.value) return
+    if (!restaurantId.value) throw new Error('Restaurant not loaded')
 
     await Promise.all([
       api.patch(`/restaurants/${restaurantId.value}`, {
