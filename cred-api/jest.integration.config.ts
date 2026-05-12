@@ -7,4 +7,5 @@ export default {
   moduleNameMapper: { '^src/(.*)$': '<rootDir>/src/$1' },
   globalSetup: './test/integration-setup.ts',
   globalTeardown: './test/integration-teardown.ts',
+  maxWorkers: 1,
 };

@@ -100,8 +100,11 @@ describe('/auth route', () => {
         {
           provide: AppConfigService,
           useValue: {
-            get: (key: string) =>
-              key === 'frontendUrl' ? 'http://localhost:5173' : null,
+            get: (key: string) => {
+              if (key === 'frontendUrl') return 'http://localhost:5173';
+              if (key === 'jwt') return { expiresIn: '7d' };
+              return null;
+            },
           },
         },
       ],
