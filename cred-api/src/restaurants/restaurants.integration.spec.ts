@@ -208,13 +208,17 @@ describe('Restaurants (integration)', () => {
       expect(body.restaurants).toEqual([]);
     });
 
-    it('returns 500 when Google token service throws', async () => {
+    it('returns DB data when Google token service throws', async () => {
       mockWithAutoRefresh.mockRejectedValueOnce(new Error('token expired'));
 
-      await request(server)
+      const res = await request(server)
         .get('/restaurants')
         .set('Authorization', 'Bearer token')
-        .expect(500);
+        .expect(200);
+
+      const body = res.body as { restaurants: { name: string }[] };
+      expect(body.restaurants).toHaveLength(1);
+      expect(body.restaurants[0].name).toBe('Test Bistro');
     });
   });
 
