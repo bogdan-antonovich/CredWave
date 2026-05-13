@@ -148,6 +148,7 @@ volumes:
   loki_data:
   grafana_data:
 
+# what
 secrets:
   DATABASE_URL_FILE:
     external: true
