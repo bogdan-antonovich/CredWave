@@ -356,6 +356,9 @@ export class BillingService {
         SELECT plan_name, current_period_end FROM subscriptions
         WHERE paddle_subscription_id = ${data.subscriptionId}
       `;
+
+      this.logger.debug({ user, sub }, 'User and sub gotten');
+
       if (user && sub) {
         const amount = new Intl.NumberFormat('en-US', {
           style: 'currency',
@@ -372,6 +375,8 @@ export class BillingService {
           amount,
           nextBillingDate,
         );
+
+        this.logger.debug({ user, sub }, 'Subscription renewed email sent');
       }
     }
   }
