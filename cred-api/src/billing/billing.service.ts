@@ -158,10 +158,10 @@ export class BillingService {
     @Exclude() data: SubscriptionCreatedNotification,
   ) {
     const metadata = data.customData as WebhookMetadata | undefined;
-    const userId = metadata?.userId;
+    const userId = metadata?.userId ? Number(metadata.userId) : null;
 
-    if (!userId) {
-      throw new NotFoundException('No userId found in customData!');
+    if (!userId || isNaN(userId)) {
+      throw new NotFoundException('No userId found in customData');
     }
 
     await this.sql`
