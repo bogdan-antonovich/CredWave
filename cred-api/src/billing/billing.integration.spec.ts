@@ -262,6 +262,7 @@ describe('/billing route', () => {
         data: {
           id: 'sub_123',
           customerId: 'cust_123',
+          customData: { userId: '1' },
           status: 'active',
           billingCycle: { interval: 'month' },
           items: [{ price: { name: 'Starter', unitPrice: { amount: '10' } } }],
