@@ -25,5 +25,5 @@ export interface Subscription {
 }
 
 export interface WebhookMetadata {
-  userId: string;
+  userId: number;
 }
