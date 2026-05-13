@@ -5,8 +5,8 @@ import type { DemoBlock } from '../restaurants/reviews/reviews.types';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
-@Injectable()
 @LogMethods()
+@Injectable()
 export class DemoService {
   protected readonly logger: PinoLogger;
 

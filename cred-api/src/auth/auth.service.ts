@@ -9,7 +9,7 @@ import { EmailService } from '../email/email.serivice';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
-@LogMethods()
+@LogMethods(['token', 'refreshToken'])
 @Injectable()
 export class AppTokensService {
   protected readonly logger: PinoLogger;
@@ -71,7 +71,7 @@ export class AppTokensService {
   }
 }
 
-@LogMethods()
+@LogMethods(['fn', 'accessToken', 'refreshToken'])
 @Injectable()
 export class GoogleTokensService {
   protected readonly logger: PinoLogger;

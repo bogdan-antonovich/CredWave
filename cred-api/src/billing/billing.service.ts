@@ -16,7 +16,7 @@ import { EmailService } from '../email/email.serivice';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
-@LogMethods()
+@LogMethods(['data', 'rawBody', 'signature'])
 @Injectable()
 export class BillingService {
   protected readonly logger: PinoLogger;

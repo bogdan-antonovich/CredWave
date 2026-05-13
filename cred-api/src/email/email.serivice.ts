@@ -55,7 +55,7 @@ function detailTable(rows: string): string {
   return `<table cellpadding="0" cellspacing="0" style="width:100%;margin:16px 0 24px">${rows}</table>`;
 }
 
-@LogMethods()
+@LogMethods(['html'])
 @Injectable()
 export class EmailService {
   private resend: Resend;
