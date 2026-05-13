@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, nextTick } from "vue";
 import { config } from "@/config/env";
 import { useHead } from "@unhead/vue";
+import { useUserStore } from "@/stores/user.store";
 
 useHead({
     title: "Pricing — CredWave",
@@ -29,6 +30,7 @@ useReveal();
 
 const router = useRouter();
 const auth = useAuthStore();
+const user = useUserStore();
 
 const PENDING_KEY = "cw_pending_checkout";
 const PROMO_KEY = "cw_pending_promo";
@@ -45,7 +47,7 @@ onMounted(async () => {
         localStorage.removeItem(PENDING_KEY);
         try {
             await waitForPaddle();
-            openCheckout(pending);
+            openCheckout(pending, user.$id, user.profile.email);
         } catch {
             // paddle didn't load — ignore, user can click manually
         }
@@ -160,7 +162,7 @@ function handleSelect(plan: (typeof plans.value)[number]) {
         return;
     }
 
-    openCheckout(priceId);
+    openCheckout(priceId, user.$id, user.profile.email);
 }
 
 const faq = [
@@ -294,7 +296,10 @@ const faq = [
             </section>
 
             <!-- ═══ PROMO CODE ═══ -->
-            <section id="promo" class="py-20 px-6 border-t border-border-subtle">
+            <section
+                id="promo"
+                class="py-20 px-6 border-t border-border-subtle"
+            >
                 <div class="max-w-[520px] mx-auto">
                     <div class="reveal text-center mb-8">
                         <span

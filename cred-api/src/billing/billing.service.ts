@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Sql } from 'postgres';
-import type { Subscription, PaymentMethod } from './billing.types';
+import type {
+  Subscription,
+  PaymentMethod,
+  WebhookMetadata,
+} from './billing.types';
 import { NotFoundException } from '@nestjs/common';
 import { Paddle } from '@paddle/paddle-node-sdk';
 import {
@@ -153,6 +157,18 @@ export class BillingService {
   private async onSubscriptionCreated(
     @Exclude() data: SubscriptionCreatedNotification,
   ) {
+    const metadata = data.customData as WebhookMetadata | undefined;
+    const userId = metadata?.userId;
+
+    if (!userId) {
+      throw new NotFoundException('No userId found in customData!');
+    }
+
+    await this.sql`
+        UPDATE users SET paddle_customer_id = ${data.customerId}
+        WHERE id = ${userId}
+      `;
+
     const planLimits: Record<string, number> = {
       starter: 50,
       growth: 200,

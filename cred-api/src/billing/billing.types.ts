@@ -23,3 +23,7 @@ export interface Subscription {
   usage: Usage;
   paymentMethod: PaymentMethod | null;
 }
+
+export interface WebhookMetadata {
+  userId: string;
+}

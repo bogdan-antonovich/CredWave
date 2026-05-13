@@ -32,6 +32,7 @@ export const useUserStore = defineStore("user", () => {
   const loading = ref(false);
   const restaurantId = ref<string | null>(null);
   const googleConnected = ref(true);
+  const id = ref<number | null>(null);
 
   const profile = ref({
     email: "",
@@ -59,6 +60,7 @@ export const useUserStore = defineStore("user", () => {
       profile.value.name = user.name;
       profile.value.pictureUrl = user.picture_url;
       googleConnected.value = user.google_connected;
+      id.value = user.id;
       identifyUser(String(user.id), { email: user.email, name: user.name });
     } catch {
       loading.value = false;
