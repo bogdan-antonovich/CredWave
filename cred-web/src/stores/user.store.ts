@@ -134,6 +134,7 @@ export const useUserStore = defineStore("user", () => {
 
   return {
     loading,
+    id,
     restaurantId,
     googleConnected,
     profile,

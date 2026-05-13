@@ -47,7 +47,7 @@ onMounted(async () => {
         localStorage.removeItem(PENDING_KEY);
         try {
             await waitForPaddle();
-            openCheckout(pending, user.$id, user.profile.email);
+            openCheckout(pending, user.id!, user.profile.email);
         } catch {
             // paddle didn't load — ignore, user can click manually
         }
@@ -162,7 +162,7 @@ function handleSelect(plan: (typeof plans.value)[number]) {
         return;
     }
 
-    openCheckout(priceId, user.$id, user.profile.email);
+    openCheckout(priceId, user.id!, user.profile.email);
 }
 
 const faq = [

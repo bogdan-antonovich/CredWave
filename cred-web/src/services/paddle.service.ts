@@ -59,7 +59,7 @@ export function waitForPaddle(timeoutMs = 5000): Promise<void> {
 
 export function openCheckout(
   priceId: string,
-  userId: string,
+  userId: number,
   userEmail: string,
 ): void {
   if (!window.Paddle) {
