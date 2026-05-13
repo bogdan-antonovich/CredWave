@@ -77,7 +77,7 @@ CREATE TABLE subscriptions(
     reviews_limit INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX ON subscriptions(paddle_subscription_id);
-
+-- 11:39:03.476
 CREATE TABLE payment_methods(
     id SERIAL PRIMARY KEY,
     brand TEXT NOT NULL,
