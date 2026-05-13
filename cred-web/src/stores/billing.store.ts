@@ -36,7 +36,6 @@ interface Invoice {
   amount: number
   currency: string
   status: string
-  download_url: string | null
 }
 
 interface PromoAccess {
@@ -51,6 +50,7 @@ export const useBillingStore = defineStore('billing', () => {
   const loading = ref(false)
   const portalLoading = ref(false)
   const hasSubscription = ref(true)
+  const downloadingInvoiceId = ref<string | null>(null)
 
   async function fetchSubscription() {
     try {
@@ -86,6 +86,16 @@ export const useBillingStore = defineStore('billing', () => {
     loading.value = false
   }
 
+  async function downloadInvoice(paddleInvoiceId: string) {
+    downloadingInvoiceId.value = paddleInvoiceId
+    try {
+      const data = await api.get<{ url: string }>(`/billing/invoice/${paddleInvoiceId}`)
+      window.open(data.url, '_blank')
+    } finally {
+      downloadingInvoiceId.value = null
+    }
+  }
+
   async function openPortal() {
     portalLoading.value = true
     try {
@@ -104,7 +114,9 @@ export const useBillingStore = defineStore('billing', () => {
     loading,
     portalLoading,
     hasSubscription,
+    downloadingInvoiceId,
     fetchAll,
     openPortal,
+    downloadInvoice,
   }
 })

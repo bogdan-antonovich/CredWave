@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Req, UseGuards, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+  Param,
+  Headers,
+} from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { NotFoundException } from '@nestjs/common';
 import type { Request } from 'express';
@@ -114,5 +122,27 @@ export class BillingController {
   ) {
     this.logger.info('Received Paddle webhook');
     return await this.srv.handleWebhook(req.rawBody!, signature);
+  }
+
+  @Get('invoice/:invoiceId')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get the download link for an invoice',
+  })
+  @ApiOkResponse({
+    schema: {
+      properties: {
+        url: {
+          type: 'string',
+          format: 'uri',
+          example: '.',
+        },
+      },
+    },
+  })
+  async getDowndloadInvoiceLink(@Param('invoiceId') invoiceId: string) {
+    this.logger.info(`Getting download link for invoice ${invoiceId}`);
+    return await this.srv.getDownloadLink(invoiceId);
   }
 }

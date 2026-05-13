@@ -208,19 +208,15 @@ function statusLabel(status: string) {
                 {{ invoice.status }}
               </span>
             </div>
-            <a
-              v-if="invoice.download_url"
-              :href="invoice.download_url"
-              target="_blank"
-              rel="noopener"
-              class="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-warm transition-all"
+            <button
+              class="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-warm transition-all disabled:opacity-40"
               title="Download invoice"
+              :disabled="billingStore.downloadingInvoiceId === invoice.paddle_invoice_id"
+              @click="billingStore.downloadInvoice(invoice.paddle_invoice_id)"
             >
-              <Download class="w-3.5 h-3.5" />
-            </a>
-            <span v-else class="p-1.5">
-              <Download class="w-3.5 h-3.5 text-border" />
-            </span>
+              <Loader2 v-if="billingStore.downloadingInvoiceId === invoice.paddle_invoice_id" class="w-3.5 h-3.5 animate-spin" />
+              <Download v-else class="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </section>

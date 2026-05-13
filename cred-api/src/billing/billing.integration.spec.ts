@@ -38,7 +38,6 @@ type InvoicesResponse = {
     amount: number;
     currency: string;
     status: string;
-    download_url: string;
   }[];
 };
 
@@ -55,6 +54,7 @@ class MockAuthGuard implements CanActivate {
 
 const mockPortalCreate = jest.fn();
 const mockUnmarshal = jest.fn();
+const mockGetInvoicePDF = jest.fn();
 
 const mockPaddle = {
   customerPortalSessions: {
@@ -62,6 +62,9 @@ const mockPaddle = {
   },
   webhooks: {
     unmarshal: mockUnmarshal,
+  },
+  transactions: {
+    getInvoicePDF: mockGetInvoicePDF,
   },
 };
 
@@ -207,12 +210,10 @@ describe('/billing route', () => {
 
     it('returns invoices', async () => {
       await sql`
-        INSERT INTO invoices (
-          user_id, paddle_invoice_id, amount, currency, status, download_url
-        )
+        INSERT INTO invoices (user_id, paddle_invoice_id, amount, currency, status)
         VALUES
-        (1, 'inv1', 10, 'USD', 'paid', 'url1'),
-        (1, 'inv2', 20, 'USD', 'paid', 'url2')
+        (1, 'inv1', 10, 'USD', 'paid'),
+        (1, 'inv2', 20, 'USD', 'paid')
       `;
 
       const res = await request(server).get('/billing/invoices').expect(200);
@@ -240,6 +241,25 @@ describe('/billing route', () => {
       await sql`UPDATE users SET paddle_customer_id = NULL WHERE id = 1`;
 
       await request(server).post('/billing/portal').expect(404);
+    });
+  });
+
+  describe('GET /billing/invoice/:invoiceId', () => {
+    it('returns the PDF download URL', async () => {
+      mockGetInvoicePDF.mockResolvedValueOnce({ url: 'https://pdf.paddle.com/inv_123.pdf' });
+
+      const res = await request(server)
+        .get('/billing/invoice/inv_123')
+        .expect(200);
+
+      expect(res.body).toEqual({ url: 'https://pdf.paddle.com/inv_123.pdf' });
+      expect(mockGetInvoicePDF).toHaveBeenCalledWith('inv_123');
+    });
+
+    it('returns 404 when Paddle returns no URL', async () => {
+      mockGetInvoicePDF.mockResolvedValueOnce(null);
+
+      await request(server).get('/billing/invoice/inv_missing').expect(404);
     });
   });
 
@@ -280,5 +300,11 @@ describe('/billing route', () => {
 
       expect(body.received).toBe(true);
     });
+  });
+
+  describe('GET /billing/invoice/:invoiceId', () => {
+    it('returns 200 with invoice URL', async () => {});
+    it('returns 404 if invoice not found', async () => {});
+    it('returns 500 on server error', async () => {});
   });
 });

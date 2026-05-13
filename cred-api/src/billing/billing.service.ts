@@ -111,11 +111,10 @@ export class BillingService {
         amount: number;
         currency: string;
         status: string;
-        download_url: string;
         created_at: Date;
       }[]
     >`
-      SELECT id, paddle_invoice_id, amount, currency, status, download_url, created_at
+      SELECT id, paddle_invoice_id, amount, currency, status, created_at
       FROM invoices
       WHERE user_id = ${userId}
       ORDER BY created_at DESC
@@ -130,7 +129,6 @@ export class BillingService {
         amount: inv.amount,
         currency: inv.currency,
         status: inv.status,
-        download_url: inv.download_url,
       })),
     };
   }
@@ -159,11 +157,6 @@ export class BillingService {
   ) {
     const metadata = data.customData as WebhookMetadata | undefined;
     const userId = metadata?.userId ? Number(metadata.userId) : null;
-
-    this.logger.debug(
-      { userId, metadata },
-      'Subscription created, notification received',
-    );
 
     if (!userId || isNaN(userId)) {
       throw new NotFoundException('No userId found in customData');
@@ -356,13 +349,18 @@ export class BillingService {
     }
 
     await this.sql`
-      INSERT INTO invoices (user_id, paddle_invoice_id, amount, currency, status, download_url)
+      INSERT INTO invoices (
+        user_id,
+        paddle_invoice_id,
+        amount,
+        currency,
+        status
+      )
       SELECT u.id,
         ${data.id},
         ${Number(total)},
         ${data.currencyCode},
-        'paid',
-        ${data.invoiceId ?? null}
+        'paid'
       FROM users u WHERE u.paddle_customer_id = ${data.customerId}
       ON CONFLICT (paddle_invoice_id) DO NOTHING
     `;
@@ -446,5 +444,15 @@ export class BillingService {
     );
 
     return { received: true };
+  }
+
+  async getDownloadLink(invoiceId: string): Promise<{ url: string }> {
+    const url = await this.paddle.transactions.getInvoicePDF(invoiceId);
+    if (!url) {
+      throw new NotFoundException('Invoice not found');
+    }
+    return {
+      url: url.url,
+    };
   }
 }
