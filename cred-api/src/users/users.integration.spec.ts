@@ -13,6 +13,7 @@ import postgres, { type Sql } from 'postgres';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
+import { getLoggerToken } from 'nestjs-pino';
 
 class MockJwtGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
@@ -25,9 +26,7 @@ class MockJwtGuard implements CanActivate {
   }
 }
 
-global.fetch = jest.fn();
-
-const mockFetch = global.fetch as jest.Mock;
+const mockPaddle = { subscriptions: { cancel: jest.fn() } };
 
 describe('/users route', () => {
   let sql: Sql;
@@ -73,7 +72,15 @@ describe('/users route', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [LoggerModule.forRoot({ pinoHttp: { level: 'silent' } })],
       controllers: [UsersController],
-      providers: [UsersService, { provide: 'SQL', useValue: sql }],
+      providers: [
+        UsersService,
+        { provide: 'SQL', useValue: sql },
+        { provide: 'PADDLE', useValue: mockPaddle },
+        {
+          provide: getLoggerToken(UsersService.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+        },
+      ],
     })
       .overrideGuard(AuthGuard('jwt'))
       .useClass(MockJwtGuard)
@@ -94,11 +101,7 @@ describe('/users route', () => {
       await request(server).get('/users/me').expect(401);
     });
 
-    it('returns user + google token validity = true', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-      });
-
+    it('returns user profile with google_connected = true when token exists', async () => {
       const res = await request(server)
         .get('/users/me')
         .set('Authorization', `Bearer ${userId}`)
@@ -110,62 +113,27 @@ describe('/users route', () => {
           email: 'test@example.com',
           name: 'Test User',
           picture_url: 'https://img.com/pic.png',
-          google_access_token_valid: true,
+          google_connected: true,
         }),
-      );
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('tokeninfo'),
       );
     });
 
-    type GetMeResponse = {
-      id: number;
-      email: string;
-      name: string;
-      picture_url: string;
-      created_at: string;
-      google_access_token_valid: boolean;
-    };
-
-    it('returns google_access_token_valid = false when API returns invalid', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-      });
+    it('returns google_connected = false when no Google token exists', async () => {
+      await sql`DELETE FROM gl_access_tokens WHERE user_id = ${userId}`;
 
       const res = await request(server)
         .get('/users/me')
         .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
-      const body = res.body as GetMeResponse;
-
-      expect(body.google_access_token_valid).toBe(false);
+      expect(res.body.google_connected).toBe(false);
     });
 
-    it('throws 404 when user does not exist', async () => {
+    it('returns 404 when user does not exist', async () => {
       await request(server)
         .get('/users/me')
         .set('Authorization', 'Bearer 999999')
         .expect(404);
-    });
-
-    it('throws 404 when google token is missing', async () => {
-      await sql`DELETE FROM gl_access_tokens WHERE user_id = ${userId}`;
-
-      await request(server)
-        .get('/users/me')
-        .set('Authorization', `Bearer ${userId}`)
-        .expect(404);
-    });
-
-    it('throws 500 when Google token validation fails (fetch throws)', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('network error'));
-
-      await request(server)
-        .get('/users/me')
-        .set('Authorization', `Bearer ${userId}`)
-        .expect(500);
     });
   });
 
@@ -174,7 +142,7 @@ describe('/users route', () => {
 
     beforeEach(() => {
       const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } as any;
-      service = new UsersService(sql, mockLogger);
+      service = new UsersService(sql, mockPaddle as any, mockLogger);
     });
 
     it('getUserbyId returns user', async () => {
@@ -194,18 +162,12 @@ describe('/users route', () => {
       expect(token).toBe('valid-google-token');
     });
 
-    it('isGoogleTokenValid returns true', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: true });
+    it('getGoogleAccessTokenByUserId returns null when no token', async () => {
+      await sql`DELETE FROM gl_access_tokens WHERE user_id = ${userId}`;
 
-      const result = await service.isGoogleTokenValid('token');
-      expect(result).toBe(true);
-    });
+      const token = await service.getGoogleAccessTokenByUserId(String(userId));
 
-    it('isGoogleTokenValid returns false', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: false });
-
-      const result = await service.isGoogleTokenValid('token');
-      expect(result).toBe(false);
+      expect(token).toBeNull();
     });
   });
 });

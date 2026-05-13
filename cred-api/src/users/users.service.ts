@@ -47,7 +47,10 @@ export class UsersService {
           { method: 'POST' },
         );
       } catch (err) {
-        this.logger.warn({ err }, 'Failed to revoke Google token, proceeding');
+        this.logger.warn(
+          { err: err as Error },
+          'Failed to revoke Google token, proceeding',
+        );
       }
     }
 
@@ -69,7 +72,10 @@ export class UsersService {
           effectiveFrom: 'immediately',
         });
       } catch (err) {
-        this.logger.warn({ err }, 'Failed to cancel Paddle subscription');
+        this.logger.warn(
+          { err: err as Error },
+          'Failed to cancel Paddle subscription',
+        );
       }
     }
 

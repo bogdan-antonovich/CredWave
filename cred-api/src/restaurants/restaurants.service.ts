@@ -119,7 +119,11 @@ export class RestaurantsService {
     }
   }
 
-  async updateRestaurantInfo(id: string, userId: string, data: RestaurantChanges) {
+  async updateRestaurantInfo(
+    id: string,
+    userId: string,
+    data: RestaurantChanges,
+  ) {
     await this.sql`
       UPDATE restaurants
       SET

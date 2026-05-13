@@ -26,8 +26,9 @@ class MockJwtGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
     const req = ctx
       .switchToHttp()
-      .getRequest<{ headers: Record<string, string> }>();
+      .getRequest<{ headers: Record<string, string>; user: { id: string } }>();
     if (!req.headers['authorization']) throw new UnauthorizedException();
+    req.user = { id: req.headers['authorization'].split(' ')[1] };
     return true;
   }
 }
@@ -145,6 +146,10 @@ describe('/reviews route', () => {
           provide: getLoggerToken(ReviewsService.name),
           useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
         },
+        {
+          provide: getLoggerToken(ReviewsController.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+        },
       ],
     })
       .overrideGuard(AuthGuard('jwt'))
@@ -164,6 +169,7 @@ describe('/reviews route', () => {
     it('returns 404 when review does not exist', async () => {
       await request(server)
         .post('/reviews/999999/generate')
+        .set('Authorization', `Bearer ${userId}`)
         .send({})
         .expect(404);
     });
@@ -183,6 +189,7 @@ describe('/reviews route', () => {
 
       const { body } = (await request(server)
         .post(`/reviews/${reviewId}/generate`)
+        .set('Authorization', `Bearer ${userId}`)
         .send({})
         .expect(201)) as {
         body: { responses: typeof FAKE_RESPONSES; generated_at: string };
@@ -214,6 +221,7 @@ describe('/reviews route', () => {
 
       await request(server)
         .post(`/reviews/${reviewId}/generate`)
+        .set('Authorization', `Bearer ${userId}`)
         .send({})
         .expect(201);
 
@@ -238,6 +246,7 @@ describe('/reviews route', () => {
 
       await request(server)
         .post(`/reviews/${reviewId}/generate`)
+        .set('Authorization', `Bearer ${userId}`)
         .send({ additionalContext: 'Customer is a VIP' })
         .expect(201);
 
@@ -260,6 +269,7 @@ describe('/reviews route', () => {
       } as Awaited<ReturnType<CreateFn>>);
       await request(server)
         .post(`/reviews/${reviewId}/generate`)
+        .set('Authorization', `Bearer ${userId}`)
         .send({})
         .expect(201);
 
@@ -283,6 +293,7 @@ describe('/reviews route', () => {
       } as Awaited<ReturnType<CreateFn>>);
       await request(server)
         .post(`/reviews/${reviewId}/generate`)
+        .set('Authorization', `Bearer ${userId}`)
         .send({})
         .expect(201);
 
@@ -305,7 +316,7 @@ describe('/reviews route', () => {
     it('returns 404 when review does not exist', async () => {
       await request(server)
         .post('/reviews/999999/reply')
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .send({ text: 'Thank you!' })
         .expect(404);
     });
@@ -318,7 +329,7 @@ describe('/reviews route', () => {
 
       await request(server)
         .post(`/reviews/${reviewId}/reply`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .send({ text: 'Thank you!' })
         .expect(201);
 
@@ -339,7 +350,7 @@ describe('/reviews route', () => {
 
       await request(server)
         .post(`/reviews/${reviewId}/reply`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .send({ text: 'Thank you!' })
         .expect(201);
 
@@ -362,7 +373,7 @@ describe('/reviews route', () => {
 
       await request(server)
         .post(`/reviews/${reviewId}/reply`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .send({ text: 'Thank you!' })
         .expect(500);
 
@@ -380,7 +391,7 @@ describe('/reviews route', () => {
 
       await request(server)
         .post(`/reviews/${reviewId}/reply`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .send({ text: 'Thank you!' })
         .expect(201);
 

@@ -25,7 +25,11 @@ export class ReviewsService {
     this.logger = logger;
   }
 
-  async generateResponses(reviewId: string, userId: string, additionalContext?: string) {
+  async generateResponses(
+    reviewId: string,
+    userId: string,
+    additionalContext?: string,
+  ) {
     const [review] = await this.sql<
       {
         review_text: string;
