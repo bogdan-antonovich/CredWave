@@ -13,10 +13,13 @@ import {
 import { UnauthorizedException } from '@nestjs/common';
 import { AppConfigService } from '../config/config.service';
 import { EmailService } from '../email/email.serivice';
-import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import {
+  LogMethods,
+  Exclude,
+} from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
-@LogMethods(['data', 'rawBody', 'signature'])
+@LogMethods()
 @Injectable()
 export class BillingService {
   protected readonly logger: PinoLogger;
@@ -147,7 +150,9 @@ export class BillingService {
     return { url: session.urls.general.overview };
   }
 
-  private async onSubscriptionCreated(data: SubscriptionCreatedNotification) {
+  private async onSubscriptionCreated(
+    @Exclude() data: SubscriptionCreatedNotification,
+  ) {
     const planLimits: Record<string, number> = {
       starter: 50,
       growth: 200,
@@ -210,7 +215,9 @@ export class BillingService {
     }
   }
 
-  private async onSubscriptionUpdated(data: SubscriptionNotification) {
+  private async onSubscriptionUpdated(
+    @Exclude() data: SubscriptionNotification,
+  ) {
     const planName = data.items[0]?.price?.name?.toLowerCase() ?? 'starter';
 
     await this.sql`
@@ -228,7 +235,9 @@ export class BillingService {
     );
   }
 
-  private async onSubscriptionCanceled(data: SubscriptionNotification) {
+  private async onSubscriptionCanceled(
+    @Exclude() data: SubscriptionNotification,
+  ) {
     await this.sql`
       UPDATE subscriptions
       SET status = 'canceled', updated_at = NOW()
@@ -267,7 +276,9 @@ export class BillingService {
     }
   }
 
-  private async onSubscriptionPastDue(data: SubscriptionNotification) {
+  private async onSubscriptionPastDue(
+    @Exclude() data: SubscriptionNotification,
+  ) {
     await this.sql`
       UPDATE subscriptions
       SET status = 'past_due', updated_at = NOW()
@@ -295,7 +306,9 @@ export class BillingService {
     }
   }
 
-  private async onTransactionCompleted(data: TransactionNotification) {
+  private async onTransactionCompleted(
+    @Exclude() data: TransactionNotification,
+  ) {
     const total = data.details?.totals?.grandTotal ?? '0';
     const card = data.payments[0]?.methodDetails?.card;
 
@@ -363,7 +376,10 @@ export class BillingService {
     }
   }
 
-  async handleWebhook(rawBody: Buffer, signature: string) {
+  async handleWebhook(
+    @Exclude() rawBody: Buffer,
+    @Exclude() signature: string,
+  ) {
     // verify signature
     const webhookSecret: string = this.cfg.get('paddle').webhookSecret;
 

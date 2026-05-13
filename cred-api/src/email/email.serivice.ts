@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';
-import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import {
+  LogMethods,
+  Exclude,
+} from 'src/shared/decorators/log-methods.decorator';
 import { AppConfigService } from '../config/config.service';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -55,7 +58,7 @@ function detailTable(rows: string): string {
   return `<table cellpadding="0" cellspacing="0" style="width:100%;margin:16px 0 24px">${rows}</table>`;
 }
 
-@LogMethods(['html'])
+@LogMethods()
 @Injectable()
 export class EmailService {
   private resend: Resend;
@@ -69,7 +72,7 @@ export class EmailService {
     this.resend = new Resend(this.cfg.get('resendApiKey'));
   }
 
-  private async send(to: string, subject: string, html: string) {
+  private async send(to: string, subject: string, @Exclude() html: string) {
     const { error } = await this.resend.emails.send({
       from: FROM,
       to,

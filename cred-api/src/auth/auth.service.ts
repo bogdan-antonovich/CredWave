@@ -6,10 +6,13 @@ import { randomBytes } from 'crypto';
 import { google } from 'googleapis';
 import { AppConfigService } from '../config/config.service';
 import { EmailService } from '../email/email.serivice';
-import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
+import {
+  LogMethods,
+  Exclude,
+} from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
-@LogMethods(['token', 'refreshToken'])
+@LogMethods()
 @Injectable()
 export class AppTokensService {
   protected readonly logger: PinoLogger;
@@ -22,21 +25,21 @@ export class AppTokensService {
     this.logger = logger;
   }
 
-  async addToBlacklist(token: string, expiresAt: Date) {
+  async addToBlacklist(@Exclude() token: string, expiresAt: Date) {
     await this.sql`
       INSERT INTO blacklisted_tokens (token, expires_at)
       VALUES (${token}, ${expiresAt})
     `;
   }
 
-  async isBlacklisted(token: string): Promise<boolean> {
+  async isBlacklisted(@Exclude() token: string): Promise<boolean> {
     const result = await this.sql`
       SELECT 1 FROM blacklisted_tokens WHERE token = ${token}
     `;
     return result.length > 0;
   }
 
-  async saveRefreshToken(userId: string, refreshToken: string) {
+  async saveRefreshToken(userId: string, @Exclude() refreshToken: string) {
     await this.sql`
       INSERT INTO auth_tokens (user_id, refresh_token)
       VALUES (${userId}, ${refreshToken})
@@ -44,7 +47,9 @@ export class AppTokensService {
     `;
   }
 
-  async getUserIdByRefreshToken(refreshToken: string): Promise<string | null> {
+  async getUserIdByRefreshToken(
+    @Exclude() refreshToken: string,
+  ): Promise<string | null> {
     const [row] = await this.sql<{ user_id: string }[]>`
       SELECT user_id FROM auth_tokens WHERE refresh_token = ${refreshToken}
     `;
@@ -52,7 +57,7 @@ export class AppTokensService {
   }
 
   async refresh(
-    refreshToken: string,
+    @Exclude() refreshToken: string,
   ): Promise<{ access_token: string; refresh_token: string } | null> {
     const userId = await this.getUserIdByRefreshToken(refreshToken);
     if (!userId) {
@@ -71,7 +76,7 @@ export class AppTokensService {
   }
 }
 
-@LogMethods(['fn', 'accessToken', 'refreshToken'])
+@LogMethods()
 @Injectable()
 export class GoogleTokensService {
   protected readonly logger: PinoLogger;
@@ -102,7 +107,7 @@ export class GoogleTokensService {
 
   async withAutoRefresh<T>(
     userId: string,
-    fn: (token: string) => Promise<T>,
+    @Exclude() fn: (token: string) => Promise<T>,
   ): Promise<T> {
     const token = await this.getAccessToken(userId);
     try {
@@ -119,7 +124,11 @@ export class GoogleTokensService {
     }
   }
 
-  async saveAccessToken(userId: string, accessToken: string, expiresAt: Date) {
+  async saveAccessToken(
+    userId: string,
+    @Exclude() accessToken: string,
+    expiresAt: Date,
+  ) {
     await this.sql`
       INSERT INTO gl_access_tokens (user_id, token, expires_at)
       VALUES (${userId}, ${accessToken}, ${expiresAt})
@@ -129,7 +138,7 @@ export class GoogleTokensService {
     `;
   }
 
-  async saveRefreshToken(userId: string, refreshToken: string) {
+  async saveRefreshToken(userId: string, @Exclude() refreshToken: string) {
     await this.sql`
       INSERT INTO gl_refresh_tokens (user_id, token)
       VALUES (${userId}, ${refreshToken})
@@ -139,7 +148,7 @@ export class GoogleTokensService {
 
   async refreshGoogleAccessToken(
     userId: string,
-    refreshToken: string,
+    @Exclude() refreshToken: string,
   ): Promise<string> {
     const oauth2Client = new google.auth.OAuth2(
       this.cfg.get('google').clientId,

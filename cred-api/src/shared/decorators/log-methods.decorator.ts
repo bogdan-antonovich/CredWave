@@ -1,6 +1,25 @@
 import { PinoLogger } from 'nestjs-pino';
+import 'reflect-metadata';
 
-export function LogMethods(exclude: string[] = []): ClassDecorator {
+const EXCLUDE_METADATA_KEY = Symbol('log_exclude');
+
+export function Exclude(): ParameterDecorator {
+  return (target, propertyKey, parameterIndex) => {
+    const existing =
+      (Reflect.getOwnMetadata(EXCLUDE_METADATA_KEY, target, propertyKey!) as
+        | number[]
+        | undefined) ?? [];
+    existing.push(parameterIndex);
+    Reflect.defineMetadata(
+      EXCLUDE_METADATA_KEY,
+      existing,
+      target,
+      propertyKey!,
+    );
+  };
+}
+
+export function LogMethods(): ClassDecorator {
   return (target) => {
     const proto = target.prototype as Record<string, unknown>;
 
@@ -8,8 +27,6 @@ export function LogMethods(exclude: string[] = []): ClassDecorator {
       if (key === 'constructor') continue;
 
       const descriptor = Object.getOwnPropertyDescriptor(proto, key);
-
-      // Ensure we are only wrapping actual methods
       if (!descriptor || typeof descriptor.value !== 'function') continue;
 
       const original = descriptor.value as (...args: unknown[]) => unknown;
@@ -18,21 +35,14 @@ export function LogMethods(exclude: string[] = []): ClassDecorator {
         this: { logger?: PinoLogger },
         ...args: unknown[]
       ): unknown {
-        const scrubbedArgs = args.map((arg) => {
-          // Check if it's a non-null object
-          if (arg !== null && typeof arg === 'object' && !Array.isArray(arg)) {
-            // Use spread to create a shallow copy safely
-            const copy = { ...(arg as Record<string, unknown>) };
+        const excludedIndices =
+          (Reflect.getOwnMetadata(EXCLUDE_METADATA_KEY, proto, key) as
+            | number[]
+            | undefined) ?? [];
 
-            for (const keyToHide of exclude) {
-              if (keyToHide in copy) {
-                copy[keyToHide] = '[REDACTED]';
-              }
-            }
-            return copy;
-          }
-          return arg;
-        });
+        const scrubbedArgs = args.filter(
+          (_, index) => !excludedIndices.includes(index),
+        );
 
         this.logger?.debug({ args: scrubbedArgs }, `Method: ${key}`);
 
