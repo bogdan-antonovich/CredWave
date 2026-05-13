@@ -160,6 +160,11 @@ export class BillingService {
     const metadata = data.customData as WebhookMetadata | undefined;
     const userId = metadata?.userId ? Number(metadata.userId) : null;
 
+    this.logger.debug(
+      { userId, metadata },
+      'Subscription created, notification received',
+    );
+
     if (!userId || isNaN(userId)) {
       throw new NotFoundException('No userId found in customData');
     }
