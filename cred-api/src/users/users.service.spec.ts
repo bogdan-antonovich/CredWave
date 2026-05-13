@@ -6,7 +6,7 @@ import { getLoggerToken } from 'nestjs-pino';
 type SqlMock = jest.Mock<
   Promise<unknown[]>,
   [TemplateStringsArray, ...unknown[]]
->;
+> & { begin?: jest.Mock };
 
 function makeSql(...rowSets: object[][]): SqlMock {
   let callIndex = 0;
@@ -15,11 +15,25 @@ function makeSql(...rowSets: object[][]): SqlMock {
     .mockImplementation(() => Promise.resolve(rowSets[callIndex++] ?? []));
 }
 
+function makeSqlWithBegin(...rowSets: object[][]): SqlMock {
+  const sql = makeSql(...rowSets);
+  const tx = jest.fn().mockResolvedValue([]);
+  sql.begin = jest
+    .fn()
+    .mockImplementation((cb: (tx: typeof tx) => Promise<void>) => cb(tx));
+  return sql;
+}
+
+const mockPaddle = {
+  subscriptions: { cancel: jest.fn().mockResolvedValue({}) },
+};
+
 async function buildService(sql: SqlMock): Promise<UsersService> {
   const module = await Test.createTestingModule({
     providers: [
       UsersService,
       { provide: 'SQL', useValue: sql },
+      { provide: 'PADDLE', useValue: mockPaddle },
       { provide: getLoggerToken(UsersService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
     ],
   }).compile();
@@ -96,51 +110,103 @@ describe('UsersService', () => {
     });
   });
 
-  describe('isGoogleTokenValid', () => {
-    const mockFetch = jest.fn<Promise<Response>, [RequestInfo, RequestInit?]>();
+  describe('disconnectGoogle', () => {
+    let mockFetch: jest.Mock;
 
     beforeEach(() => {
+      mockFetch = jest.fn().mockResolvedValue({ ok: true });
       global.fetch = mockFetch;
     });
 
-    it('returns true when Google responds with ok', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: true } as Response);
-      const service = await buildService(makeSql());
+    it('revokes the Google token when one exists', async () => {
+      const sql = makeSqlWithBegin([{ token: 'ya29.existing-token' }]);
+      const service = await buildService(sql);
 
-      const result = await service.isGoogleTokenValid('valid-token');
-
-      expect(result).toBe(true);
-    });
-
-    it('returns false when Google responds with not ok', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: false } as Response);
-      const service = await buildService(makeSql());
-
-      const result = await service.isGoogleTokenValid('expired-token');
-
-      expect(result).toBe(false);
-    });
-
-    it('calls the tokeninfo endpoint with the provided access token', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: true } as Response);
-      const service = await buildService(makeSql());
-
-      await service.isGoogleTokenValid('my-token');
+      await service.disconnectGoogle('user-1');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('my-token') as string,
+        expect.stringContaining('ya29.existing-token') as string,
+        expect.objectContaining({ method: 'POST' }) as object,
       );
     });
 
-    it('calls the correct Google tokeninfo URL', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: true } as Response);
-      const service = await buildService(makeSql());
+    it('does not call fetch when no token exists', async () => {
+      const sql = makeSqlWithBegin([]);
+      const service = await buildService(sql);
 
-      await service.isGoogleTokenValid('my-token');
+      await service.disconnectGoogle('user-1');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('oauth2.googleapis.com/tokeninfo') as string,
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('still deletes DB rows even if Google revoke throws', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      const sql = makeSqlWithBegin([{ token: 'ya29.existing-token' }]);
+      const service = await buildService(sql);
+
+      await expect(service.disconnectGoogle('user-1')).resolves.not.toThrow();
+      expect(sql.begin).toHaveBeenCalled();
+    });
+
+    it('runs the deletion in a transaction', async () => {
+      const sql = makeSqlWithBegin([{ token: 'ya29.existing-token' }]);
+      const service = await buildService(sql);
+
+      await service.disconnectGoogle('user-1');
+
+      expect(sql.begin).toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteAccount', () => {
+    it('cancels the Paddle subscription when an active one exists', async () => {
+      const sql = makeSqlWithBegin([{ paddle_subscription_id: 'sub_123' }]);
+      const service = await buildService(sql);
+
+      await service.deleteAccount('user-1');
+
+      expect(mockPaddle.subscriptions.cancel).toHaveBeenCalledWith(
+        'sub_123',
+        expect.objectContaining({ effectiveFrom: 'immediately' }) as object,
       );
+    });
+
+    it('does not call paddle.cancel when no active subscription', async () => {
+      const sql = makeSqlWithBegin([]);
+      const service = await buildService(sql);
+
+      await service.deleteAccount('user-1');
+
+      expect(mockPaddle.subscriptions.cancel).not.toHaveBeenCalled();
+    });
+
+    it('still deletes data even if Paddle cancel throws', async () => {
+      mockPaddle.subscriptions.cancel.mockRejectedValueOnce(
+        new Error('Paddle error'),
+      );
+      const sql = makeSqlWithBegin([{ paddle_subscription_id: 'sub_123' }]);
+      const service = await buildService(sql);
+
+      await expect(service.deleteAccount('user-1')).resolves.not.toThrow();
+      expect(sql.begin).toHaveBeenCalled();
+    });
+
+    it('runs all deletions in a transaction', async () => {
+      const sql = makeSqlWithBegin([]);
+      const service = await buildService(sql);
+
+      await service.deleteAccount('user-1');
+
+      expect(sql.begin).toHaveBeenCalled();
+    });
+
+    it('passes userId to the subscription lookup', async () => {
+      const sql = makeSqlWithBegin([]);
+      const service = await buildService(sql);
+
+      await service.deleteAccount('user-99');
+
+      expect(sql.mock.calls[0]).toContain('user-99');
     });
   });
 });

@@ -135,8 +135,11 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
           </button>
           <div
             v-if="avatarOpen"
-            class="absolute right-0 top-full mt-2 w-36 bg-white border border-border-subtle rounded-xl shadow-lg overflow-hidden py-1 z-50"
+            class="absolute right-0 top-full mt-2 w-52 bg-white border border-border-subtle rounded-xl shadow-lg overflow-hidden py-1 z-50"
           >
+            <div class="px-4 py-2.5 border-b border-border-subtle">
+              <p class="text-xs text-text-muted truncate">{{ userStore.profile.email }}</p>
+            </div>
             <button
               class="w-full text-left flex items-center px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
               @click="auth.logout()"

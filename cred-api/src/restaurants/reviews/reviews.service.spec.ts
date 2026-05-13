@@ -369,11 +369,11 @@ describe('ReviewsService', () => {
 
   describe('getDemoReviewsFromDb', () => {
     it('should return demo reviews from db', async () => {
-      sql.mockResolvedValueOnce([{ reviews: [{ id: 1 }] }]);
+      sql.mockResolvedValueOnce([{ reviews: [{ id: 1 }], blocks: null }]);
 
       const result = await service.getDemoReviewsFromDb('place1');
 
-      expect(result).toEqual([{ id: 1 }]);
+      expect(result).toEqual({ reviews: [{ id: 1 }], blocks: null });
     });
 
     it('should return null if no demo reviews found', async () => {
@@ -399,7 +399,7 @@ describe('ReviewsService', () => {
     it('should return cached reviews if exist', async () => {
       const spy = jest
         .spyOn(service, 'getDemoReviewsFromDb')
-        .mockResolvedValue([{ id: 1 } as any]);
+        .mockResolvedValue({ reviews: [{ id: 1 } as any], blocks: null });
 
       const result = await service.getDemoReviews('place1');
 

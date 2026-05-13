@@ -1,5 +1,6 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import type { Request } from 'express';
 import { ReviewsService } from './reviews.service';
 import {
   ApiBearerAuth,
@@ -9,13 +10,20 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
-export interface GenerateReviewBody {
+export class GenerateReviewBody {
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
   additionalContext?: string;
 }
 
-export interface ReviewText {
+export class ReviewText {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4000)
   text: string;
 }
 
@@ -40,6 +48,8 @@ export class ReviewsController {
   ) {}
 
   @Post(':id/generate')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate AI reply options for a review' })
   @ApiParam({ name: 'id', description: 'Review ID' })
   @ApiBody({
@@ -54,11 +64,13 @@ export class ReviewsController {
   })
   @ApiOkResponse({ schema: generatedResponseSchema })
   async createReview(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() body: GenerateReviewBody,
   ) {
     this.logger.info('Generating responses for review');
-    return await this.srv.generateResponses(id, body.additionalContext);
+    const userId = (req.user as { id: string }).id;
+    return await this.srv.generateResponses(id, userId, body.additionalContext);
   }
 
   @Post(':id/reply')
@@ -78,8 +90,13 @@ export class ReviewsController {
     },
   })
   @ApiOkResponse({ description: 'Reply posted to Google Business Profile' })
-  async replyReview(@Param('id') id: string, @Body() body: ReviewText) {
+  async replyReview(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: ReviewText,
+  ) {
     this.logger.info('Posting reply to review');
-    return await this.srv.replyToReview(id, body.text);
+    const userId = (req.user as { id: string }).id;
+    return await this.srv.replyToReview(id, userId, body.text);
   }
 }

@@ -19,5 +19,6 @@ import { EmailModule } from '../email/email.module';
         }),
     },
   ],
+  exports: ['PADDLE'],
 })
 export class BillingModule {}

@@ -23,11 +23,8 @@ import {
 } from '@nestjs/swagger';
 import { AdminGuard } from '../shared/guards/admin.guard';
 import { AdminService } from './admin.service';
-import type {
-  RestaurantCredentials,
-  ReviewBlock,
-  PromoCode,
-} from './admin.types';
+import type { RestaurantCredentials, ReviewBlock } from './admin.types';
+import { PromoCodeDto } from './admin.types';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 @ApiTags('Admin')
@@ -224,7 +221,7 @@ export class AdminController {
       },
     },
   })
-  async createPromoCode(@Body() body: PromoCode) {
+  async createPromoCode(@Body() body: PromoCodeDto) {
     this.logger.info('Creating a new promo code');
     return await this.adminService.createPromoCode(body);
   }

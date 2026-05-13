@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request, Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
@@ -125,6 +126,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @ApiOperation({
     summary: 'Exchange a refresh token for a new access token',
     description:

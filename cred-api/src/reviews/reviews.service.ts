@@ -25,7 +25,7 @@ export class ReviewsService {
     this.logger = logger;
   }
 
-  async generateResponses(reviewId: string, additionalContext?: string) {
+  async generateResponses(reviewId: string, userId: string, additionalContext?: string) {
     const [review] = await this.sql<
       {
         review_text: string;
@@ -34,8 +34,10 @@ export class ReviewsService {
         restaurant_id: string;
       }[]
     >`
-      SELECT review_text, rating, reviewer_name, restaurant_id
-      FROM reviews WHERE id = ${reviewId}
+      SELECT r.review_text, r.rating, r.reviewer_name, r.restaurant_id
+      FROM reviews r
+      JOIN restaurants res ON res.id = r.restaurant_id AND res.user_id = ${userId}
+      WHERE r.id = ${reviewId}
     `;
     if (!review) throw new NotFoundException('Review not found');
 
@@ -103,7 +105,7 @@ export class ReviewsService {
     return { responses, generated_at };
   }
 
-  async replyToReview(reviewId: string, text: string) {
+  async replyToReview(reviewId: string, userId: string, text: string) {
     const [review] = await this.sql<
       {
         google_review_id: string;
@@ -111,7 +113,10 @@ export class ReviewsService {
         reviewer_name: string | null;
       }[]
     >`
-      SELECT google_review_id, restaurant_id, reviewer_name FROM reviews WHERE id = ${reviewId}
+      SELECT r.google_review_id, r.restaurant_id, r.reviewer_name
+      FROM reviews r
+      JOIN restaurants res ON res.id = r.restaurant_id AND res.user_id = ${userId}
+      WHERE r.id = ${reviewId}
     `;
     if (!review) throw new NotFoundException('Review not found');
 

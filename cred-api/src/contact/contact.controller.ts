@@ -1,6 +1,7 @@
 import { Body, Controller, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { ContactForm } from './contact.types';
+import { ContactForm } from './contact.types';
 import { ContactService } from './contact.service';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -14,6 +15,7 @@ export class ContactController {
   ) {}
 
   @Post()
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @ApiOperation({ summary: 'Submit a contact form message' })
   @ApiBody({
     schema: {

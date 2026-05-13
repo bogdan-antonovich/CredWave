@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PassportModule } from '@nestjs/passport';
 import { GoogleStrategy } from './auth/google.strategy';
 import { JwtModule } from '@nestjs/jwt';
@@ -20,6 +23,8 @@ import { LoggerModule } from 'nestjs-pino';
 @Module({
   imports: [
     AppConfigModule,
+    ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     LoggerModule.forRootAsync({
       inject: [AppConfigService],
       imports: [AppConfigModule],
@@ -81,6 +86,10 @@ import { LoggerModule } from 'nestjs-pino';
     DemoModule,
     PromoModule,
   ],
-  providers: [GoogleStrategy, JwtStrategy],
+  providers: [
+    GoogleStrategy,
+    JwtStrategy,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

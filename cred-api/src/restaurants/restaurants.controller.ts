@@ -79,11 +79,13 @@ export class RestaurantsController {
   })
   @ApiNoContentResponse()
   async updateRestaurantInfo(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() body: RestaurantChanges,
   ) {
     this.logger.info('Updating restaurant additional info');
-    await this.restaurantsService.updateRestaurantInfo(id, body);
+    const userId = (req.user as { id: string }).id;
+    await this.restaurantsService.updateRestaurantInfo(id, userId, body);
   }
 
   @Get(':id/auto-reply')
@@ -104,9 +106,10 @@ export class RestaurantsController {
       },
     },
   })
-  async getAutoReply(@Param('id') id: string) {
+  async getAutoReply(@Req() req: Request, @Param('id') id: string) {
     this.logger.info('Fetching auto-reply settings for restaurant');
-    return await this.restaurantsService.getAutoReply(id);
+    const userId = (req.user as { id: string }).id;
+    return await this.restaurantsService.getAutoReply(id, userId);
   }
 
   @Patch(':id/auto-reply')
@@ -129,11 +132,13 @@ export class RestaurantsController {
   })
   @ApiNoContentResponse()
   async updateAutoReply(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() body: AutoReplyChanges,
   ) {
     this.logger.info('Updating auto-reply settings for restaurant');
-    await this.restaurantsService.updateAutoReply(id, body);
+    const userId = (req.user as { id: string }).id;
+    await this.restaurantsService.updateAutoReply(id, userId, body);
   }
 
   @Get('search')

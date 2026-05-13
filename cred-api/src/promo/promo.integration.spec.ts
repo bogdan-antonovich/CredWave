@@ -45,7 +45,7 @@ describe('/promo route (integration)', () => {
       providers: [
         PromoService,
         { provide: 'SQL', useValue: sql },
-        { provide: EmailService, useValue: { sendPromoRedeemed: jest.fn() } },
+        { provide: EmailService, useValue: { sendPromoRedeemed: jest.fn(), sendPromoExpiringSoon: jest.fn(), sendPromoExpired: jest.fn() } },
       ],
     })
       .overrideGuard(AuthGuard('jwt'))

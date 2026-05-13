@@ -119,7 +119,7 @@ export class RestaurantsService {
     }
   }
 
-  async updateRestaurantInfo(id: string, data: RestaurantChanges) {
+  async updateRestaurantInfo(id: string, userId: string, data: RestaurantChanges) {
     await this.sql`
       UPDATE restaurants
       SET
@@ -127,26 +127,25 @@ export class RestaurantsService {
           owner_name = ${data.ownerName},
           additional_info = ${data.additionalInfo},
           updated_at = NOW()
-      WHERE id = ${id}
+      WHERE id = ${id} AND user_id = ${userId}
     `;
     this.logger.debug({ id }, 'Restaurant info updated successfully');
   }
 
-  //
-  async getAutoReply(id: string) {
+  async getAutoReply(id: string, userId: string) {
     const [row] = await this.sql<AutoReplyChanges[]>`
       SELECT
           auto_reply_enabled       AS "enabled",
           auto_reply_default_tone  AS "defaultTone",
           auto_reply_custom_instructions AS "customInstructions"
       FROM restaurants
-      WHERE id = ${id}
+      WHERE id = ${id} AND user_id = ${userId}
     `;
     this.logger.debug({ id }, 'Auto reply retrieved successfully');
     return row ?? null;
   }
 
-  async updateAutoReply(id: string, data: AutoReplyChanges) {
+  async updateAutoReply(id: string, userId: string, data: AutoReplyChanges) {
     await this.sql`
       UPDATE restaurants
       SET
@@ -154,7 +153,7 @@ export class RestaurantsService {
           auto_reply_default_tone = ${data.defaultTone},
           auto_reply_custom_instructions = ${data.customInstructions},
           updated_at = NOW()
-      WHERE id = ${id}
+      WHERE id = ${id} AND user_id = ${userId}
     `;
     this.logger.debug({ id }, 'Auto reply updated successfully');
   }

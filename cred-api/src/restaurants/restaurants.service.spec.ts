@@ -140,7 +140,7 @@ describe('RestaurantsService', () => {
     it('should update restaurant info', async () => {
       sql.mockResolvedValueOnce([]);
 
-      await service.updateRestaurantInfo('1', {
+      await service.updateRestaurantInfo('1', 'user-1', {
         ownerName: 'John',
         additionalInfo: 'Info',
       } as RestaurantChanges);
@@ -159,7 +159,7 @@ describe('RestaurantsService', () => {
         },
       ]);
 
-      const result = await service.getAutoReply('1');
+      const result = await service.getAutoReply('1', 'user-1');
 
       expect(result).not.toBeNull();
     });
@@ -167,7 +167,7 @@ describe('RestaurantsService', () => {
     it('should return null if not found', async () => {
       sql.mockResolvedValueOnce([]);
 
-      const result = await service.getAutoReply('1');
+      const result = await service.getAutoReply('1', 'user-1');
 
       expect(result).toBeNull();
     });
@@ -177,7 +177,7 @@ describe('RestaurantsService', () => {
     it('should update auto reply', async () => {
       sql.mockResolvedValueOnce([]);
 
-      await service.updateAutoReply('1', {
+      await service.updateAutoReply('1', 'user-1', {
         enabled: true,
         defaultTone: 'friendly',
         customInstructions: 'test',

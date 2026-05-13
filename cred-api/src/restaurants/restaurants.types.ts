@@ -1,3 +1,11 @@
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
+
 export interface Restaurant {
   id: string;
   userId: string;
@@ -13,20 +21,32 @@ export interface Restaurant {
   google_location_id: string;
 }
 
-export interface RestaurantChanges {
+export class RestaurantChanges {
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
   name: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
   ownerName: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(5000)
   additionalInfo: string;
 }
 
-export interface RestaurantChanges {
-  name: string;
-  ownerName: string;
-  additionalInfo: string;
-}
-
-export interface AutoReplyChanges {
+export class AutoReplyChanges {
+  @IsBoolean()
   enabled: boolean;
+
+  @IsIn(['empathetic', 'professional', 'casual'])
   defaultTone: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(2000)
   customInstructions: string;
 }

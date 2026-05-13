@@ -1,4 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import {
   ApiBody,
   ApiOkResponse,
@@ -8,6 +10,18 @@ import {
 } from '@nestjs/swagger';
 import { DemoService } from './demo.service';
 
+class GenerateDemoDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  place_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name: string;
+}
+
 @ApiTags('Demo')
 @Controller('demo')
 export class DemoController {
@@ -15,6 +29,7 @@ export class DemoController {
 
   @Post('generate')
   @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @ApiOperation({
     summary:
       "Fetch a restaurant's Google reviews and generate AI replies (public)",
@@ -31,7 +46,7 @@ export class DemoController {
   @ApiOkResponse({
     description: 'Review blocks with empathetic/professional/casual AI replies',
   })
-  async generateDemo(@Body() body: { place_id: string; name: string }) {
+  async generateDemo(@Body() body: GenerateDemoDto) {
     return await this.demoService.generateDemo(body.place_id, body.name);
   }
 

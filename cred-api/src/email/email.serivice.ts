@@ -292,6 +292,52 @@ export class EmailService {
     );
   }
 
+  async sendPromoExpiringSoon(
+    to: string,
+    name: string,
+    code: string,
+    daysLeft: number,
+    accessUntil: string,
+  ) {
+    const label = daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`;
+    await this.send(
+      to,
+      `Your CredWave promo access expires ${label}`,
+      template(
+        'Promo access expiring soon',
+        p(
+          `Hi ${name}, your promo access (code <strong>${code}</strong>) expires <strong>${label}</strong> on ${accessUntil}.`,
+        ) +
+          detailTable(
+            detail('Code', code) + detail('Access until', accessUntil),
+          ) +
+          btn('Upgrade now', 'https://credwave.app/pricing') +
+          divider() +
+          p(
+            "Don't lose access — upgrade to a paid plan and keep managing your reviews without interruption.",
+          ),
+      ),
+    );
+  }
+
+  async sendPromoExpired(to: string, name: string, code: string) {
+    await this.send(
+      to,
+      'Your CredWave promo access has expired',
+      template(
+        'Promo access expired',
+        p(
+          `Hi ${name}, your promo access with code <strong>${code}</strong> has now expired and your account has been downgraded.`,
+        ) +
+          btn('Reactivate', 'https://credwave.app/pricing') +
+          divider() +
+          p(
+            'Upgrade to a paid plan to restore full access to your reviews and AI replies.',
+          ),
+      ),
+    );
+  }
+
   async sendNewReview(
     to: string,
     name: string,

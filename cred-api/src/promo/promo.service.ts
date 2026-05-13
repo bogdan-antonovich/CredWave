@@ -61,7 +61,11 @@ export class PromoService {
       const [updated] = await tx<{ promo_access_until: Date }[]>`
         UPDATE users
         SET promo_access_until = NOW() + (${promo.duration_days} || ' days')::INTERVAL,
-            promo_code = ${code}
+            promo_code = ${code},
+            promo_notif_7d = FALSE,
+            promo_notif_3d = FALSE,
+            promo_notif_1d = FALSE,
+            promo_notif_expired = FALSE
         WHERE id = ${userId}
         RETURNING promo_access_until
       `;

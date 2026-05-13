@@ -1,13 +1,18 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { UsersService } from './users.service';
-import {
-  NotFoundException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -36,7 +41,7 @@ export class UsersController {
         name: { type: 'string' },
         picture_url: { type: 'string', format: 'uri' },
         created_at: { type: 'string', format: 'date-time' },
-        google_access_token_valid: { type: 'boolean' },
+        google_connected: { type: 'boolean' },
       },
     },
   })
@@ -49,16 +54,6 @@ export class UsersController {
     const accessToken = await this.usersService.getGoogleAccessTokenByUserId(
       user.id,
     );
-    if (!accessToken)
-      throw new NotFoundException('Google access token not found');
-
-    let googleAccessTokenValid = false;
-    try {
-      googleAccessTokenValid =
-        await this.usersService.isGoogleTokenValid(accessToken);
-    } catch {
-      throw new InternalServerErrorException(`Failed to validate Google token`);
-    }
 
     return {
       id: user.id,
@@ -66,7 +61,31 @@ export class UsersController {
       name: user.name,
       picture_url: user.picture_url,
       created_at: user.created_at,
-      google_access_token_valid: googleAccessTokenValid,
+      google_connected: !!accessToken,
     };
+  }
+
+  @Delete('me/google')
+  @HttpCode(204)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Disconnect Google account' })
+  @ApiNoContentResponse()
+  async disconnectGoogle(@Req() req: Request) {
+    this.logger.info('Disconnecting Google account');
+    const userId = (req.user as { id: string }).id;
+    await this.usersService.disconnectGoogle(userId);
+  }
+
+  @Delete('me')
+  @HttpCode(204)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete account and all associated data' })
+  @ApiNoContentResponse()
+  async deleteAccount(@Req() req: Request) {
+    this.logger.info('Deleting user account');
+    const userId = (req.user as { id: string }).id;
+    await this.usersService.deleteAccount(userId);
   }
 }

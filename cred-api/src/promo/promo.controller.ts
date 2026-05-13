@@ -17,10 +17,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PromoService } from './promo.service';
 
-export interface RedeemPromoDto {
+export class RedeemPromoDto {
+  @IsString()
+  @IsNotEmpty()
   promoCode: string;
 }
 

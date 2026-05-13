@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Req, UseGuards, Headers } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { NotFoundException } from '@nestjs/common';
 import type { Request } from 'express';
 import { BillingService } from './billing.service';
@@ -99,6 +100,7 @@ export class BillingController {
   }
 
   @Post('webhooks/paddle')
+  @SkipThrottle()
   @ApiOperation({ summary: 'Paddle webhook receiver' })
   @ApiHeader({
     name: 'paddle-signature',

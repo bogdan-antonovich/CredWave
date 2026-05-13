@@ -146,7 +146,7 @@ describe('ReviewsService', () => {
     it('throws NotFoundException when the review does not exist', async () => {
       const service = await buildService(makeSql([]));
 
-      await expect(service.generateResponses('nonexistent-id')).rejects.toThrow(
+      await expect(service.generateResponses('nonexistent-id', 'user-1')).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -157,7 +157,7 @@ describe('ReviewsService', () => {
       );
       mockOpenAiResponse();
 
-      const result = await service.generateResponses('review-1');
+      const result = await service.generateResponses('review-1', 'user-1');
 
       expect(result.responses).toEqual(FAKE_RESPONSES);
       expect(result.generated_at).toBeInstanceOf(Date);
@@ -172,7 +172,7 @@ describe('ReviewsService', () => {
       );
       mockOpenAiResponse();
 
-      await service.generateResponses('review-1', 'Customer is a VIP');
+      await service.generateResponses('review-1', 'user-1', 'Customer is a VIP');
 
       const prompt = mockCreate.mock.calls[0][0].messages[0].content;
       expect(prompt).toContain('Customer is a VIP');
@@ -184,7 +184,7 @@ describe('ReviewsService', () => {
       );
       mockOpenAiResponse();
 
-      await service.generateResponses('review-1');
+      await service.generateResponses('review-1', 'user-1');
 
       const prompt = mockCreate.mock.calls[0][0].messages[0].content;
       expect(prompt).not.toContain('Additional context');
@@ -196,7 +196,7 @@ describe('ReviewsService', () => {
       );
       mockOpenAiResponse();
 
-      await service.generateResponses('review-1');
+      await service.generateResponses('review-1', 'user-1');
 
       const prompt = mockCreate.mock.calls[0][0].messages[0].content;
       expect(prompt).toContain('Family friendly');
@@ -212,7 +212,7 @@ describe('ReviewsService', () => {
       );
       mockOpenAiResponse();
 
-      await service.generateResponses('review-1');
+      await service.generateResponses('review-1', 'user-1');
 
       const prompt = mockCreate.mock.calls[0][0].messages[0].content;
       expect(prompt).not.toContain('About restaurant');
@@ -230,7 +230,7 @@ describe('ReviewsService', () => {
       const service = await buildService(makeSql([]));
 
       await expect(
-        service.replyToReview('nonexistent-id', 'Thanks!'),
+        service.replyToReview('nonexistent-id', 'user-1', 'Thanks!'),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -238,7 +238,7 @@ describe('ReviewsService', () => {
       const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], [FAKE_USER]));
       mockGoogleApiSuccess();
 
-      const result = await service.replyToReview('review-1', 'Thank you!');
+      const result = await service.replyToReview('review-1', 'user-1', 'Thank you!');
 
       expect(mockSetCredentials).toHaveBeenCalledWith({ access_token: FAKE_ACCESS_TOKEN });
       expect(mockAuthRequest).toHaveBeenCalledWith(
@@ -257,7 +257,7 @@ describe('ReviewsService', () => {
       const service = await buildService(sql);
       mockGoogleApiSuccess();
 
-      await service.replyToReview('review-1', 'Thank you!');
+      await service.replyToReview('review-1', 'user-1', 'Thank you!');
 
       // index 2 is the UPDATE reviews call (0: select review, 1: select restaurant, 2: update, 3: select user)
       const updateCall = sql.mock.calls[2];
@@ -270,7 +270,7 @@ describe('ReviewsService', () => {
       mockAuthRequest.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(
-        service.replyToReview('review-1', 'Thank you!'),
+        service.replyToReview('review-1', 'user-1', 'Thank you!'),
       ).rejects.toThrow('Network error');
 
       expect(sql).toHaveBeenCalledTimes(2);
@@ -280,7 +280,7 @@ describe('ReviewsService', () => {
       const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], [FAKE_USER]));
       mockGoogleApiSuccess();
 
-      await service.replyToReview('review-1', 'Thank you!');
+      await service.replyToReview('review-1', 'user-1', 'Thank you!');
 
       expect(mockEmailService.sendReplyPosted).toHaveBeenCalledWith(
         'user@example.com',
@@ -294,7 +294,7 @@ describe('ReviewsService', () => {
       const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], []));
       mockGoogleApiSuccess();
 
-      await service.replyToReview('review-1', 'Thank you!');
+      await service.replyToReview('review-1', 'user-1', 'Thank you!');
 
       expect(mockEmailService.sendReplyPosted).not.toHaveBeenCalled();
     });

@@ -9,7 +9,7 @@ import {
   ReviewBlock,
   ReviewResponse,
   RestaurantCredentials,
-  PromoCode,
+  PromoCodeDto,
 } from './admin.types';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
@@ -168,20 +168,19 @@ export class AdminService {
     `;
   }
 
-  async createPromoCode(promo: PromoCode) {
+  async createPromoCode(promo: PromoCodeDto) {
     await this.sql`
-      INSERT INTO promo_codes (code, duration_days, max_uses, expires_at, is_active)
+      INSERT INTO promo_codes (code, duration_days, max_uses, expires_at)
       VALUES (
         ${promo.code},
         ${promo.durationDays},
         ${promo.maxUses ?? null},
-        ${promo.expiresAt ?? null},
-        ${promo.isActive ?? true}
+        ${promo.expiresAt ?? null}
       )
     `;
   }
 
-  async getPromoCodes(): Promise<PromoCode[]> {
+  async getPromoCodes(): Promise<PromoCodeDto[]> {
     const rows = await this.sql<
       {
         code: string;

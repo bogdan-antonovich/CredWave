@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/config.service';
 import { GlobalExceptionFilter } from './shared/filters/http-exception.filter';
@@ -11,7 +13,9 @@ async function bootstrap() {
     bufferLogs: true,
   });
   app.useLogger(app.get(Logger));
+  app.use(helmet());
   app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix('v1', {
     exclude: ['api/docs', 'api/docs-json', 'api/docs-yaml'],
   });

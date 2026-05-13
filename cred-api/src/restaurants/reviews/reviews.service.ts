@@ -215,14 +215,18 @@ export class ReviewsService {
     };
   }
 
-  async getDemoReviewsFromDb(placeId: string): Promise<SerpReview[] | null> {
-    const [row] = await this.sql<{ reviews: SerpReview[] }[]>`
-      SELECT reviews FROM auto_demo_reviews WHERE place_id = ${placeId}
+  async getDemoReviewsFromDb(
+    placeId: string,
+  ): Promise<{ reviews: SerpReview[]; blocks: DemoBlock[] | null } | null> {
+    const [row] = await this.sql<
+      { reviews: SerpReview[]; blocks: DemoBlock[] | null }[]
+    >`
+      SELECT reviews, blocks FROM auto_demo_reviews WHERE place_id = ${placeId}
     `;
 
     this.logger.debug({ row }, 'Demo reviews fetched from DB');
 
-    return row?.reviews ?? null;
+    return row ?? null;
   }
 
   async saveDemoReviews(placeId: string, reviews: SerpReview[]) {
@@ -233,13 +237,30 @@ export class ReviewsService {
       SET reviews = ${this.sql.json(reviews as unknown as Parameters<Sql['json']>[0])}, created_at = NOW()
     `;
 
-    this.logger.debug({ placeId, reviews }, 'Demo reviews saved to DB');
+    this.logger.debug({ placeId }, 'Demo reviews saved to DB');
+  }
+
+  async saveDemoBlocks(placeId: string, blocks: DemoBlock[]) {
+    await this.sql`
+      UPDATE auto_demo_reviews
+      SET blocks = ${this.sql.json(blocks as unknown as Parameters<Sql['json']>[0])}
+      WHERE place_id = ${placeId}
+    `;
+
+    this.logger.debug({ placeId }, 'Demo blocks cached in DB');
   }
 
   async generateDemoBlocks(
     placeId: string,
     restaurantName: string,
   ): Promise<{ blocks: DemoBlock[] }> {
+    const cached = await this.getDemoReviewsFromDb(placeId);
+
+    if (cached?.blocks) {
+      this.logger.debug({ placeId }, 'Returning cached demo blocks');
+      return { blocks: cached.blocks };
+    }
+
     const { reviews } = await this.getDemoReviews(placeId);
 
     const blocks = await Promise.all(
@@ -284,6 +305,8 @@ export class ReviewsService {
         };
       }),
     );
+
+    await this.saveDemoBlocks(placeId, blocks);
 
     this.logger.debug({ blocks }, 'Demo blocks generated');
     return { blocks };
@@ -373,7 +396,7 @@ export class ReviewsService {
 
   async getDemoReviews(placeId: string): Promise<{ reviews: SerpReview[] }> {
     const cached = await this.getDemoReviewsFromDb(placeId);
-    if (cached) return { reviews: cached };
+    if (cached) return { reviews: cached.reviews };
 
     this.logger.debug('Fetching demo reviews from SerpApi');
 
