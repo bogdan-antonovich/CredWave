@@ -83,7 +83,6 @@ CREATE TABLE payment_methods(
     brand TEXT NOT NULL,
     last4 TEXT NOT NULL,
     expiry TEXT NOT NULL,
-    updated_at TIMESTAMP,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX ON payment_methods(user_id, brand, last4, expiry);
