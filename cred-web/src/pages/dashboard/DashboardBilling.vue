@@ -29,6 +29,7 @@ function formatAmount(amount: number, currency: string) {
 
 function statusLabel(status: string) {
   if (status === 'active') return 'Active'
+  if (status === 'trialing') return 'Trial'
   if (status === 'past_due') return 'Past Due'
   if (status === 'canceled') return 'Canceled'
   return status
@@ -97,6 +98,27 @@ function statusLabel(status: string) {
           Active
         </span>
       </section>
+      <!-- ═══ Past-due banner ═══ -->
+      <div
+        v-if="billingStore.subscription?.plan.status === 'past_due'"
+        class="flex items-start gap-3 rounded-2xl border border-error/30 bg-error/5 p-4"
+      >
+        <AlertCircle class="w-4 h-4 text-error mt-0.5 shrink-0" />
+        <div class="flex-1">
+          <p class="text-sm font-semibold text-error">Payment failed</p>
+          <p class="text-xs text-text-secondary mt-0.5">
+            We couldn't charge your card. Update your payment method to keep access.
+          </p>
+        </div>
+        <button
+          class="shrink-0 px-3 py-1.5 text-xs font-semibold bg-error text-white rounded-lg hover:bg-error/90 transition-all disabled:opacity-50"
+          :disabled="billingStore.portalLoading"
+          @click="billingStore.openPortal()"
+        >
+          Fix payment
+        </button>
+      </div>
+
       <!-- ═══ Current Plan ═══ -->
       <section class="bg-white border border-border-subtle rounded-2xl overflow-hidden">
         <div class="p-6">
@@ -108,7 +130,12 @@ function statusLabel(status: string) {
                 </h2>
                 <span
                   class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                  :class="billingStore.subscription?.plan.status === 'active' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'"
+                  :class="{
+                    'bg-success/10 text-success': billingStore.subscription?.plan.status === 'active',
+                    'bg-accent/10 text-accent': billingStore.subscription?.plan.status === 'trialing',
+                    'bg-error/10 text-error': billingStore.subscription?.plan.status === 'past_due',
+                    'bg-text-muted/10 text-text-muted': billingStore.subscription?.plan.status === 'canceled',
+                  }"
                 >
                   {{ statusLabel(billingStore.subscription?.plan.status ?? '') }}
                 </span>
@@ -119,8 +146,17 @@ function statusLabel(status: string) {
                 </span>
                 /mo billed {{ billingStore.subscription?.plan.period }}ly
               </p>
-              <p class="text-xs text-text-muted mt-2">
+              <p
+                v-if="billingStore.subscription?.plan.status !== 'canceled'"
+                class="text-xs text-text-muted mt-2"
+              >
                 Next billing date: {{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}
+              </p>
+              <p
+                v-else
+                class="text-xs text-text-muted mt-2"
+              >
+                Access until: {{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}
               </p>
             </div>
             <button

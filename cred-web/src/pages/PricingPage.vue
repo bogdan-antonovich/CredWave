@@ -47,7 +47,7 @@ onMounted(async () => {
         localStorage.removeItem(PENDING_KEY);
         try {
             await waitForPaddle();
-            openCheckout(pending, user.id!, user.profile.email);
+            openCheckout(pending, user.id!, user.profile.email, buildDashboardSuccessUrl());
         } catch {
             // paddle didn't load — ignore, user can click manually
         }
@@ -150,6 +150,14 @@ const plans = computed(() => [
     },
 ]);
 
+function buildDashboardSuccessUrl(): string | undefined {
+    if (!config.dashboardUrl || !auth.accessToken || !auth.refreshToken) return undefined;
+    const target = new URL(`${config.dashboardUrl}/auth/callback`);
+    target.searchParams.set("access_token", auth.accessToken);
+    target.searchParams.set("refresh_token", auth.refreshToken);
+    return target.toString();
+}
+
 function handleSelect(plan: (typeof plans.value)[number]) {
     const priceId = isAnnual.value
         ? plan.paddlePriceAnnual
@@ -162,7 +170,7 @@ function handleSelect(plan: (typeof plans.value)[number]) {
         return;
     }
 
-    openCheckout(priceId, user.id!, user.profile.email);
+    openCheckout(priceId, user.id!, user.profile.email, buildDashboardSuccessUrl());
 }
 
 const faq = [

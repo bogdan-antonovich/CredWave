@@ -28,6 +28,12 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 export class BillingService {
   protected readonly logger: PinoLogger;
 
+  private readonly planLimits: Record<string, number> = {
+    starter: 50,
+    growth: 200,
+    scale: 1000,
+  };
+
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     @Inject('PADDLE') private readonly paddle: Paddle,
@@ -60,6 +66,7 @@ export class BillingService {
       }[]
     >`
       SELECT * FROM subscriptions WHERE user_id = ${userId}
+      ORDER BY id DESC LIMIT 1
     `;
     if (!sub) {
       this.logger.debug({ userId }, 'No subscription found');
@@ -167,12 +174,6 @@ export class BillingService {
         WHERE id = ${userId}
       `;
 
-    const planLimits: Record<string, number> = {
-      starter: 50,
-      growth: 200,
-      enterprise: 1000,
-    };
-
     const price = data.items[0]?.price;
     const planName = price?.name?.toLowerCase() ?? 'starter';
 
@@ -187,26 +188,15 @@ export class BillingService {
         ${Number(price?.unitPrice?.amount ?? 0)},
         ${data.billingCycle.interval},
         ${data.status},
-        ${planLimits[planName] ?? 50},
+        ${this.planLimits[planName] ?? 50},
         ${data.currentBillingPeriod?.endsAt ?? null}
       FROM users u WHERE u.paddle_customer_id = ${data.customerId}
+      ON CONFLICT (paddle_subscription_id) DO NOTHING
     `;
 
     this.logger.debug(
       { userId: data.customerId },
       'Subscription created successfully',
-    );
-
-    await this.sql`
-      UPDATE users SET paddle_customer_id = ${data.customerId}
-      WHERE paddle_customer_id IS NULL AND id = (
-        SELECT id FROM users WHERE paddle_customer_id = ${data.customerId}
-      )
-    `;
-
-    this.logger.debug(
-      { userId: data.customerId },
-      'Subscription linked to user successfully',
     );
 
     const user = await this.getUserByCustomerId(data.customerId);
@@ -238,6 +228,7 @@ export class BillingService {
       UPDATE subscriptions
       SET status = ${data.status},
           plan_name = ${planName},
+          reviews_limit = ${this.planLimits[planName] ?? 50},
           current_period_end = ${data.currentBillingPeriod?.endsAt ?? null},
           updated_at = NOW()
       WHERE paddle_subscription_id = ${data.id}
@@ -447,12 +438,10 @@ export class BillingService {
   }
 
   async getDownloadLink(invoiceId: string): Promise<{ url: string }> {
-    const url = await this.paddle.transactions.getInvoicePDF(invoiceId);
-    if (!url) {
+    const result = await this.paddle.transactions.getInvoicePDF(invoiceId);
+    if (!result?.url) {
       throw new NotFoundException('Invoice not found');
     }
-    return {
-      url: url.url,
-    };
+    return { url: result.url };
   }
 }

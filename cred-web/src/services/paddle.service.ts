@@ -12,6 +12,7 @@ declare global {
           items: { priceId: string; quantity: number }[];
           customData?: Record<string, any>;
           customer?: { email: string };
+          settings?: { successUrl?: string };
         }) => void;
       };
     };
@@ -61,6 +62,7 @@ export function openCheckout(
   priceId: string,
   userId: number,
   userEmail: string,
+  successUrl?: string,
 ): void {
   if (!window.Paddle) {
     console.warn("Paddle not initialized");
@@ -70,5 +72,6 @@ export function openCheckout(
     items: [{ priceId, quantity: 1 }],
     customData: { userId },
     customer: { email: userEmail },
+    ...(successUrl ? { settings: { successUrl } } : {}),
   });
 }
