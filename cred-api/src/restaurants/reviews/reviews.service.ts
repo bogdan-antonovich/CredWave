@@ -79,6 +79,8 @@ export class ReviewsService {
       null,
       true,
     );
+
+    this.logger.debug({ data }, 'fetched data from outscraper');
     return data[0]?.reviews_data ?? [];
   }
 
