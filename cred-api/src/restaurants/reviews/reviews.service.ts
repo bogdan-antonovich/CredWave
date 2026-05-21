@@ -32,7 +32,7 @@ interface OutscraperPlace {
 
 export interface OutscraperClient {
   googleMapsReviews(
-    query: string,
+    query: string[],
     reviewsLimit: number,
     reviewsQuery: null,
     limit: number,
@@ -68,7 +68,7 @@ export class ReviewsService {
     options?: { lastPaginationId?: string; cutoff?: number },
   ): Promise<OutscraperReview[]> {
     const data = await this.outscraperClient.googleMapsReviews(
-      `r${placeId}`,
+      [`r${placeId}`],
       limit,
       null,
       1,
