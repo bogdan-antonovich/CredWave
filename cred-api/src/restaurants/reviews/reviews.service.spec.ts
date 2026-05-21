@@ -106,7 +106,7 @@ describe('ReviewsService', () => {
 
       expect(result.new_reviews).toBe(1);
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        ['rplace1'],
+        ['place1'],
         5,
         null,
         1,
@@ -210,7 +210,7 @@ describe('ReviewsService', () => {
       const result = await service.syncReviews('r1');
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        ['rplace1'],
+        ['place1'],
         5,
         null,
         1,
@@ -310,7 +310,7 @@ describe('ReviewsService', () => {
       await service.getReviews('r1', 'all', 1, 5);
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        ['rplace1'],
+        ['place1'],
         5,
         null,
         1,
