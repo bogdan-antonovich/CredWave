@@ -240,7 +240,7 @@ describe('ReviewsService', () => {
         .mockResolvedValue({ new_reviews: 0, synced_at: new Date() });
 
       sql
-        .mockResolvedValueOnce([{ is_stale: true, google_place_id: 'place1' }])
+        .mockResolvedValueOnce([{ is_stale: true, never_synced: true, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '0' }])
         .mockResolvedValueOnce([{ outscraper_pagination_id: null }])
         .mockResolvedValueOnce([]) // statusFilter fragment call
@@ -254,7 +254,7 @@ describe('ReviewsService', () => {
 
     it('should return reviews with pagination and stats', async () => {
       sql
-        .mockResolvedValueOnce([{ is_stale: false, google_place_id: 'place1' }])
+        .mockResolvedValueOnce([{ is_stale: false, never_synced: false, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '5' }])
         .mockResolvedValueOnce([]) // statusFilter fragment call
         .mockResolvedValueOnce([{ id: 1 }])
@@ -269,7 +269,7 @@ describe('ReviewsService', () => {
 
     it('should filter pending reviews', async () => {
       sql
-        .mockResolvedValueOnce([{ is_stale: false, google_place_id: 'place1' }])
+        .mockResolvedValueOnce([{ is_stale: false, never_synced: false, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '100' }])
         .mockResolvedValueOnce([]) // statusFilter fragment call
         .mockResolvedValueOnce([{ id: 1 }])
@@ -282,7 +282,7 @@ describe('ReviewsService', () => {
 
     it('should filter replied reviews', async () => {
       sql
-        .mockResolvedValueOnce([{ is_stale: false, google_place_id: 'place1' }])
+        .mockResolvedValueOnce([{ is_stale: false, never_synced: false, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '100' }])
         .mockResolvedValueOnce([]) // statusFilter fragment call
         .mockResolvedValueOnce([{ id: 1 }])
@@ -295,7 +295,7 @@ describe('ReviewsService', () => {
 
     it('fetches next page from Outscraper when db count is insufficient', async () => {
       sql
-        .mockResolvedValueOnce([{ is_stale: false, google_place_id: 'place1' }])
+        .mockResolvedValueOnce([{ is_stale: false, never_synced: false, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '3' }])
         .mockResolvedValueOnce([{ outscraper_pagination_id: 'cursor-abc' }])
         .mockResolvedValueOnce([]) // INSERT from outscraper

@@ -52,6 +52,16 @@ export const useReviewsStore = defineStore("reviews", () => {
   const generating = ref<Record<string, boolean>>({});
   const sending = ref<Record<string, boolean>>({});
   const currentStatus = ref("all");
+  const syncing = ref(false);
+
+  let pollingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function stopPolling() {
+    if (pollingTimer) {
+      clearTimeout(pollingTimer);
+      pollingTimer = null;
+    }
+  }
 
   async function fetchReviews(restaurantId: string, page = 1, status = "all") {
     loading.value = true;
@@ -59,16 +69,26 @@ export const useReviewsStore = defineStore("reviews", () => {
     currentStatus.value = status;
     try {
       const data = await api.get<{
+        syncing: boolean;
         reviews: Review[];
         pagination: Pagination;
         stats: Stats;
       }>(
         `/restaurants/${restaurantId}/reviews?page=${page}&per_page=5&status=${status}`,
       );
+      syncing.value = data.syncing;
       reviews.value = data.reviews;
       pagination.value = data.pagination;
       stats.value = data.stats;
       if (data.reviews.length < 5) hasMore.value = false;
+
+      if (data.syncing) {
+        pollingTimer = setTimeout(() => {
+          void fetchReviews(restaurantId, 1, status);
+        }, 3000);
+      } else {
+        stopPolling();
+      }
     } finally {
       loading.value = false;
     }
@@ -148,8 +168,10 @@ export const useReviewsStore = defineStore("reviews", () => {
     hasMore,
     generating,
     sending,
+    syncing,
     fetchReviews,
     syncReviews,
+    stopPolling,
     loadMore,
     generateReplies,
     markHandled,

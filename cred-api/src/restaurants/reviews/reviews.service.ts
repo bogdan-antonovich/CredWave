@@ -177,11 +177,12 @@ export class ReviewsService {
     perPage: number,
   ) {
     const [restaurant] = await this.sql<
-      { is_stale: boolean; google_place_id: string }[]
+      { is_stale: boolean; never_synced: boolean; google_place_id: string }[]
     >`
       SELECT
         last_synced_at IS NULL
         OR (NOW() - last_synced_at) > INTERVAL '1 hour' AS is_stale,
+        last_synced_at IS NULL AS never_synced,
         google_place_id
       FROM restaurants WHERE id = ${restaurantId}
     `;
@@ -190,7 +191,7 @@ export class ReviewsService {
 
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
-    if (restaurant.is_stale) await this.syncReviews(restaurantId);
+    if (restaurant.is_stale) void this.syncReviews(restaurantId);
 
     const offset = (page - 1) * perPage;
 
@@ -291,6 +292,7 @@ export class ReviewsService {
           : Number(stats.total);
 
     return {
+      syncing: restaurant.never_synced,
       reviews,
       pagination: {
         page,

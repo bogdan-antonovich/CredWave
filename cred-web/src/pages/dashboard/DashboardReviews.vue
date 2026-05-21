@@ -5,7 +5,6 @@ import {
     Copy,
     Loader2,
     RefreshCw,
-    Sparkles,
     ExternalLink,
     Search,
     Star,
@@ -60,6 +59,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     observer?.disconnect();
+    reviewsStore.stopPolling();
 });
 
 // Fetch when restaurant is ready
@@ -76,11 +76,14 @@ watch(sentinelRef, (el) => {
     if (el && observer) observer.observe(el);
 });
 
-// Initialise local tone/text state when reviews arrive or responses are generated
+// Auto-generate replies and initialise tone/text state when reviews arrive
 watch(
     () => reviewsStore.reviews,
     (newReviews) => {
         for (const review of newReviews) {
+            if (!review.replied && !review.responses && !reviewsStore.generating[review.id]) {
+                void reviewsStore.generateReplies(review.id);
+            }
             if (review.responses && !activeTab.value[review.id]) {
                 const tone = userStore.autoReply.defaultTone;
                 activeTab.value[review.id] = tone;
@@ -95,16 +98,6 @@ function selectTone(reviewId: string, tone: keyof ReviewResponses) {
     activeTab.value[reviewId] = tone;
     const review = reviewsStore.reviews.find((r) => r.id === reviewId);
     if (review?.responses) {
-        editedText.value[reviewId] = review.responses[tone];
-    }
-}
-
-async function handleGenerate(reviewId: string) {
-    await reviewsStore.generateReplies(reviewId);
-    const review = reviewsStore.reviews.find((r) => r.id === reviewId);
-    if (review?.responses) {
-        const tone = userStore.autoReply.defaultTone;
-        activeTab.value[reviewId] = tone;
         editedText.value[reviewId] = review.responses[tone];
     }
 }
@@ -317,6 +310,15 @@ async function handleSelectRestaurant(result: SearchResult) {
             <Loader2 class="w-5 h-5 animate-spin text-text-muted" />
         </div>
 
+        <!-- Syncing state -->
+        <div
+            v-else-if="reviewsStore.syncing && reviewsStore.reviews.length === 0"
+            class="flex flex-col items-center justify-center py-20 text-center gap-3"
+        >
+            <Loader2 class="w-5 h-5 animate-spin text-text-muted" />
+            <p class="text-sm text-text-muted">Fetching your reviews…</p>
+        </div>
+
         <!-- Empty state -->
         <div
             v-else-if="
@@ -381,30 +383,13 @@ async function handleSelectRestaurant(result: SearchResult) {
                     v-if="!review.replied"
                     class="border-t border-border-subtle"
                 >
-                    <!-- No responses yet -->
+                    <!-- Generating replies -->
                     <div
                         v-if="!review.responses"
-                        class="px-6 py-4 bg-surface-warm/30 flex items-center justify-between"
+                        class="px-6 py-4 bg-surface-warm/30 flex items-center gap-2 text-text-muted"
                     >
-                        <p class="text-xs text-text-muted">
-                            No AI reply generated yet.
-                        </p>
-                        <button
-                            class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-all disabled:opacity-50"
-                            :disabled="reviewsStore.generating[review.id]"
-                            @click="handleGenerate(review.id)"
-                        >
-                            <Loader2
-                                v-if="reviewsStore.generating[review.id]"
-                                class="w-3.5 h-3.5 animate-spin"
-                            />
-                            <Sparkles v-else class="w-3.5 h-3.5" />
-                            {{
-                                reviewsStore.generating[review.id]
-                                    ? "Generating..."
-                                    : "Generate Replies"
-                            }}
-                        </button>
+                        <Loader2 class="w-3.5 h-3.5 animate-spin shrink-0" />
+                        <p class="text-xs">Generating replies…</p>
                     </div>
 
                     <!-- Responses ready -->
