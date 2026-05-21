@@ -50,13 +50,22 @@ describe('ReviewsService', () => {
       providers: [
         ReviewsService,
         { provide: 'SQL', useValue: sql },
-        { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
+        {
+          provide: 'OPENAI',
+          useValue: { chat: { completions: { create: jest.fn() } } },
+        },
         { provide: AppConfigService, useValue: configMock },
         { provide: EmailService, useValue: mockEmailService },
         { provide: 'OUTSCRAPER_CLIENT', useValue: mockOutscraperClient },
         {
           provide: getLoggerToken(ReviewsService.name),
-          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+          useValue: {
+            debug: jest.fn(),
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+            trace: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -71,32 +80,61 @@ describe('ReviewsService', () => {
     it('should throw NotFoundException if restaurant not found', async () => {
       sql.mockResolvedValueOnce([]);
 
-      await expect(service.syncReviews('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.syncReviews('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should sync reviews via Outscraper and insert new ones', async () => {
       sql
-        .mockResolvedValueOnce([{ user_id: 'u1', google_place_id: 'place1', name: 'Test', last_synced_at: null }])
+        .mockResolvedValueOnce([
+          {
+            user_id: 'u1',
+            google_place_id: 'place1',
+            name: 'Test',
+            last_synced_at: null,
+          },
+        ])
         .mockResolvedValueOnce([{ inserted: true }])
         .mockResolvedValueOnce([]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([
+        { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
+      ]);
 
       const result = await service.syncReviews('r1');
 
       expect(result.new_reviews).toBe(1);
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        'rplace1', 5, null, 1, 'newest', null, null, null, null, true,
+        ['rplace1'],
+        5,
+        null,
+        1,
+        'newest',
+        null,
+        null,
+        null,
+        null,
+        true,
       );
     });
 
     it('should count 0 new reviews for duplicate inserts', async () => {
       sql
-        .mockResolvedValueOnce([{ user_id: 'u1', google_place_id: 'place1', name: 'Test', last_synced_at: null }])
-        .mockResolvedValueOnce([])  // ON CONFLICT DO NOTHING returns no row
+        .mockResolvedValueOnce([
+          {
+            user_id: 'u1',
+            google_place_id: 'place1',
+            name: 'Test',
+            last_synced_at: null,
+          },
+        ])
+        .mockResolvedValueOnce([]) // ON CONFLICT DO NOTHING returns no row
         .mockResolvedValueOnce([]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([
+        { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
+      ]);
 
       const result = await service.syncReviews('r1');
 
@@ -106,12 +144,21 @@ describe('ReviewsService', () => {
     it('sends email notification for new review when not initial sync', async () => {
       const lastSync = new Date();
       sql
-        .mockResolvedValueOnce([{ user_id: 'u1', google_place_id: 'place1', name: 'Test', last_synced_at: lastSync }])
+        .mockResolvedValueOnce([
+          {
+            user_id: 'u1',
+            google_place_id: 'place1',
+            name: 'Test',
+            last_synced_at: lastSync,
+          },
+        ])
         .mockResolvedValueOnce([{ inserted: true }])
         .mockResolvedValueOnce([{ email: 'u@test.com', name: 'Alice' }])
         .mockResolvedValueOnce([]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([
+        { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
+      ]);
 
       await service.syncReviews('r1');
 
@@ -127,11 +174,20 @@ describe('ReviewsService', () => {
 
     it('does not send email on initial sync', async () => {
       sql
-        .mockResolvedValueOnce([{ user_id: 'u1', google_place_id: 'place1', name: 'Test', last_synced_at: null }])
+        .mockResolvedValueOnce([
+          {
+            user_id: 'u1',
+            google_place_id: 'place1',
+            name: 'Test',
+            last_synced_at: null,
+          },
+        ])
         .mockResolvedValueOnce([{ inserted: true }])
         .mockResolvedValueOnce([]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([
+        { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
+      ]);
 
       await service.syncReviews('r1');
 
@@ -141,15 +197,29 @@ describe('ReviewsService', () => {
     it('uses cutoff from last_synced_at for incremental sync', async () => {
       const lastSync = new Date('2024-06-01T00:00:00Z');
       sql
-        .mockResolvedValueOnce([{ user_id: 'u1', google_place_id: 'place1', name: 'Test', last_synced_at: lastSync }])
+        .mockResolvedValueOnce([
+          {
+            user_id: 'u1',
+            google_place_id: 'place1',
+            name: 'Test',
+            last_synced_at: lastSync,
+          },
+        ])
         .mockResolvedValueOnce([]);
 
       const result = await service.syncReviews('r1');
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        'rplace1', 5, null, 1, 'newest', null, null,
+        ['rplace1'],
+        5,
+        null,
+        1,
+        'newest',
+        null,
+        null,
         String(Math.floor(lastSync.getTime() / 1000)),
-        null, true,
+        null,
+        true,
       );
       expect(result.new_reviews).toBe(0);
     });
@@ -159,7 +229,9 @@ describe('ReviewsService', () => {
     it('should throw if restaurant not found', async () => {
       sql.mockResolvedValueOnce([]);
 
-      await expect(service.getReviews('bad', 'all', 1, 10)).rejects.toThrow(NotFoundException);
+      await expect(service.getReviews('bad', 'all', 1, 10)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should trigger sync if stale', async () => {
@@ -171,8 +243,8 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ is_stale: true, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '0' }])
         .mockResolvedValueOnce([{ outscraper_pagination_id: null }])
-        .mockResolvedValueOnce([])       // statusFilter fragment call
-        .mockResolvedValueOnce([])       // reviews
+        .mockResolvedValueOnce([]) // statusFilter fragment call
+        .mockResolvedValueOnce([]) // reviews
         .mockResolvedValueOnce([{ pending: 0, replied: 0, total: 0 }]);
 
       await service.getReviews('r1', 'all', 1, 10);
@@ -184,7 +256,7 @@ describe('ReviewsService', () => {
       sql
         .mockResolvedValueOnce([{ is_stale: false, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '5' }])
-        .mockResolvedValueOnce([])       // statusFilter fragment call
+        .mockResolvedValueOnce([]) // statusFilter fragment call
         .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 1, replied: 2, total: 3 }]);
 
@@ -199,7 +271,7 @@ describe('ReviewsService', () => {
       sql
         .mockResolvedValueOnce([{ is_stale: false, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '100' }])
-        .mockResolvedValueOnce([])       // statusFilter fragment call
+        .mockResolvedValueOnce([]) // statusFilter fragment call
         .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 2, replied: 1, total: 3 }]);
 
@@ -212,7 +284,7 @@ describe('ReviewsService', () => {
       sql
         .mockResolvedValueOnce([{ is_stale: false, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '100' }])
-        .mockResolvedValueOnce([])       // statusFilter fragment call
+        .mockResolvedValueOnce([]) // statusFilter fragment call
         .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 2, replied: 1, total: 3 }]);
 
@@ -226,17 +298,28 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ is_stale: false, google_place_id: 'place1' }])
         .mockResolvedValueOnce([{ count: '3' }])
         .mockResolvedValueOnce([{ outscraper_pagination_id: 'cursor-abc' }])
-        .mockResolvedValueOnce([])       // INSERT from outscraper
-        .mockResolvedValueOnce([])       // statusFilter fragment call
+        .mockResolvedValueOnce([]) // INSERT from outscraper
+        .mockResolvedValueOnce([]) // statusFilter fragment call
         .mockResolvedValueOnce([{ id: 1 }, { id: 2 }, { id: 3 }])
         .mockResolvedValueOnce([{ pending: 3, replied: 0, total: 3 }]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([
+        { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
+      ]);
 
       await service.getReviews('r1', 'all', 1, 5);
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        'rplace1', 5, null, 1, 'newest', 'cursor-abc', null, null, null, true,
+        ['rplace1'],
+        5,
+        null,
+        1,
+        'newest',
+        'cursor-abc',
+        null,
+        null,
+        null,
+        true,
       );
     });
   });
@@ -284,7 +367,9 @@ describe('ReviewsService', () => {
 
     it('should fetch, filter and cache reviews if not cached', async () => {
       jest.spyOn(service, 'getDemoReviewsFromDb').mockResolvedValue(null);
-      const saveSpy = jest.spyOn(service, 'saveDemoReviews').mockResolvedValue();
+      const saveSpy = jest
+        .spyOn(service, 'saveDemoReviews')
+        .mockResolvedValue();
 
       (getJson as jest.Mock).mockResolvedValue({
         reviews: [
