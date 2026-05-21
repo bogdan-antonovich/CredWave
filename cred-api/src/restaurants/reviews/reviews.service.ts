@@ -68,7 +68,7 @@ export class ReviewsService {
     options?: { lastPaginationId?: string; cutoff?: number },
   ): Promise<OutscraperReview[]> {
     const data = await this.outscraperClient.googleMapsReviews(
-      [`r${placeId}`],
+      [placeId],
       limit,
       null,
       1,
