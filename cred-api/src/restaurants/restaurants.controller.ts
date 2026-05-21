@@ -122,7 +122,9 @@ export class RestaurantsController {
   @Post(':id/switch')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Switch restaurant to a different Google place (once per week)' })
+  @ApiOperation({
+    summary: 'Switch restaurant to a different Google place (once per week)',
+  })
   @ApiParam({ name: 'id' })
   @ApiBody({
     schema: {
