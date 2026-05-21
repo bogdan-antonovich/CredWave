@@ -118,14 +118,19 @@ export class ReviewsService {
 
     while (unanswered.length < TARGET) {
       const needed = TARGET - unanswered.length;
-      const batch = await this.fetchFromOutscraper(restaurant.google_place_id, needed, {
-        cutoff,
-        lastPaginationId,
-      });
+      const batch = await this.fetchFromOutscraper(
+        restaurant.google_place_id,
+        needed,
+        {
+          cutoff,
+          lastPaginationId,
+        },
+      );
 
       if (batch.length === 0) break;
 
-      lastPaginationId = batch[batch.length - 1].review_pagination_id ?? undefined;
+      lastPaginationId =
+        batch[batch.length - 1].review_pagination_id ?? undefined;
       unanswered.push(...batch.filter((r) => r.owner_answer === null));
 
       if (!lastPaginationId) break;
