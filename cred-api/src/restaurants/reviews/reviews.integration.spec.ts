@@ -40,6 +40,7 @@ const FAKE_OUTSCRAPER_REVIEW = {
   review_datetime_utc: '2024-01-01 00:00:00',
   review_link: null,
   review_pagination_id: 'pag1',
+  owner_answer: null,
 };
 
 const FAKE_SERP_REVIEWS: SerpReview[] = [

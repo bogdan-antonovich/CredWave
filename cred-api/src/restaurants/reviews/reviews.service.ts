@@ -112,15 +112,28 @@ export class ReviewsService {
       'Syncing reviews via Outscraper',
     );
 
-    const reviews = await this.fetchFromOutscraper(
-      restaurant.google_place_id,
-      5,
-      { cutoff },
-    );
+    const TARGET = 5;
+    const unanswered: OutscraperReview[] = [];
+    let lastPaginationId: string | undefined;
+
+    while (unanswered.length < TARGET) {
+      const needed = TARGET - unanswered.length;
+      const batch = await this.fetchFromOutscraper(restaurant.google_place_id, needed, {
+        cutoff,
+        lastPaginationId,
+      });
+
+      if (batch.length === 0) break;
+
+      lastPaginationId = batch[batch.length - 1].review_pagination_id ?? undefined;
+      unanswered.push(...batch.filter((r) => r.owner_answer === null));
+
+      if (!lastPaginationId) break;
+    }
 
     let newReviews = 0;
 
-    for (const review of reviews.filter((r) => r.owner_answer === null)) {
+    for (const review of unanswered) {
       const [row] = await this.sql<{ inserted: boolean }[]>`
         INSERT INTO reviews (
           restaurant_id, google_review_id, reviewer_name,
