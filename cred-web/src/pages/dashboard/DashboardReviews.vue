@@ -226,6 +226,9 @@ async function handleSelectRestaurant(result: SearchResult) {
                 class="w-16 h-16 rounded-xl object-cover shrink-0"
             />
             <div class="min-w-0">
+                <p class="text-sm font-bold text-text-primary mb-1 truncate">
+                    {{ userStore.restaurant.name }}
+                </p>
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="flex items-center gap-1 text-sm font-bold text-text-primary">
                         <Star class="w-4 h-4 text-warning fill-warning" />
