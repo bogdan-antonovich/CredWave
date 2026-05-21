@@ -29,6 +29,10 @@ export interface OutscraperReview {
 
 interface OutscraperPlace {
   reviews_data?: OutscraperReview[];
+  rating?: number;
+  reviews?: number;
+  photo?: string;
+  description?: string;
 }
 
 export interface OutscraperClient {
@@ -67,7 +71,7 @@ export class ReviewsService {
     placeId: string,
     limit: number,
     options?: { lastPaginationId?: string; cutoff?: number },
-  ): Promise<OutscraperReview[]> {
+  ): Promise<{ reviews: OutscraperReview[]; place: OutscraperPlace | null }> {
     const data = await this.outscraperClient.googleMapsReviews(
       [placeId],
       limit,
@@ -82,7 +86,8 @@ export class ReviewsService {
     );
 
     this.logger.debug({ data }, 'fetched data from outscraper');
-    return data[0]?.reviews_data ?? [];
+    const place = data[0] ?? null;
+    return { reviews: place?.reviews_data ?? [], place };
   }
 
   async syncReviews(
@@ -115,17 +120,30 @@ export class ReviewsService {
     const TARGET = 5;
     const unanswered: OutscraperReview[] = [];
     let lastPaginationId: string | undefined;
+    let firstFetch = true;
 
     while (unanswered.length < TARGET) {
       const needed = TARGET - unanswered.length;
-      const batch = await this.fetchFromOutscraper(
+      const { reviews: batch, place } = await this.fetchFromOutscraper(
         restaurant.google_place_id,
         needed,
-        {
-          cutoff,
-          lastPaginationId,
-        },
+        { cutoff, lastPaginationId },
       );
+
+      if (firstFetch) {
+        firstFetch = false;
+        if (place) {
+          await this.sql`
+            UPDATE restaurants
+            SET
+              google_rating        = ${place.rating ?? null},
+              google_review_count  = ${place.reviews ?? null},
+              google_photo_url     = ${place.photo ?? null},
+              google_description   = ${place.description ?? null}
+            WHERE id = ${restaurantId}
+          `;
+        }
+      }
 
       if (batch.length === 0) break;
 
@@ -233,7 +251,7 @@ export class ReviewsService {
       this.logger.debug({ lastReview }, 'LastReview');
 
       if (lastReview?.outscraper_pagination_id) {
-        const moreReviews = await this.fetchFromOutscraper(
+        const { reviews: moreReviews } = await this.fetchFromOutscraper(
           restaurant.google_place_id,
           perPage,
           { lastPaginationId: lastReview.outscraper_pagination_id },

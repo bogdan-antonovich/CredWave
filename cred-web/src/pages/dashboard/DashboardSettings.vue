@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Save, Loader2, Check, Zap, AlertTriangle, Unlink } from "lucide-vue-next";
+import { Save, Loader2, Check, AlertTriangle, Unlink, ExternalLink } from "lucide-vue-next";
 import { useUserStore } from "@/stores/user.store";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -25,24 +25,6 @@ const deleteEmailMatches = computed(
 );
 
 const hasRestaurant = computed(() => !!userStore.restaurantId);
-
-const toneOptions = [
-    {
-        value: "empathetic",
-        label: "Empathetic",
-        desc: "Warm, understanding, emotionally aware responses",
-    },
-    {
-        value: "professional",
-        label: "Professional",
-        desc: "Polished, business-appropriate, courteous responses",
-    },
-    {
-        value: "casual",
-        label: "Casual",
-        desc: "Friendly, relaxed, conversational responses",
-    },
-];
 
 async function handleSave() {
     saving.value = true;
@@ -93,7 +75,7 @@ async function handleDeleteAccount() {
                     Settings
                 </h1>
                 <p class="text-sm text-text-muted mt-0.5">
-                    Manage your profile, restaurant, and auto-reply preferences.
+                    Manage your profile and restaurant.
                 </p>
             </div>
             <button
@@ -222,6 +204,22 @@ async function handleDeleteAccount() {
                         />
                     </div>
 
+                    <div v-if="userStore.restaurant.googlePlaceId">
+                        <label
+                            class="block text-xs font-medium text-text-secondary mb-1.5"
+                            >Google Maps</label
+                        >
+                        <a
+                            :href="`https://www.google.com/maps/place/?q=place_id:${userStore.restaurant.googlePlaceId}`"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center gap-1.5 text-sm text-accent hover:underline"
+                        >
+                            <ExternalLink class="w-3.5 h-3.5" />
+                            View on Google Maps
+                        </a>
+                    </div>
+
                     <div>
                         <label
                             class="block text-xs font-medium text-text-secondary mb-1.5"
@@ -237,87 +235,6 @@ async function handleDeleteAccount() {
                             This info helps our AI write more authentic,
                             on-brand responses.
                         </p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ═══ Auto-Reply ═══ -->
-            <section
-                v-if="hasRestaurant"
-                class="bg-white border border-border-subtle rounded-2xl p-6"
-            >
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <Zap class="w-4 h-4 text-accent" />
-                        <h2 class="text-sm font-bold text-text-primary">
-                            Auto-Reply
-                        </h2>
-                    </div>
-                    <button
-                        class="relative w-10 h-5.5 rounded-full transition-colors duration-200"
-                        :class="
-                            userStore.autoReply.enabled
-                                ? 'bg-accent'
-                                : 'bg-border'
-                        "
-                        @click="
-                            userStore.setAutoReplyEnabled(
-                                !userStore.autoReply.enabled,
-                            )
-                        "
-                    >
-                        <span
-                            class="absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all duration-200"
-                            :class="
-                                userStore.autoReply.enabled
-                                    ? 'left-[22px]'
-                                    : 'left-0.5'
-                            "
-                        />
-                    </button>
-                </div>
-
-                <p class="text-xs text-text-muted mb-5">
-                    When enabled, CredWave will automatically generate and post
-                    a response to every new review using your preferred tone.
-                </p>
-
-                <div class="space-y-4">
-                    <div>
-                        <label
-                            class="block text-xs font-medium text-text-secondary mb-2"
-                            >Default Tone</label
-                        >
-                        <div class="space-y-2">
-                            <label
-                                v-for="tone in toneOptions"
-                                :key="tone.value"
-                                class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200"
-                                :class="
-                                    userStore.autoReply.defaultTone ===
-                                    tone.value
-                                        ? 'border-accent/30 bg-accent/[0.03]'
-                                        : 'border-border-subtle hover:border-border'
-                                "
-                            >
-                                <input
-                                    v-model="userStore.autoReply.defaultTone"
-                                    type="radio"
-                                    :value="tone.value"
-                                    class="mt-0.5 accent-accent"
-                                />
-                                <div>
-                                    <p
-                                        class="text-sm font-semibold text-text-primary"
-                                    >
-                                        {{ tone.label }}
-                                    </p>
-                                    <p class="text-xs text-text-muted mt-0.5">
-                                        {{ tone.desc }}
-                                    </p>
-                                </div>
-                            </label>
-                        </div>
                     </div>
 
                     <div>

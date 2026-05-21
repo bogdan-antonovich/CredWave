@@ -19,6 +19,11 @@ interface ApiRestaurant {
   address: string | null;
   ownerName: string | null;
   additionalInfo: string | null;
+  googlePlaceId: string | null;
+  googleRating: number | null;
+  googleReviewCount: number | null;
+  googlePhotoUrl: string | null;
+  googleDescription: string | null;
   updatedAt: string;
 }
 
@@ -44,6 +49,11 @@ export const useUserStore = defineStore("user", () => {
     name: "",
     ownerName: "",
     additionalInfo: "",
+    googlePlaceId: null as string | null,
+    googleRating: null as number | null,
+    googleReviewCount: null as number | null,
+    googlePhotoUrl: null as string | null,
+    googleDescription: null as string | null,
   });
 
   const autoReply = ref<ApiAutoReply>({
@@ -79,6 +89,11 @@ export const useUserStore = defineStore("user", () => {
         restaurant.value.name = r.name ?? "";
         restaurant.value.ownerName = r.ownerName ?? "";
         restaurant.value.additionalInfo = r.additionalInfo ?? "";
+        restaurant.value.googlePlaceId = r.googlePlaceId ?? null;
+        restaurant.value.googleRating = r.googleRating ?? null;
+        restaurant.value.googleReviewCount = r.googleReviewCount ?? null;
+        restaurant.value.googlePhotoUrl = r.googlePhotoUrl ?? null;
+        restaurant.value.googleDescription = r.googleDescription ?? null;
 
         const ar = await api.get<ApiAutoReply>(
           `/restaurants/${r.id}/auto-reply`,
@@ -133,6 +148,11 @@ export const useUserStore = defineStore("user", () => {
     restaurant.value.name = r.name ?? "";
     restaurant.value.ownerName = r.ownerName ?? "";
     restaurant.value.additionalInfo = r.additionalInfo ?? "";
+    restaurant.value.googlePlaceId = r.googlePlaceId ?? null;
+    restaurant.value.googleRating = r.googleRating ?? null;
+    restaurant.value.googleReviewCount = r.googleReviewCount ?? null;
+    restaurant.value.googlePhotoUrl = r.googlePhotoUrl ?? null;
+    restaurant.value.googleDescription = r.googleDescription ?? null;
   }
 
   async function disconnectGoogle() {

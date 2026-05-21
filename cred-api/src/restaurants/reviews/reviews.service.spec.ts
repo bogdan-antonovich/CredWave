@@ -96,6 +96,7 @@ describe('ReviewsService', () => {
             last_synced_at: null,
           },
         ])
+        .mockResolvedValueOnce([]) // UPDATE place meta
         .mockResolvedValueOnce([{ inserted: true }])
         .mockResolvedValueOnce([]);
 
@@ -130,6 +131,7 @@ describe('ReviewsService', () => {
             last_synced_at: null,
           },
         ])
+        .mockResolvedValueOnce([]) // UPDATE place meta
         .mockResolvedValueOnce([]) // ON CONFLICT DO NOTHING returns no row
         .mockResolvedValueOnce([]);
 
@@ -153,6 +155,7 @@ describe('ReviewsService', () => {
             last_synced_at: lastSync,
           },
         ])
+        .mockResolvedValueOnce([]) // UPDATE place meta
         .mockResolvedValueOnce([{ inserted: true }])
         .mockResolvedValueOnce([{ email: 'u@test.com', name: 'Alice' }])
         .mockResolvedValueOnce([]);
@@ -183,6 +186,7 @@ describe('ReviewsService', () => {
             last_synced_at: null,
           },
         ])
+        .mockResolvedValueOnce([]) // UPDATE place meta
         .mockResolvedValueOnce([{ inserted: true }])
         .mockResolvedValueOnce([]);
 
@@ -206,6 +210,7 @@ describe('ReviewsService', () => {
             last_synced_at: lastSync,
           },
         ])
+        .mockResolvedValueOnce([]) // UPDATE place meta
         .mockResolvedValueOnce([]);
 
       const result = await service.syncReviews('r1');

@@ -30,10 +30,14 @@ export class RestaurantsService {
         name,
         slug,
         address,
-        google_place_id  AS "googlePlaceId",
-        owner_name       AS "ownerName",
-        additional_info  AS "additionalInfo",
-        updated_at       AS "updatedAt"
+        google_place_id      AS "googlePlaceId",
+        owner_name           AS "ownerName",
+        additional_info      AS "additionalInfo",
+        google_rating        AS "googleRating",
+        google_review_count  AS "googleReviewCount",
+        google_photo_url     AS "googlePhotoUrl",
+        google_description   AS "googleDescription",
+        updated_at           AS "updatedAt"
       FROM restaurants
       WHERE user_id = ${userId}
     `;
@@ -62,10 +66,14 @@ export class RestaurantsService {
         name,
         slug,
         address,
-        google_place_id  AS "googlePlaceId",
-        owner_name       AS "ownerName",
-        additional_info  AS "additionalInfo",
-        updated_at       AS "updatedAt"
+        google_place_id      AS "googlePlaceId",
+        owner_name           AS "ownerName",
+        additional_info      AS "additionalInfo",
+        google_rating        AS "googleRating",
+        google_review_count  AS "googleReviewCount",
+        google_photo_url     AS "googlePhotoUrl",
+        google_description   AS "googleDescription",
+        updated_at           AS "updatedAt"
     `;
 
     this.logger.debug({ userId, placeId }, 'Restaurant created/updated');

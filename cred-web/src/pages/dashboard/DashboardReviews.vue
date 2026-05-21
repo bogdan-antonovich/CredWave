@@ -85,9 +85,8 @@ watch(
                 void reviewsStore.generateReplies(review.id);
             }
             if (review.responses && !activeTab.value[review.id]) {
-                const tone = userStore.autoReply.defaultTone;
-                activeTab.value[review.id] = tone;
-                editedText.value[review.id] = review.responses[tone];
+                activeTab.value[review.id] = "empathetic";
+                editedText.value[review.id] = review.responses.empathetic;
             }
         }
     },
@@ -205,6 +204,39 @@ async function handleSelectRestaurant(result: SearchResult) {
                     :class="reviewsStore.loading ? 'animate-spin' : ''"
                 />
             </button>
+        </div>
+
+        <!-- Google place info banner -->
+        <div
+            v-if="userStore.restaurant.googleRating"
+            class="flex items-center gap-4 mb-6 p-4 bg-white border border-border-subtle rounded-2xl"
+        >
+            <img
+                v-if="userStore.restaurant.googlePhotoUrl"
+                :src="userStore.restaurant.googlePhotoUrl"
+                alt="Restaurant photo"
+                class="w-16 h-16 rounded-xl object-cover shrink-0"
+            />
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="flex items-center gap-1 text-sm font-bold text-text-primary">
+                        <Star class="w-4 h-4 text-warning fill-warning" />
+                        {{ userStore.restaurant.googleRating }}
+                    </span>
+                    <span
+                        v-if="userStore.restaurant.googleReviewCount"
+                        class="text-xs text-text-muted"
+                    >
+                        {{ userStore.restaurant.googleReviewCount.toLocaleString() }} reviews on Google
+                    </span>
+                </div>
+                <p
+                    v-if="userStore.restaurant.googleDescription"
+                    class="text-xs text-text-muted mt-1 leading-relaxed line-clamp-2"
+                >
+                    {{ userStore.restaurant.googleDescription }}
+                </p>
+            </div>
         </div>
 
         <!-- Status filter tabs -->

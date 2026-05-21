@@ -16,6 +16,10 @@ export interface Restaurant {
   address: string | null;
   ownerName: string | null;
   additionalInfo: string | null;
+  googleRating: number | null;
+  googleReviewCount: number | null;
+  googlePhotoUrl: string | null;
+  googleDescription: string | null;
   updatedAt: Date;
 }
 
