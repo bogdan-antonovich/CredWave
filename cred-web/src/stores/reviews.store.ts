@@ -39,23 +39,46 @@ interface Stats {
 
 export const useReviewsStore = defineStore('reviews', () => {
   const reviews = ref<Review[]>([])
-  const pagination = ref<Pagination>({ page: 1, per_page: 20, total: 0, total_pages: 0 })
+  const pagination = ref<Pagination>({ page: 1, per_page: 5, total: 0, total_pages: 0 })
   const stats = ref<Stats>({ pending: 0, replied: 0, total: 0 })
   const loading = ref(false)
+  const loadingMore = ref(false)
+  const hasMore = ref(true)
   const generating = ref<Record<string, boolean>>({})
   const sending = ref<Record<string, boolean>>({})
+  const currentStatus = ref('all')
 
   async function fetchReviews(restaurantId: string, page = 1, status = 'all') {
     loading.value = true
+    hasMore.value = true
+    currentStatus.value = status
     try {
       const data = await api.get<{ reviews: Review[]; pagination: Pagination; stats: Stats }>(
-        `/restaurants/${restaurantId}/reviews?page=${page}&per_page=20&status=${status}`,
+        `/restaurants/${restaurantId}/reviews?page=${page}&per_page=5&status=${status}`,
       )
       reviews.value = data.reviews
       pagination.value = data.pagination
       stats.value = data.stats
+      if (data.reviews.length < 5) hasMore.value = false
     } finally {
       loading.value = false
+    }
+  }
+
+  async function loadMore(restaurantId: string) {
+    if (!hasMore.value || loadingMore.value) return
+    loadingMore.value = true
+    try {
+      const nextPage = pagination.value.page + 1
+      const data = await api.get<{ reviews: Review[]; pagination: Pagination; stats: Stats }>(
+        `/restaurants/${restaurantId}/reviews?page=${nextPage}&per_page=5&status=${currentStatus.value}`,
+      )
+      reviews.value.push(...data.reviews)
+      pagination.value = data.pagination
+      stats.value = data.stats
+      if (data.reviews.length < 5) hasMore.value = false
+    } finally {
+      loadingMore.value = false
     }
   }
 
@@ -76,7 +99,7 @@ export const useReviewsStore = defineStore('reviews', () => {
     }
   }
 
-  async function postReply(reviewId: string, text: string) {
+  async function markHandled(reviewId: string, text: string) {
     sending.value[reviewId] = true
     try {
       await api.post(`/reviews/${reviewId}/reply`, { text })
@@ -84,7 +107,7 @@ export const useReviewsStore = defineStore('reviews', () => {
       if (review) {
         review.replied = true
         review.replyText = text
-        track('reply_posted', { rating: review.rating })
+        track('reply_marked_done', { rating: review.rating })
       }
       stats.value.pending = Math.max(0, stats.value.pending - 1)
       stats.value.replied += 1
@@ -98,10 +121,13 @@ export const useReviewsStore = defineStore('reviews', () => {
     pagination,
     stats,
     loading,
+    loadingMore,
+    hasMore,
     generating,
     sending,
     fetchReviews,
+    loadMore,
     generateReplies,
-    postReply,
+    markHandled,
   }
 })

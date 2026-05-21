@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Req,
   Patch,
   Query,
@@ -13,6 +14,7 @@ import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { RestaurantsService } from './restaurants.service';
 import type { RestaurantChanges, AutoReplyChanges } from './restaurants.types';
+import { CreateRestaurantDto } from './restaurants.types';
 import { BadRequestException } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -60,6 +62,35 @@ export class RestaurantsController {
     this.logger.info('Fetching restaurants of the current user');
     const userId = (req.user as { id: string }).id;
     return await this.restaurantsService.getRestaurants(userId);
+  }
+
+  @Post()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add a restaurant by Google Place ID' })
+  @ApiBody({
+    schema: {
+      required: ['placeId', 'name'],
+      properties: {
+        placeId: { type: 'string' },
+        name: { type: 'string' },
+        address: { type: 'string', nullable: true },
+      },
+    },
+  })
+  @ApiOkResponse({ schema: restaurantSchema })
+  async createRestaurant(
+    @Req() req: Request,
+    @Body() body: CreateRestaurantDto,
+  ) {
+    this.logger.info('Creating restaurant');
+    const userId = (req.user as { id: string }).id;
+    return await this.restaurantsService.createRestaurant(
+      userId,
+      body.placeId,
+      body.name,
+      body.address ?? null,
+    );
   }
 
   @Patch(':id')

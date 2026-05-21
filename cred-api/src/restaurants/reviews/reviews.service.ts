@@ -5,18 +5,45 @@ import type { Sql } from 'postgres';
 import { NotFoundException } from '@nestjs/common';
 import {
   Review,
-  GoogleReview,
   SerpReview,
   SerpApiReviewsResponse,
   DemoBlock,
 } from './reviews.types';
-import { google } from 'googleapis';
 import { getJson } from 'serpapi';
 import OpenAI from 'openai';
-import { GoogleTokensService } from '../../auth/auth.service';
 import { EmailService } from '../../email/email.serivice';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
+export interface OutscraperReview {
+  review_id: string;
+  author_title: string | null;
+  author_image: string | null;
+  review_text: string | null;
+  review_rating: number;
+  review_datetime_utc: string;
+  review_link: string | null;
+  review_pagination_id: string | null;
+}
+
+interface OutscraperPlace {
+  reviews?: OutscraperReview[];
+}
+
+export interface OutscraperClient {
+  googleMapsReviews(
+    query: string,
+    reviewsLimit: number,
+    reviewsQuery: null,
+    limit: number,
+    sort: string,
+    lastPaginationId: string | null,
+    start: null,
+    cutoff: string | null,
+    cutoffRating: null,
+    ignoreEmpty: boolean,
+  ): Promise<OutscraperPlace[][]>;
+}
 
 @LogMethods()
 @Injectable()
@@ -27,11 +54,32 @@ export class ReviewsService {
     @Inject('SQL') private readonly sql: Sql,
     @Inject('OPENAI') private readonly openai: OpenAI,
     private readonly cfg: AppConfigService,
-    private readonly googleTokens: GoogleTokensService,
     private readonly email: EmailService,
+    @Inject('OUTSCRAPER_CLIENT')
+    private readonly outscraperClient: OutscraperClient,
     @InjectPinoLogger(ReviewsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
+  }
+
+  private async fetchFromOutscraper(
+    placeId: string,
+    limit: number,
+    options?: { lastPaginationId?: string; cutoff?: number },
+  ): Promise<OutscraperReview[]> {
+    const data = await this.outscraperClient.googleMapsReviews(
+      placeId,
+      limit,
+      null,
+      1,
+      'newest',
+      options?.lastPaginationId ?? null,
+      null,
+      options?.cutoff != null ? String(options.cutoff) : null,
+      null,
+      true,
+    );
+    return data[0]?.[0]?.reviews ?? [];
   }
 
   async syncReviews(
@@ -40,38 +88,33 @@ export class ReviewsService {
     const [restaurant] = await this.sql<
       {
         user_id: string;
-        google_account_id: string;
-        google_location_id: string;
+        google_place_id: string;
         name: string;
         last_synced_at: Date | null;
-        auto_reply_enabled: boolean;
-        auto_reply_default_tone: string | null;
       }[]
     >`
-      SELECT user_id, google_account_id, google_location_id, name, last_synced_at,
-             auto_reply_enabled, auto_reply_default_tone
+      SELECT user_id, google_place_id, name, last_synced_at
       FROM restaurants WHERE id = ${restaurantId}
     `;
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
     const isInitialSync = restaurant.last_synced_at == null;
 
-    this.logger.debug({ restaurantId }, 'Restaurant found');
+    const cutoff = restaurant.last_synced_at
+      ? Math.floor(restaurant.last_synced_at.getTime() / 1000)
+      : undefined;
 
-    const res = await this.googleTokens.withAutoRefresh(
-      restaurant.user_id,
-      (token) => {
-        const auth = new google.auth.OAuth2();
-        auth.setCredentials({ access_token: token });
-        return auth.request<{ reviews?: GoogleReview[] }>({
-          url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews`,
-        });
-      },
+    this.logger.debug(
+      { restaurantId, cutoff },
+      'Syncing reviews via Outscraper',
     );
 
-    this.logger.debug({ res }, 'Google reviews fetched');
+    const reviews = await this.fetchFromOutscraper(
+      restaurant.google_place_id,
+      5,
+      { cutoff },
+    );
 
-    const reviews = res.data.reviews ?? [];
     let newReviews = 0;
 
     for (const review of reviews) {
@@ -79,28 +122,25 @@ export class ReviewsService {
         INSERT INTO reviews (
           restaurant_id, google_review_id, reviewer_name,
           reviewer_avatar_url, review_text, rating, posted_at,
-          replied, reply_text, replied_at, link
+          replied, link, outscraper_pagination_id
         )
         VALUES (
           ${restaurantId},
-          ${review.reviewId},
-          ${review.reviewer?.displayName ?? null},
-          ${review.reviewer?.profilePhotoUrl ?? null},
-          ${review.comment ?? null},
-          ${ratingToNumber(review.starRating)},
-          ${review.createTime},
-          ${!!review.reviewReply},
-          ${review.reviewReply?.comment ?? null},
-          ${review.reviewReply?.updateTime ?? null},
-          ${`https://search.google.com/local/reviews?placeid=${restaurantId}&reviewId=${review.reviewId}`}
+          ${review.review_id},
+          ${review.author_title ?? null},
+          ${review.author_image ?? null},
+          ${review.review_text ?? null},
+          ${review.review_rating},
+          ${parseOutscraperDate(review.review_datetime_utc)},
+          false,
+          ${review.review_link ?? null},
+          ${review.review_pagination_id ?? null}
         )
-        ON CONFLICT (google_review_id) DO UPDATE SET
-          replied = ${!!review.reviewReply},
-          reply_text = ${review.reviewReply?.comment ?? null},
-          replied_at = ${review.reviewReply?.updateTime ?? null}
+        ON CONFLICT (google_review_id) DO NOTHING
         RETURNING (xmax = 0) AS inserted
       `;
-      if (row.inserted) {
+
+      if (row?.inserted) {
         newReviews++;
         if (!isInitialSync) {
           const [user] = await this.sql<{ email: string; name: string }[]>`
@@ -111,13 +151,10 @@ export class ReviewsService {
               user.email,
               user.name ?? 'there',
               restaurant.name,
-              review.reviewer?.displayName ?? 'Anonymous',
-              ratingToNumber(review.starRating),
-              review.comment ?? null,
+              review.author_title ?? 'Anonymous',
+              review.review_rating,
+              review.review_text ?? null,
             );
-          }
-          if (restaurant.auto_reply_enabled) {
-            await this.performAutoReply(restaurantId, review, restaurant, user);
           }
         }
       }
@@ -127,8 +164,7 @@ export class ReviewsService {
     await this
       .sql`UPDATE restaurants SET last_synced_at = ${synced_at} WHERE id = ${restaurantId}`;
 
-    this.logger.debug({ synced_at }, 'Restaurant synced successfully');
-
+    this.logger.debug({ restaurantId, newReviews, synced_at }, 'Sync complete');
     return { new_reviews: newReviews, synced_at };
   }
 
@@ -138,19 +174,67 @@ export class ReviewsService {
     page: number,
     perPage: number,
   ) {
-    const [restaurant] = await this.sql<{ is_stale: boolean }[]>`
+    const [restaurant] = await this.sql<
+      { is_stale: boolean; google_place_id: string }[]
+    >`
       SELECT
         last_synced_at IS NULL
-        OR (NOW() - last_synced_at) > INTERVAL '5 minutes' AS is_stale
+        OR (NOW() - last_synced_at) > INTERVAL '1 hour' AS is_stale,
+        google_place_id
       FROM restaurants WHERE id = ${restaurantId}
     `;
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
-    this.logger.debug({ restaurantId }, 'Restaurant found');
-
     if (restaurant.is_stale) await this.syncReviews(restaurantId);
 
     const offset = (page - 1) * perPage;
+
+    const [countRow] = await this.sql<{ count: string }[]>`
+      SELECT COUNT(*) AS count FROM reviews WHERE restaurant_id = ${restaurantId}
+    `;
+    const dbCount = Number(countRow.count);
+
+    if (offset + perPage > dbCount) {
+      const [lastReview] = await this.sql<
+        { outscraper_pagination_id: string | null }[]
+      >`
+        SELECT outscraper_pagination_id FROM reviews
+        WHERE restaurant_id = ${restaurantId}
+        ORDER BY posted_at ASC LIMIT 1
+      `;
+
+      if (lastReview?.outscraper_pagination_id) {
+        const moreReviews = await this.fetchFromOutscraper(
+          restaurant.google_place_id,
+          perPage,
+          { lastPaginationId: lastReview.outscraper_pagination_id },
+        );
+
+        for (const review of moreReviews) {
+          await this.sql`
+            INSERT INTO reviews (
+              restaurant_id, google_review_id, reviewer_name,
+              reviewer_avatar_url, review_text, rating, posted_at,
+              replied, link, outscraper_pagination_id
+            )
+            VALUES (
+              ${restaurantId},
+              ${review.review_id},
+              ${review.author_title ?? null},
+              ${review.author_image ?? null},
+              ${review.review_text ?? null},
+              ${review.review_rating},
+              ${parseOutscraperDate(review.review_datetime_utc)},
+              false,
+              ${review.review_link ?? null},
+              ${review.review_pagination_id ?? null}
+            )
+            ON CONFLICT (google_review_id) DO NOTHING
+          `;
+        }
+      }
+    }
+
     const statusFilter =
       status === 'pending'
         ? this.sql`AND r.replied = false`
@@ -197,8 +281,6 @@ export class ReviewsService {
           ? Number(stats.replied)
           : Number(stats.total);
 
-    this.logger.debug({ filteredTotal }, 'Filtered total calculated');
-
     return {
       reviews,
       pagination: {
@@ -223,9 +305,6 @@ export class ReviewsService {
     >`
       SELECT reviews, blocks FROM auto_demo_reviews WHERE place_id = ${placeId}
     `;
-
-    this.logger.debug({ row }, 'Demo reviews fetched from DB');
-
     return row ?? null;
   }
 
@@ -236,8 +315,6 @@ export class ReviewsService {
       ON CONFLICT (place_id) DO UPDATE
       SET reviews = ${this.sql.json(reviews as unknown as Parameters<Sql['json']>[0])}, created_at = NOW()
     `;
-
-    this.logger.debug({ placeId }, 'Demo reviews saved to DB');
   }
 
   async saveDemoBlocks(placeId: string, blocks: DemoBlock[]) {
@@ -246,8 +323,6 @@ export class ReviewsService {
       SET blocks = ${this.sql.json(blocks as unknown as Parameters<Sql['json']>[0])}
       WHERE place_id = ${placeId}
     `;
-
-    this.logger.debug({ placeId }, 'Demo blocks cached in DB');
   }
 
   async generateDemoBlocks(
@@ -280,21 +355,15 @@ export class ReviewsService {
           }
         `;
 
-        this.logger.debug({ prompt }, 'Prompt generated');
-
         const completion = await this.openai.chat.completions.create({
           model: this.cfg.get('openai').model,
           messages: [{ role: 'developer', content: prompt }],
           response_format: { type: 'json_object' },
         });
 
-        this.logger.debug({ completion }, 'Completion received');
-
         const responses = JSON.parse(
           completion.choices[0].message.content!,
         ) as { empathetic: string; professional: string; casual: string };
-
-        this.logger.debug({ responses }, 'Responses parsed');
 
         return {
           reviewer_name: review.user.name,
@@ -307,91 +376,7 @@ export class ReviewsService {
     );
 
     await this.saveDemoBlocks(placeId, blocks);
-
-    this.logger.debug({ blocks }, 'Demo blocks generated');
     return { blocks };
-  }
-
-  private async performAutoReply(
-    restaurantId: string,
-    review: GoogleReview,
-    restaurant: {
-      user_id: string;
-      google_account_id: string;
-      google_location_id: string;
-      name: string;
-      auto_reply_default_tone: string | null;
-    },
-    user: { email: string; name: string } | undefined,
-  ): Promise<void> {
-    try {
-      const tone = (restaurant.auto_reply_default_tone || 'professional') as
-        | 'empathetic'
-        | 'professional'
-        | 'casual';
-
-      const prompt = `
-        You are an employee of a restaurant named "${restaurant.name}".
-        Generate 3 different responses to the following Google review.
-        Reviewer: ${review.reviewer?.displayName ?? 'Anonymous'};
-        Rating: ${ratingToNumber(review.starRating)}/5;
-        Review: ${review.comment ?? 'No written review'};
-
-        Return ONLY a valid JSON object (no markdown, no extra text):
-        {
-          "empathetic": "...",
-          "professional": "...",
-          "casual": "..."
-        }
-      `;
-
-      const completion = await this.openai.chat.completions.create({
-        model: this.cfg.get('openai').model,
-        messages: [{ role: 'developer', content: prompt }],
-        response_format: { type: 'json_object' },
-      });
-
-      const responses = JSON.parse(completion.choices[0].message.content!) as {
-        empathetic: string;
-        professional: string;
-        casual: string;
-      };
-
-      const replyText = responses[tone];
-
-      await this.googleTokens.withAutoRefresh(restaurant.user_id, (token) => {
-        const auth = new google.auth.OAuth2();
-        auth.setCredentials({ access_token: token });
-        return auth.request({
-          url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews/${review.reviewId}/reply`,
-          method: 'PUT',
-          body: JSON.stringify({ comment: replyText }),
-        });
-      });
-
-      await this.sql`
-        UPDATE reviews
-        SET replied = true, reply_text = ${replyText}, replied_at = NOW()
-        WHERE google_review_id = ${review.reviewId} AND restaurant_id = ${restaurantId}
-      `;
-
-      this.logger.debug(
-        { restaurantId, reviewId: review.reviewId },
-        'Auto-reply posted',
-      );
-
-      if (user) {
-        void this.email.sendAutoReply(
-          user.email,
-          user.name ?? 'there',
-          restaurant.name,
-          review.reviewer?.displayName ?? 'Anonymous',
-          ratingToNumber(review.starRating),
-        );
-      }
-    } catch (err) {
-      this.logger.error({ err: err as Error }, 'Auto-reply failed');
-    }
   }
 
   async getDemoReviews(placeId: string): Promise<{ reviews: SerpReview[] }> {
@@ -413,20 +398,13 @@ export class ReviewsService {
     const reviews = [...bad, ...others];
 
     await this.saveDemoReviews(placeId, reviews);
-
-    this.logger.debug({ placeId, reviews }, 'Demo reviews pulled from SerpApi');
-
     return { reviews };
   }
 }
 
-function ratingToNumber(rating: string): number {
-  const map: Record<string, number> = {
-    ONE: 1,
-    TWO: 2,
-    THREE: 3,
-    FOUR: 4,
-    FIVE: 5,
-  };
-  return map[rating] ?? 0;
+export function parseOutscraperDate(utcStr: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}/.test(utcStr)) {
+    return new Date(utcStr.replace(' ', 'T') + 'Z');
+  }
+  return new Date(utcStr + ' UTC');
 }

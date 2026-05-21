@@ -40,6 +40,9 @@ export const configFactory = (): AppConfig => ({
   serpapi: {
     apiKey: readSecret('SERPAPI_API_KEY_FILE'),
   },
+  outscraper: {
+    apiKey: readSecret('OUTSCRAPER_API_KEY_FILE'),
+  },
   openai: {
     apiKey: readSecret('OPENAI_API_KEY_FILE'),
     model: process.env.OPENAI_MODEL!,

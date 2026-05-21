@@ -1,4 +1,3 @@
-import { google } from 'googleapis';
 import { Injectable } from '@nestjs/common';
 import type { Sql } from 'postgres';
 import { Inject } from '@nestjs/common';
@@ -8,7 +7,6 @@ import type {
   Restaurant,
 } from './restaurants.types';
 import { AppConfigService } from '../config/config.service';
-import { GoogleTokensService } from '../auth/auth.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -20,103 +18,58 @@ export class RestaurantsService {
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     private readonly cfg: AppConfigService,
-    private readonly googleTokens: GoogleTokensService,
     @InjectPinoLogger(RestaurantsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
   }
 
-  async getBusinessLocations(userId: string) {
-    return this.googleTokens.withAutoRefresh(userId, async (token) => {
-      const auth = new google.auth.OAuth2();
-      auth.setCredentials({ access_token: token });
-
-      const mybusiness = google.mybusinessbusinessinformation({
-        version: 'v1',
-        auth,
-      });
-      const accounts = await google
-        .mybusinessaccountmanagement({ version: 'v1', auth })
-        .accounts.list();
-
-      const accountName = accounts.data.accounts![0].name!;
-
-      const locations = await mybusiness.accounts.locations.list({
-        parent: accountName,
-      });
-
-      this.logger.debug(
-        { accountName },
-        'Business locations retrieved successfully',
-      );
-
-      return locations.data;
-    });
+  async getRestaurants(userId: string): Promise<{ restaurants: Restaurant[] }> {
+    const rows = await this.sql<Restaurant[]>`
+      SELECT
+        id,
+        name,
+        slug,
+        address,
+        google_place_id  AS "googlePlaceId",
+        owner_name       AS "ownerName",
+        additional_info  AS "additionalInfo",
+        updated_at       AS "updatedAt"
+      FROM restaurants
+      WHERE user_id = ${userId}
+    `;
+    this.logger.debug({ userId }, 'Restaurants retrieved from DB');
+    return { restaurants: rows };
   }
 
-  async getRestaurants(userId: string): Promise<{
-    restaurants: Restaurant[];
-  }> {
-    try {
-      const googleData = await this.getBusinessLocations(userId);
-      const locations = googleData.locations ?? [];
+  async createRestaurant(
+    userId: string,
+    placeId: string,
+    name: string,
+    address: string | null,
+  ): Promise<Restaurant> {
+    const slug = name
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
 
-      const result: Restaurant[] = [];
+    const [row] = await this.sql<Restaurant[]>`
+      INSERT INTO restaurants (user_id, google_place_id, name, slug, address)
+      VALUES (${userId}, ${placeId}, ${name}, ${slug}, ${address})
+      ON CONFLICT (user_id, google_place_id) DO UPDATE
+      SET name = ${name}, updated_at = NOW()
+      RETURNING
+        id,
+        name,
+        slug,
+        address,
+        google_place_id  AS "googlePlaceId",
+        owner_name       AS "ownerName",
+        additional_info  AS "additionalInfo",
+        updated_at       AS "updatedAt"
+    `;
 
-      this.logger.debug(
-        { userId, locations_length: locations.length },
-        'Locations retrieved successfully',
-      );
-
-      for (const location of locations) {
-        const slug = location.title!.toLowerCase().replace(/\s+/g, '-');
-
-        const [row] = await this.sql<Restaurant[]>`
-          INSERT INTO restaurants (user_id, google_location_id, name, slug, address)
-          VALUES (
-            ${userId},
-            ${location.name!},
-            ${location.title!},
-            ${slug},
-            ${location.storefrontAddress?.addressLines?.join(', ') ?? null}
-          )
-          ON CONFLICT (google_location_id) DO UPDATE
-          SET name = ${location.title!},
-              updated_at = NOW()
-          RETURNING
-            id,
-            name,
-            slug,
-            address,
-            owner_name       AS "ownerName",
-            additional_info  AS "additionalInfo",
-            updated_at       AS "updatedAt"
-        `;
-        result.push(row);
-      }
-
-      this.logger.debug({ userId }, 'Restaurants retrieved successfully');
-
-      return { restaurants: result };
-    } catch (err) {
-      this.logger.warn(
-        { err: err as Error },
-        'Google API unavailable, falling back to DB data',
-      );
-      const rows = await this.sql<Restaurant[]>`
-        SELECT
-          id,
-          name,
-          slug,
-          address,
-          owner_name      AS "ownerName",
-          additional_info AS "additionalInfo",
-          updated_at      AS "updatedAt"
-        FROM restaurants
-        WHERE user_id = ${userId}
-      `;
-      return { restaurants: rows };
-    }
+    this.logger.debug({ userId, placeId }, 'Restaurant created/updated');
+    return row;
   }
 
   async updateRestaurantInfo(
@@ -133,7 +86,7 @@ export class RestaurantsService {
           updated_at = NOW()
       WHERE id = ${id} AND user_id = ${userId}
     `;
-    this.logger.debug({ id }, 'Restaurant info updated successfully');
+    this.logger.debug({ id }, 'Restaurant info updated');
   }
 
   async getAutoReply(id: string, userId: string) {
@@ -145,7 +98,7 @@ export class RestaurantsService {
       FROM restaurants
       WHERE id = ${id} AND user_id = ${userId}
     `;
-    this.logger.debug({ id }, 'Auto reply retrieved successfully');
+    this.logger.debug({ id }, 'Auto reply retrieved');
     return row ?? null;
   }
 
@@ -159,14 +112,13 @@ export class RestaurantsService {
           updated_at = NOW()
       WHERE id = ${id} AND user_id = ${userId}
     `;
-    this.logger.debug({ id }, 'Auto reply updated successfully');
+    this.logger.debug({ id }, 'Auto reply updated');
   }
 
   async searchRestaurants(query: string) {
     const res = await fetch(
       `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&type=restaurant&key=${this.cfg.get('google').places.apiKey}`,
     );
-    this.logger.debug({ res }, 'Restaurant search response received');
     const data = (await res.json()) as {
       results: {
         name: string;
@@ -177,7 +129,7 @@ export class RestaurantsService {
       }[];
     };
 
-    this.logger.debug({ data }, 'Restaurant searching done');
+    this.logger.debug({ query }, 'Restaurant search done');
 
     return {
       results: data.results.map((place) => ({

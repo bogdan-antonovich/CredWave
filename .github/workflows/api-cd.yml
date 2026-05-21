@@ -85,6 +85,7 @@ jobs:
             POSTGRES_PASSWORD,
             GRAFANA_PASSWORD,
             RESEND_API_KEY,
+            OUTSCRAPER_API_KEY
           script: |
             set -euo pipefail
 
@@ -125,6 +126,7 @@ jobs:
             sync_secret "ADMIN_PASSWORD_FILE"         "$ADMIN_PASSWORD"
             sync_secret "POSTGRES_PASSWORD_FILE"      "$POSTGRES_PASSWORD"
             sync_secret "RESEND_API_KEY_FILE"         "$RESEND_API_KEY"
+            sync_secret "OUTSCRAPER_API_KEY_FILE"     "$OUTSCRAPER_API_KEY"
 
             sync_config "loki_config"        ~/cred-api/cfg/loki-config.yml
             sync_config "grafana_datasource" ~/cred-api/cfg/grafana-datasource.yml
@@ -204,7 +206,7 @@ jobs:
 
             echo "Cleaning up old secrets..."
             docker secret ls --format '{{.Name}}' \
-              | grep -E '^(DATABASE_URL_FILE|JWT_SECRET_FILE|GOOGLE_CLIENT_ID_FILE|GOOGLE_CLIENT_SECRET_FILE|GOOGLE_PLACES_API_KEY_FILE|TG_BOT_TOKEN_FILE|PADDLE_API_KEY_FILE|PADDLE_WEBHOOK_SECRET_FILE|SERPAPI_API_KEY_FILE|OPENAI_API_KEY_FILE|ADMIN_PASSWORD_FILE|POSTGRES_PASSWORD_FILE)_[a-f0-9]{8}$' \
+              | grep -E '^(DATABASE_URL_FILE|JWT_SECRET_FILE|GOOGLE_CLIENT_ID_FILE|GOOGLE_CLIENT_SECRET_FILE|GOOGLE_PLACES_API_KEY_FILE|TG_BOT_TOKEN_FILE|PADDLE_API_KEY_FILE|PADDLE_WEBHOOK_SECRET_FILE|SERPAPI_API_KEY_FILE|OPENAI_API_KEY_FILE|ADMIN_PASSWORD_FILE|POSTGRES_PASSWORD_FILE|OUTSCRAPER_API_KEY_FILE)_[a-f0-9]{8}$' \
               | grep -v "_${TAG}$" \
               | xargs -r docker secret rm \
               || true
@@ -245,3 +247,4 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OUTSCRAPER_API_KEY: ${{ secrets.OUTSCRAPER_API_KEY }}

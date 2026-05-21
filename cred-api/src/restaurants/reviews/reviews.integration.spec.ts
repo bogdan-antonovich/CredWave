@@ -11,25 +11,12 @@ import type { Server } from 'http';
 import postgres, { type Sql } from 'postgres';
 import { AuthGuard } from '@nestjs/passport';
 import { AppConfigService } from 'src/config/config.service';
-import { GoogleTokensService } from '../../auth/auth.service';
 import { getLoggerToken } from 'nestjs-pino';
-import { google } from 'googleapis';
-import type { AuthPlus } from 'googleapis-common';
-import type { Credentials } from 'google-auth-library';
-import type { GaxiosOptions, GaxiosResponse } from 'gaxios';
 import * as serpapi from 'serpapi';
 import { ReviewsService } from './reviews.service';
 import { ReviewsController } from './reviews.controller';
 import { EmailService } from '../../email/email.serivice';
-import type { GoogleReview, SerpReview } from './reviews.types';
-
-// type AuthRequestFn = <T>(opts: GaxiosOptions) => Promise<GaxiosResponse<T>>;
-
-const mockAuthRequest = jest.fn<
-  Promise<GaxiosResponse<unknown>>,
-  [GaxiosOptions]
->();
-const mockSetCredentials = jest.fn<void, [Credentials]>();
+import type { SerpReview } from './reviews.types';
 
 class MockJwtGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
@@ -41,30 +28,18 @@ class MockJwtGuard implements CanActivate {
   }
 }
 
-jest.mock('googleapis', () => ({
-  google: { auth: { OAuth2: jest.fn() } },
-}));
-
-const mockedAuth = google.auth as jest.Mocked<AuthPlus>;
-
 jest.mock('serpapi', () => ({ getJson: jest.fn() }));
 const mockGetJson = jest.mocked(serpapi.getJson);
 
-const FAKE_GOOGLE_REVIEW: GoogleReview = {
-  reviewId: 'google-review-abc',
-  reviewer: {
-    displayName: 'Alice',
-    profilePhotoUrl: 'https://example.com/alice.jpg',
-  },
-  starRating: 'FIVE',
-  comment: 'Great food!',
-  createTime: '2024-01-01T00:00:00Z',
-};
-
-const FAKE_GOOGLE_REVIEW_WITH_REPLY: GoogleReview = {
-  ...FAKE_GOOGLE_REVIEW,
-  reviewId: 'google-review-replied',
-  reviewReply: { comment: 'Thank you!', updateTime: '2024-01-02T00:00:00Z' },
+const FAKE_OUTSCRAPER_REVIEW = {
+  review_id: 'outscraper-review-abc',
+  author_title: 'Alice',
+  author_image: 'https://example.com/alice.jpg',
+  review_text: 'Great food!',
+  review_rating: 5,
+  review_datetime_utc: '2024-01-01 00:00:00',
+  review_link: null,
+  review_pagination_id: 'pag1',
 };
 
 const FAKE_SERP_REVIEWS: SerpReview[] = [
@@ -86,10 +61,10 @@ describe('/restaurants/:id/reviews', () => {
   let sql: Sql;
   let app: INestApplication;
   let server: Server;
+  let mockOutscraperClient: { googleMapsReviews: jest.Mock };
 
   let userId: number;
   let restaurantId: number;
-  // let reviewId: number;
 
   beforeAll(() => {
     sql = postgres(global.__DATABASE_URL__);
@@ -101,13 +76,10 @@ describe('/restaurants/:id/reviews', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
-    jest.spyOn(mockedAuth, 'OAuth2').mockImplementation(
-      () =>
-        ({
-          setCredentials: mockSetCredentials,
-          request: mockAuthRequest,
-        }) as unknown as InstanceType<typeof mockedAuth.OAuth2>,
-    );
+
+    mockOutscraperClient = {
+      googleMapsReviews: jest.fn().mockResolvedValue([[]]),
+    };
 
     // Clean all tables in dependency order
     await sql`
@@ -136,22 +108,16 @@ describe('/restaurants/:id/reviews', () => {
     `;
     userId = user.id;
 
-    // Seed access token
-    await sql`
-      INSERT INTO gl_access_tokens (user_id, token, expires_at)
-      VALUES (${userId}, 'ya29.fake-token', NOW() + INTERVAL '1 hour')
-    `;
-
     // Seed restaurant
     const [restaurant] = await sql<{ id: number }[]>`
-      INSERT INTO restaurants (user_id, google_account_id, google_location_id, name, last_synced_at)
-      VALUES (${userId}, 'accounts/123', 'locations/456', 'Pasta Place', NOW())
+      INSERT INTO restaurants (user_id, google_place_id, name, last_synced_at)
+      VALUES (${userId}, 'ChIJ_fake_place_id', 'Pasta Place', NOW())
       RETURNING id
     `;
     restaurantId = restaurant.id;
 
     // Seed a review
-    await sql<{ id: number }[]>`
+    await sql`
       INSERT INTO reviews (
         restaurant_id, google_review_id, reviewer_name,
         reviewer_avatar_url, review_text, rating, posted_at, replied
@@ -161,9 +127,7 @@ describe('/restaurants/:id/reviews', () => {
         'https://example.com/alice.jpg', 'Great food!', 5,
         '2024-01-01T00:00:00Z', false
       )
-      RETURNING id
     `;
-    // reviewId = review.id;
 
     // Build NestJS app
     const moduleRef = await Test.createTestingModule({
@@ -171,24 +135,19 @@ describe('/restaurants/:id/reviews', () => {
       controllers: [ReviewsController],
       providers: [
         ReviewsService,
-        GoogleTokensService,
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: { chat: { completions: { create: jest.fn() } } } },
-        { provide: EmailService, useValue: { sendNewReview: jest.fn(), sendAutoReply: jest.fn() } },
+        { provide: 'OUTSCRAPER_CLIENT', useValue: mockOutscraperClient },
+        { provide: EmailService, useValue: { sendNewReview: jest.fn() } },
         {
           provide: AppConfigService,
           useValue: {
             get: (key: string) => {
               if (key === 'serpapi') return { apiKey: 'fake-serp-key' };
               if (key === 'openai') return { model: 'gpt-4o' };
-              if (key === 'google') return { clientId: '', clientSecret: '' };
               throw new Error(`Unknown config key: ${key}`);
             },
           },
-        },
-        {
-          provide: getLoggerToken(GoogleTokensService.name),
-          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
         },
         {
           provide: getLoggerToken(ReviewsService.name),
@@ -224,12 +183,7 @@ describe('/restaurants/:id/reviews', () => {
 
       const body = res.body as {
         reviews: unknown[];
-        pagination: {
-          page: number;
-          per_page: number;
-          total: number;
-          total_pages: number;
-        };
+        pagination: { page: number; per_page: number; total: number; total_pages: number };
         stats: { pending: number; replied: number; total: number };
       };
 
@@ -241,7 +195,6 @@ describe('/restaurants/:id/reviews', () => {
     });
 
     it('filters pending reviews correctly', async () => {
-      // Add a replied review
       await sql`
         INSERT INTO reviews (
           restaurant_id, google_review_id, reviewer_name,
@@ -259,10 +212,7 @@ describe('/restaurants/:id/reviews', () => {
         .set('Authorization', 'Bearer fake-token')
         .expect(200);
 
-      const body = res.body as {
-        reviews: unknown[];
-        pagination: { total: number };
-      };
+      const body = res.body as { reviews: unknown[]; pagination: { total: number } };
       expect(body.reviews).toHaveLength(1);
       expect(body.pagination.total).toBe(1);
     });
@@ -285,16 +235,12 @@ describe('/restaurants/:id/reviews', () => {
         .set('Authorization', 'Bearer fake-token')
         .expect(200);
 
-      const body = res.body as {
-        reviews: unknown[];
-        pagination: { total: number };
-      };
+      const body = res.body as { reviews: unknown[]; pagination: { total: number } };
       expect(body.reviews).toHaveLength(1);
       expect(body.pagination.total).toBe(1);
     });
 
     it('respects pagination params', async () => {
-      // Insert 5 more reviews
       for (let i = 0; i < 5; i++) {
         await sql`
           INSERT INTO reviews (
@@ -332,37 +278,28 @@ describe('/restaurants/:id/reviews', () => {
     });
 
     it('triggers syncReviews when data is stale', async () => {
-      // Make last_synced_at stale
       await sql`
-        UPDATE restaurants SET last_synced_at = NOW() - INTERVAL '10 minutes'
+        UPDATE restaurants SET last_synced_at = NOW() - INTERVAL '2 hours'
         WHERE id = ${restaurantId}
       `;
 
-      mockAuthRequest.mockResolvedValueOnce({
-        data: { reviews: [FAKE_GOOGLE_REVIEW] },
-        status: 200,
-      } as GaxiosResponse<{ reviews: GoogleReview[] }>);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [] }]]);
 
       await request(server)
         .get(`/restaurants/${restaurantId}/reviews`)
         .set('Authorization', 'Bearer fake-token')
         .expect(200);
 
-      expect(mockAuthRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          url: expect.stringContaining('locations/456/reviews') as string,
-        }),
-      );
+      expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalled();
     });
 
     it('does not trigger syncReviews when data is fresh', async () => {
-      // last_synced_at is set to NOW() in beforeEach — data is fresh
       await request(server)
         .get(`/restaurants/${restaurantId}/reviews`)
         .set('Authorization', 'Bearer fake-token')
         .expect(200);
 
-      expect(mockAuthRequest).not.toHaveBeenCalled();
+      expect(mockOutscraperClient.googleMapsReviews).not.toHaveBeenCalled();
     });
   });
 
@@ -380,14 +317,12 @@ describe('/restaurants/:id/reviews', () => {
         .expect(404);
     });
 
-    it('inserts new reviews from Google and returns count', async () => {
-      // Delete the seeded review so we start fresh
+    it('inserts new reviews from Outscraper and returns count', async () => {
       await sql`TRUNCATE reviews CASCADE`;
 
-      mockAuthRequest.mockResolvedValueOnce({
-        data: { reviews: [FAKE_GOOGLE_REVIEW] },
-        status: 200,
-      } as GaxiosResponse<{ reviews: GoogleReview[] }>);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[
+        { reviews: [FAKE_OUTSCRAPER_REVIEW] },
+      ]]);
 
       const res = await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)
@@ -398,51 +333,16 @@ describe('/restaurants/:id/reviews', () => {
       expect(body.new_reviews).toBe(1);
       expect(body.synced_at).toBeDefined();
 
-      const rows =
-        await sql`SELECT * FROM reviews WHERE restaurant_id = ${restaurantId}`;
+      const rows = await sql`SELECT * FROM reviews WHERE restaurant_id = ${restaurantId}`;
       expect(rows).toHaveLength(1);
-      expect(rows[0].google_review_id).toBe('google-review-abc');
+      expect(rows[0].google_review_id).toBe('outscraper-review-abc');
       expect(rows[0].rating).toBe(5);
     });
 
-    it('updates existing review reply status on conflict', async () => {
-      // Review already exists (seeded in beforeEach) — sync returns a replied version
-      mockAuthRequest.mockResolvedValueOnce({
-        data: { reviews: [FAKE_GOOGLE_REVIEW_WITH_REPLY] },
-        status: 200,
-      } as GaxiosResponse<{ reviews: GoogleReview[] }>);
-
-      // Seed the review that will conflict
-      await sql`
-        INSERT INTO reviews (
-          restaurant_id, google_review_id, reviewer_name,
-          reviewer_avatar_url, review_text, rating, posted_at, replied
-        )
-        VALUES (
-          ${restaurantId}, 'google-review-replied', 'Alice',
-          'https://example.com/alice.jpg', 'Great!', 5,
-          '2024-01-01T00:00:00Z', false
-        )
-      `;
-
-      await request(server)
-        .post(`/restaurants/${restaurantId}/reviews/sync`)
-        .set('Authorization', 'Bearer fake-token')
-        .expect(201);
-
-      const [row] = await sql<{ replied: boolean; reply_text: string }[]>`
-        SELECT replied, reply_text FROM reviews WHERE google_review_id = 'google-review-replied'
-      `;
-      expect(row.replied).toBe(true);
-      expect(row.reply_text).toBe('Thank you!');
-    });
-
     it('does not count existing reviews as new', async () => {
-      // google-review-abc already seeded in beforeEach
-      mockAuthRequest.mockResolvedValueOnce({
-        data: { reviews: [FAKE_GOOGLE_REVIEW] },
-        status: 200,
-      } as GaxiosResponse<{ reviews: GoogleReview[] }>);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[
+        { reviews: [{ ...FAKE_OUTSCRAPER_REVIEW, review_id: 'google-review-abc' }] },
+      ]]);
 
       const res = await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)
@@ -458,10 +358,7 @@ describe('/restaurants/:id/reviews', () => {
         SELECT last_synced_at FROM restaurants WHERE id = ${restaurantId}
       `;
 
-      mockAuthRequest.mockResolvedValueOnce({
-        data: { reviews: [] },
-        status: 200,
-      } as unknown as GaxiosResponse<{ reviews: GoogleReview[] }>);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [] }]]);
 
       await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)
@@ -471,10 +368,7 @@ describe('/restaurants/:id/reviews', () => {
       const [after] = await sql<{ last_synced_at: Date }[]>`
         SELECT last_synced_at FROM restaurants WHERE id = ${restaurantId}
       `;
-
-      expect(after.last_synced_at.getTime()).toBeGreaterThan(
-        before.last_synced_at.getTime(),
-      );
+      expect(after.last_synced_at.getTime()).toBeGreaterThan(before.last_synced_at.getTime());
     });
   });
 
@@ -504,13 +398,9 @@ describe('/restaurants/:id/reviews', () => {
       const body = res.body as { reviews: SerpReview[] };
       expect(body.reviews.length).toBeGreaterThan(0);
       expect(mockGetJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          engine: 'google_maps_reviews',
-          place_id: 'new-place-id',
-        }),
+        expect.objectContaining({ engine: 'google_maps_reviews', place_id: 'new-place-id' }),
       );
 
-      // Verify it was cached
       const [row] = await sql<{ reviews: SerpReview[] }[]>`
         SELECT reviews FROM auto_demo_reviews WHERE place_id = 'new-place-id'
       `;
@@ -537,7 +427,6 @@ describe('/restaurants/:id/reviews', () => {
         .expect(200);
 
       const body = res.body as { reviews: SerpReview[] };
-      // The review with a response should have been filtered out
       expect(body.reviews.every((r) => !r.response)).toBe(true);
     });
 

@@ -3,9 +3,6 @@ import { Injectable, Inject } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AppConfigService } from 'src/config/config.service';
-import { google } from 'googleapis';
-import { GoogleTokensService } from '../auth/auth.service';
-import { EmailService } from '../email/email.serivice';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -18,8 +15,6 @@ export class ReviewsService {
     @Inject('SQL') private readonly sql: Sql,
     @Inject('OPENAI') private readonly openai: OpenAI,
     private readonly cfg: AppConfigService,
-    private readonly googleTokens: GoogleTokensService,
-    private readonly email: EmailService,
     @InjectPinoLogger(ReviewsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
@@ -45,11 +40,6 @@ export class ReviewsService {
     `;
     if (!review) throw new NotFoundException('Review not found');
 
-    this.logger.debug(
-      { reviewId, additionalContext },
-      'Generating responses for review',
-    );
-
     const [restaurant] = await this.sql<
       { name: string; additional_info: string | null }[]
     >`
@@ -73,23 +63,17 @@ export class ReviewsService {
       }
     `;
 
-    this.logger.debug({ prompt }, 'Prompt generated for review');
-
     const completion = await this.openai.chat.completions.create({
       model: this.cfg.get('openai').model,
       messages: [{ role: 'developer', content: prompt }],
       response_format: { type: 'json_object' },
     });
 
-    this.logger.debug({ completion }, 'OpenAI completion received');
-
     const responses = JSON.parse(completion.choices[0].message.content!) as {
       empathetic: string;
       professional: string;
       casual: string;
     };
-
-    this.logger.debug({ responses }, 'Responses parsed from completion');
 
     const generated_at = new Date();
 
@@ -101,54 +85,18 @@ export class ReviewsService {
           responses_generated_at = EXCLUDED.responses_generated_at
     `;
 
-    this.logger.debug(
-      { reviewId, generated_at },
-      'Responses saved to database',
-    );
-
+    this.logger.debug({ reviewId }, 'Responses saved');
     return { responses, generated_at };
   }
 
   async replyToReview(reviewId: string, userId: string, text: string) {
-    const [review] = await this.sql<
-      {
-        google_review_id: string;
-        restaurant_id: number;
-        reviewer_name: string | null;
-      }[]
-    >`
-      SELECT r.google_review_id, r.restaurant_id, r.reviewer_name
+    const [review] = await this.sql<{ id: string }[]>`
+      SELECT r.id
       FROM reviews r
       JOIN restaurants res ON res.id = r.restaurant_id AND res.user_id = ${userId}
       WHERE r.id = ${reviewId}
     `;
     if (!review) throw new NotFoundException('Review not found');
-
-    this.logger.debug({ reviewId, text }, 'Review is found');
-
-    const [restaurant] = await this.sql<
-      {
-        user_id: string;
-        google_account_id: string;
-        google_location_id: string;
-        name: string;
-      }[]
-    >`
-      SELECT user_id, google_account_id, google_location_id, name
-      FROM restaurants WHERE id = ${review.restaurant_id}
-    `;
-
-    await this.googleTokens.withAutoRefresh(restaurant.user_id, (token) => {
-      const auth = new google.auth.OAuth2();
-      auth.setCredentials({ access_token: token });
-      return auth.request({
-        url: `https://mybusiness.googleapis.com/v4/${restaurant.google_account_id}/${restaurant.google_location_id}/reviews/${review.google_review_id}/reply`,
-        method: 'PUT',
-        body: JSON.stringify({ comment: text }),
-      });
-    });
-
-    this.logger.debug({ reviewId, text }, 'Review reply sent to Google');
 
     const replied_at = new Date();
 
@@ -160,23 +108,7 @@ export class ReviewsService {
       WHERE id = ${reviewId}
     `;
 
-    this.logger.debug(
-      { reviewId, replied_at },
-      'Review reply updated in database',
-    );
-
-    const [user] = await this.sql<{ email: string; name: string }[]>`
-      SELECT email, name FROM users WHERE id = ${restaurant.user_id}
-    `;
-    if (user) {
-      void this.email.sendReplyPosted(
-        user.email,
-        user.name ?? 'there',
-        restaurant.name,
-        review.reviewer_name ?? 'Anonymous',
-      );
-    }
-
+    this.logger.debug({ reviewId }, 'Review marked as handled');
     return { success: true, replied_at };
   }
 }

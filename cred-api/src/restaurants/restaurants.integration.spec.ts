@@ -11,17 +11,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { RestaurantsController } from './restaurants.controller';
 import { RestaurantsService } from './restaurants.service';
 import { AppConfigService } from 'src/config/config.service';
-import { GoogleTokensService } from '../auth/auth.service';
 import { getLoggerToken } from 'nestjs-pino';
 import type { Server } from 'http';
-
-jest.mock('googleapis', () => ({
-  google: {
-    auth: { OAuth2: jest.fn() },
-    mybusinessaccountmanagement: jest.fn(),
-    mybusinessbusinessinformation: jest.fn(),
-  },
-}));
 
 const silentLogger = {
   debug: jest.fn(),
@@ -38,8 +29,6 @@ const configMock = {
     return undefined;
   },
 };
-
-const mockWithAutoRefresh = jest.fn();
 
 describe('Restaurants (integration)', () => {
   let sql: Sql;
@@ -69,8 +58,8 @@ describe('Restaurants (integration)', () => {
     userId = user.id;
 
     const [restaurant] = await sql<{ id: number }[]>`
-      INSERT INTO restaurants (name, slug, user_id, google_account_id, google_location_id)
-      VALUES ('Test Bistro', 'test-bistro', ${userId}, 'accounts/123', 'locations/456')
+      INSERT INTO restaurants (name, user_id, google_place_id)
+      VALUES ('Test Bistro', ${userId}, 'ChIJ_fake_place_id')
       RETURNING id
     `;
     restaurantId = restaurant.id;
@@ -82,7 +71,6 @@ describe('Restaurants (integration)', () => {
         RestaurantsService,
         { provide: 'SQL', useValue: sql },
         { provide: AppConfigService, useValue: configMock },
-        { provide: GoogleTokensService, useValue: { withAutoRefresh: mockWithAutoRefresh } },
         { provide: getLoggerToken(RestaurantsService.name), useValue: silentLogger },
         { provide: getLoggerToken(RestaurantsController.name), useValue: silentLogger },
       ],
@@ -196,21 +184,7 @@ describe('Restaurants (integration)', () => {
   });
 
   describe('GET /restaurants', () => {
-    it('returns empty list when Google returns no locations', async () => {
-      mockWithAutoRefresh.mockResolvedValueOnce({ locations: [] });
-
-      const res = await request(server)
-        .get('/restaurants')
-        .set('Authorization', 'Bearer token')
-        .expect(200);
-
-      const body = res.body as { restaurants: unknown[] };
-      expect(body.restaurants).toEqual([]);
-    });
-
-    it('returns DB data when Google token service throws', async () => {
-      mockWithAutoRefresh.mockRejectedValueOnce(new Error('token expired'));
-
+    it('returns the seeded restaurant from DB', async () => {
       const res = await request(server)
         .get('/restaurants')
         .set('Authorization', 'Bearer token')
@@ -219,6 +193,18 @@ describe('Restaurants (integration)', () => {
       const body = res.body as { restaurants: { name: string }[] };
       expect(body.restaurants).toHaveLength(1);
       expect(body.restaurants[0].name).toBe('Test Bistro');
+    });
+
+    it('returns empty list when user has no restaurants', async () => {
+      await sql`DELETE FROM restaurants WHERE user_id = ${userId}`;
+
+      const res = await request(server)
+        .get('/restaurants')
+        .set('Authorization', 'Bearer token')
+        .expect(200);
+
+      const body = res.body as { restaurants: unknown[] };
+      expect(body.restaurants).toEqual([]);
     });
   });
 

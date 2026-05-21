@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsIn,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
@@ -9,16 +10,29 @@ import {
 export interface Restaurant {
   id: string;
   userId: string;
-  googlePlaceId: string;
+  googlePlaceId: string | null;
   name: string;
   slug: string;
   address: string | null;
   ownerName: string | null;
   additionalInfo: string | null;
-  createdAt: Date;
   updatedAt: Date;
-  google_account_id: string;
-  google_location_id: string;
+}
+
+export class CreateRestaurantDto {
+  @IsString()
+  @IsNotEmpty()
+  placeId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  address: string | null;
 }
 
 export class RestaurantChanges {

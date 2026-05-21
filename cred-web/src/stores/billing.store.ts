@@ -7,7 +7,7 @@ interface Plan {
   name: string
   price: number
   period: string
-  status: 'active' | 'past_due' | 'canceled'
+  status: 'active' | 'trialing' | 'past_due' | 'canceled'
   nextBillingDate: string | null
   paddleSubscriptionId: string
 }

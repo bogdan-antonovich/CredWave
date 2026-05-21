@@ -189,6 +189,9 @@ secrets:
   RESEND_API_KEY_FILE:
     external: true
     name: RESEND_API_KEY_FILE_${TAG}
+  OUTSCRAPER_API_KEY_FILE:
+    external: true
+    name: OUTSCRAPER_API_KEY_FILE_${TAG}
 
 configs:
   loki_config:

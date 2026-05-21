@@ -42,6 +42,7 @@
     "nestjs-pino": "^4.6.1",
     "node-pg-migrate": "^7.0.0",
     "openai": "^5.0.0",
+    "outscraper": "^2.2.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",

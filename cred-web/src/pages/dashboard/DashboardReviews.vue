@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { Send, Check, Loader2, Zap, ChevronDown, RefreshCw, Sparkles, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-vue-next'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { Check, Copy, Loader2, RefreshCw, Sparkles, ExternalLink, Search, Star } from 'lucide-vue-next'
 import StarRating from '@/components/shared/StarRating.vue'
 import { useUserStore } from '@/stores/user.store'
 import { useReviewsStore } from '@/stores/reviews.store'
+import { useDemoStore } from '@/stores/demo.store'
 import type { ReviewResponses } from '@/stores/reviews.store'
+import type { SearchResult } from '@/stores/demo.store'
 
 const userStore = useUserStore()
 const reviewsStore = useReviewsStore()
+const demoStore = useDemoStore()
 
 const toneLabels: Record<string, string> = {
   empathetic: 'Empathetic',
@@ -15,10 +18,40 @@ const toneLabels: Record<string, string> = {
   casual: 'Casual',
 }
 
-const showToneDropdown = ref(false)
 const activeStatus = ref('all')
 const activeTab = ref<Record<string, keyof ReviewResponses>>({})
 const editedText = ref<Record<string, string>>({})
+const copiedId = ref<string | null>(null)
+
+// Onboarding state
+const onboardingQuery = ref('')
+const onboardingCreating = ref(false)
+
+// Infinite scroll
+const sentinelRef = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+onMounted(() => {
+  observer = new IntersectionObserver(
+    ([entry]) => {
+      if (
+        entry.isIntersecting &&
+        reviewsStore.hasMore &&
+        !reviewsStore.loadingMore &&
+        !reviewsStore.loading &&
+        userStore.restaurantId
+      ) {
+        void reviewsStore.loadMore(userStore.restaurantId)
+      }
+    },
+    { rootMargin: '200px' },
+  )
+  if (sentinelRef.value) observer.observe(sentinelRef.value)
+})
+
+onUnmounted(() => {
+  observer?.disconnect()
+})
 
 // Fetch when restaurant is ready
 watch(
@@ -28,6 +61,11 @@ watch(
   },
   { immediate: true },
 )
+
+// Re-observe sentinel when it mounts/changes
+watch(sentinelRef, (el) => {
+  if (el && observer) observer.observe(el)
+})
 
 // Initialise local tone/text state when reviews arrive or responses are generated
 watch(
@@ -62,10 +100,22 @@ async function handleGenerate(reviewId: string) {
   }
 }
 
-async function handleReply(reviewId: string) {
+async function handleCopy(reviewId: string) {
+  const text = editedText.value[reviewId]
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedId.value = reviewId
+    setTimeout(() => { copiedId.value = null }, 2000)
+  } catch {
+    // clipboard API unavailable
+  }
+}
+
+async function handleMarkDone(reviewId: string) {
   const text = editedText.value[reviewId]
   if (!text?.trim()) return
-  await reviewsStore.postReply(reviewId, text)
+  await reviewsStore.markHandled(reviewId, text)
 }
 
 function setStatus(status: string) {
@@ -75,30 +125,33 @@ function setStatus(status: string) {
   }
 }
 
-function goToPage(page: number) {
-  if (userStore.restaurantId) {
-    void reviewsStore.fetchReviews(userStore.restaurantId, page, activeStatus.value)
-  }
-}
-
 function handleSync() {
   if (userStore.restaurantId) {
-    void reviewsStore.fetchReviews(userStore.restaurantId, reviewsStore.pagination.page, activeStatus.value)
+    void reviewsStore.fetchReviews(userStore.restaurantId, 1, activeStatus.value)
   }
 }
-
-function setAutoTone(tone: 'empathetic' | 'professional' | 'casual') {
-  userStore.setAutoReplyTone(tone)
-  showToneDropdown.value = false
-}
-
-const hasPrev = computed(() => reviewsStore.pagination.page > 1)
-const hasNext = computed(
-  () => reviewsStore.pagination.page < reviewsStore.pagination.total_pages,
-)
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+// Onboarding
+async function handleOnboardingSearch() {
+  const q = onboardingQuery.value.trim()
+  if (!q) return
+  await demoStore.searchRestaurants(q)
+}
+
+async function handleSelectRestaurant(result: SearchResult) {
+  onboardingCreating.value = true
+  try {
+    await userStore.createRestaurant(result.google_place_id, result.name, result.location)
+    void reviewsStore.fetchReviews(userStore.restaurantId!, 1, activeStatus.value)
+  } finally {
+    onboardingCreating.value = false
+    demoStore.reset()
+    onboardingQuery.value = ''
+  }
 }
 </script>
 
@@ -114,105 +167,14 @@ function formatDate(iso: string) {
         </p>
       </div>
 
-      <div class="flex items-center gap-3">
-        <!-- Sync button -->
-        <button
-          class="p-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-border transition-all"
-          :disabled="reviewsStore.loading"
-          title="Refresh reviews"
-          @click="handleSync"
-        >
-          <RefreshCw class="w-4 h-4" :class="reviewsStore.loading ? 'animate-spin' : ''" />
-        </button>
-
-        <!-- Auto-reply controls (desktop only) -->
-        <div class="hidden md:flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-white">
-          <div class="flex items-center gap-2">
-            <Zap class="w-4 h-4" :class="userStore.autoReply.enabled ? 'text-accent' : 'text-text-muted'" />
-            <span class="text-sm font-medium text-text-primary">Auto-reply</span>
-          </div>
-
-          <div class="relative">
-            <button
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border transition-colors"
-              :class="userStore.autoReply.enabled ? 'bg-accent/5 text-accent border-accent/20' : 'text-text-muted bg-surface-warm'"
-              @click="showToneDropdown = !showToneDropdown"
-            >
-              {{ toneLabels[userStore.autoReply.defaultTone] }}
-              <ChevronDown class="w-3 h-3" />
-            </button>
-            <div
-              v-if="showToneDropdown"
-              class="absolute top-full right-0 mt-1 w-36 bg-white border border-border-subtle rounded-lg shadow-lg py-1 z-10"
-            >
-              <button
-                v-for="(label, key) in toneLabels"
-                :key="key"
-                class="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-warm transition-colors"
-                :class="userStore.autoReply.defaultTone === key ? 'text-accent font-semibold' : 'text-text-secondary'"
-                @click="setAutoTone(key as 'empathetic' | 'professional' | 'casual')"
-              >
-                {{ label }}
-              </button>
-            </div>
-          </div>
-
-          <button
-            class="relative w-10 h-5.5 rounded-full transition-colors duration-200"
-            :class="userStore.autoReply.enabled ? 'bg-accent' : 'bg-border'"
-            @click="userStore.setAutoReplyEnabled(!userStore.autoReply.enabled)"
-          >
-            <span
-              class="absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all duration-200"
-              :class="userStore.autoReply.enabled ? 'left-[22px]' : 'left-0.5'"
-            />
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Auto-reply (mobile only) -->
-    <div class="md:hidden flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-white mb-6">
-      <div class="flex items-center gap-2">
-        <Zap class="w-4 h-4" :class="userStore.autoReply.enabled ? 'text-accent' : 'text-text-muted'" />
-        <span class="text-sm font-medium text-text-primary">Auto-reply</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="relative">
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border transition-colors"
-            :class="userStore.autoReply.enabled ? 'bg-accent/5 text-accent border-accent/20' : 'text-text-muted bg-surface-warm'"
-            @click="showToneDropdown = !showToneDropdown"
-          >
-            {{ toneLabels[userStore.autoReply.defaultTone] }}
-            <ChevronDown class="w-3 h-3" />
-          </button>
-          <div
-            v-if="showToneDropdown"
-            class="absolute top-full right-0 mt-1 w-36 bg-white border border-border-subtle rounded-lg shadow-lg py-1 z-10"
-          >
-            <button
-              v-for="(label, key) in toneLabels"
-              :key="key"
-              class="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-warm transition-colors"
-              :class="userStore.autoReply.defaultTone === key ? 'text-accent font-semibold' : 'text-text-secondary'"
-              @click="setAutoTone(key as 'empathetic' | 'professional' | 'casual')"
-            >
-              {{ label }}
-            </button>
-          </div>
-        </div>
-        <button
-          class="relative w-10 h-5.5 rounded-full transition-colors duration-200"
-          :class="userStore.autoReply.enabled ? 'bg-accent' : 'bg-border'"
-          @click="userStore.setAutoReplyEnabled(!userStore.autoReply.enabled)"
-        >
-          <span
-            class="absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all duration-200"
-            :class="userStore.autoReply.enabled ? 'left-[22px]' : 'left-0.5'"
-          />
-        </button>
-      </div>
+      <button
+        class="p-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-border transition-all"
+        :disabled="reviewsStore.loading"
+        title="Refresh reviews"
+        @click="handleSync"
+      >
+        <RefreshCw class="w-4 h-4" :class="reviewsStore.loading ? 'animate-spin' : ''" />
+      </button>
     </div>
 
     <!-- Status filter tabs -->
@@ -232,13 +194,59 @@ function formatDate(iso: string) {
       </button>
     </div>
 
-    <!-- No restaurant -->
-    <div
-      v-if="!userStore.loading && !userStore.restaurantId"
-      class="flex flex-col items-center justify-center py-20 text-center"
-    >
-      <p class="text-sm text-text-muted">No restaurant connected yet.</p>
-      <p class="text-xs text-text-muted mt-1">Connect your Google Business account to start syncing reviews.</p>
+    <!-- Onboarding: no restaurant yet -->
+    <div v-if="!userStore.loading && !userStore.restaurantId" class="max-w-lg mx-auto py-12">
+      <div class="text-center mb-8">
+        <h2 class="text-lg font-bold font-display text-text-primary">Find your restaurant</h2>
+        <p class="text-sm text-text-muted mt-1">Search for your restaurant on Google Maps to get started.</p>
+      </div>
+
+      <!-- Search box -->
+      <div class="flex gap-2">
+        <input
+          v-model="onboardingQuery"
+          type="text"
+          placeholder="e.g. Bella Napoli, New York"
+          :disabled="demoStore.loading"
+          class="flex-1 px-4 py-3 text-sm border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white disabled:opacity-50"
+          @keydown.enter="handleOnboardingSearch"
+        />
+        <button
+          class="px-5 py-3 text-sm font-semibold bg-brand text-white rounded-xl hover:bg-brand-subtle transition-all disabled:opacity-50 flex items-center gap-2"
+          :disabled="demoStore.loading || !onboardingQuery.trim()"
+          @click="handleOnboardingSearch"
+        >
+          <Loader2 v-if="demoStore.loading" class="w-4 h-4 animate-spin" />
+          <Search v-else class="w-4 h-4" />
+          Search
+        </button>
+      </div>
+
+      <!-- Search results -->
+      <div v-if="demoStore.searchResults.length > 0" class="mt-4 space-y-2">
+        <button
+          v-for="result in demoStore.searchResults"
+          :key="result.google_place_id"
+          class="w-full text-left px-4 py-3 rounded-xl border border-border-subtle bg-white hover:border-accent/40 hover:bg-accent/5 transition-all disabled:opacity-50"
+          :disabled="onboardingCreating"
+          @click="handleSelectRestaurant(result)"
+        >
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-semibold text-text-primary">{{ result.name }}</p>
+              <p class="text-xs text-text-muted mt-0.5">{{ result.location }}</p>
+            </div>
+            <div class="flex items-center gap-1 text-xs text-text-muted shrink-0 ml-3">
+              <Star class="w-3 h-3 text-warning fill-warning" />
+              <span>{{ result.rating ?? '—' }}</span>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      <p v-if="demoStore.error" class="mt-3 text-sm text-error text-center">
+        Search failed. Please try again.
+      </p>
     </div>
 
     <!-- Loading skeleton -->
@@ -248,7 +256,7 @@ function formatDate(iso: string) {
 
     <!-- Empty state -->
     <div
-      v-else-if="reviewsStore.reviews.length === 0"
+      v-else-if="reviewsStore.reviews.length === 0 && !reviewsStore.loading"
       class="flex flex-col items-center justify-center py-20 text-center"
     >
       <p class="text-sm text-text-muted">No reviews found.</p>
@@ -277,7 +285,7 @@ function formatDate(iso: string) {
                   v-if="review.replied"
                   class="text-[10px] font-bold uppercase tracking-wider text-success bg-success/10 px-2 py-0.5 rounded-full"
                 >
-                  Replied
+                  Done
                 </span>
               </div>
               <div class="flex items-center gap-2 mt-0.5">
@@ -296,7 +304,7 @@ function formatDate(iso: string) {
         <!-- Response section — only for pending reviews -->
         <div v-if="!review.replied" class="border-t border-border-subtle">
 
-          <!-- No responses yet: generate button -->
+          <!-- No responses yet -->
           <div v-if="!review.responses" class="px-6 py-4 bg-surface-warm/30 flex items-center justify-between">
             <p class="text-xs text-text-muted">No AI reply generated yet.</p>
             <button
@@ -310,8 +318,9 @@ function formatDate(iso: string) {
             </button>
           </div>
 
-          <!-- Responses ready: tone tabs + editor -->
+          <!-- Responses ready -->
           <template v-else>
+            <!-- Tone tabs -->
             <div class="flex px-6 gap-0 border-b border-border-subtle">
               <button
                 v-for="(label, key) in toneLabels"
@@ -335,62 +344,63 @@ function formatDate(iso: string) {
                 class="w-full px-4 py-3 text-sm border border-border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200 resize-none leading-relaxed"
               />
 
-              <div class="flex items-center justify-between mt-3">
-                <div class="flex items-center gap-2">
-                  <p class="text-[10px] text-text-muted">Edit the response above before sending, or send as-is.</p>
-                  <a
-                    v-if="review.link"
-                    :href="review.link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="inline-flex items-center gap-1 text-[10px] text-accent hover:underline shrink-0"
-                  >
-                    <ExternalLink class="w-3 h-3" />
-                    View on Google
-                  </a>
-                </div>
+              <div class="flex items-center gap-2 mt-3">
+                <!-- Copy response -->
                 <button
-                  class="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-lg transition-all duration-200 disabled:opacity-50"
-                  :class="reviewsStore.sending[review.id] ? 'bg-accent/50 text-white' : 'bg-accent text-white hover:bg-accent-hover'"
+                  class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-200"
+                  :class="copiedId === review.id
+                    ? 'bg-success/10 text-success'
+                    : 'bg-brand text-white hover:bg-brand-subtle'"
+                  @click="handleCopy(review.id)"
+                >
+                  <Check v-if="copiedId === review.id" class="w-3.5 h-3.5" />
+                  <Copy v-else class="w-3.5 h-3.5" />
+                  {{ copiedId === review.id ? 'Copied!' : 'Copy Response' }}
+                </button>
+
+                <!-- Reply on Google -->
+                <a
+                  v-if="review.link"
+                  :href="review.link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all duration-200"
+                >
+                  <ExternalLink class="w-3.5 h-3.5" />
+                  Reply on Google
+                </a>
+
+                <!-- Mark as done -->
+                <button
+                  class="ml-auto inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-success/40 hover:bg-success/5 transition-all disabled:opacity-50"
                   :disabled="reviewsStore.sending[review.id] || !editedText[review.id]?.trim()"
-                  @click="handleReply(review.id)"
+                  @click="handleMarkDone(review.id)"
                 >
                   <Loader2 v-if="reviewsStore.sending[review.id]" class="w-3.5 h-3.5 animate-spin" />
-                  <Send v-else class="w-3.5 h-3.5" />
-                  {{ reviewsStore.sending[review.id] ? 'Posting...' : 'Post Reply' }}
+                  <Check v-else class="w-3.5 h-3.5" />
+                  {{ reviewsStore.sending[review.id] ? 'Saving...' : 'Mark as Done' }}
                 </button>
               </div>
             </div>
           </template>
         </div>
       </div>
-    </div>
 
-    <!-- Pagination -->
-    <div
-      v-if="reviewsStore.pagination.total_pages > 1"
-      class="flex items-center justify-between mt-8"
-    >
-      <p class="text-xs text-text-muted">
-        Page {{ reviewsStore.pagination.page }} of {{ reviewsStore.pagination.total_pages }}
-        · {{ reviewsStore.pagination.total }} reviews
-      </p>
-      <div class="flex gap-2">
-        <button
-          class="p-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-border transition-all disabled:opacity-30"
-          :disabled="!hasPrev"
-          @click="goToPage(reviewsStore.pagination.page - 1)"
-        >
-          <ChevronLeft class="w-4 h-4" />
-        </button>
-        <button
-          class="p-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-border transition-all disabled:opacity-30"
-          :disabled="!hasNext"
-          @click="goToPage(reviewsStore.pagination.page + 1)"
-        >
-          <ChevronRight class="w-4 h-4" />
-        </button>
+      <!-- Infinite scroll sentinel -->
+      <div ref="sentinelRef" class="h-4" />
+
+      <!-- Load more spinner -->
+      <div v-if="reviewsStore.loadingMore" class="flex justify-center py-4">
+        <Loader2 class="w-4 h-4 animate-spin text-text-muted" />
       </div>
+
+      <!-- End of list -->
+      <p
+        v-if="!reviewsStore.hasMore && reviewsStore.reviews.length > 0 && !reviewsStore.loadingMore"
+        class="text-center text-xs text-text-muted py-2"
+      >
+        You've seen all reviews.
+      </p>
     </div>
   </div>
 </template>

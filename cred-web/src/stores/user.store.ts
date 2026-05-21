@@ -119,6 +119,22 @@ export const useUserStore = defineStore("user", () => {
     autoReply.value.defaultTone = tone;
   }
 
+  async function createRestaurant(
+    placeId: string,
+    name: string,
+    address: string | null,
+  ) {
+    const r = await api.post<ApiRestaurant>("/restaurants", {
+      placeId,
+      name,
+      address,
+    });
+    restaurantId.value = r.id;
+    restaurant.value.name = r.name ?? "";
+    restaurant.value.ownerName = r.ownerName ?? "";
+    restaurant.value.additionalInfo = r.additionalInfo ?? "";
+  }
+
   async function disconnectGoogle() {
     await api.del("/users/me/google");
     googleConnected.value = false;
@@ -144,6 +160,7 @@ export const useUserStore = defineStore("user", () => {
     saveSettings,
     setAutoReplyEnabled,
     setAutoReplyTone,
+    createRestaurant,
     disconnectGoogle,
     deleteAccount,
   };

@@ -28,6 +28,9 @@ export interface AppConfig {
   serpapi: {
     apiKey: string;
   };
+  outscraper: {
+    apiKey: string;
+  };
   openai: {
     apiKey: string;
     model: string;

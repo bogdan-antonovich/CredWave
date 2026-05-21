@@ -2,13 +2,7 @@ import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { AppConfigService } from 'src/config/config.service';
-import { GoogleTokensService } from '../auth/auth.service';
-import { EmailService } from '../email/email.serivice';
 import { getLoggerToken } from 'nestjs-pino';
-import { google } from 'googleapis';
-import type { AuthPlus } from 'googleapis-common';
-import type { Credentials } from 'google-auth-library';
-import type { GaxiosOptions, GaxiosResponse } from 'gaxios';
 import type OpenAI from 'openai';
 
 type CreateFn = OpenAI['chat']['completions']['create'];
@@ -23,19 +17,6 @@ const openaiMock: { chat: { completions: { create: typeof mockCreate } } } = {
   chat: { completions: { create: mockCreate } },
 };
 
-const mockAuthRequest = jest.fn<
-  Promise<GaxiosResponse<unknown>>,
-  [GaxiosOptions]
->();
-
-const mockSetCredentials = jest.fn<void, [Credentials]>();
-
-jest.mock('googleapis', () => ({
-  google: { auth: { OAuth2: jest.fn() } },
-}));
-
-const mockedAuth = google.auth as jest.Mocked<AuthPlus>;
-
 function makeSql(...rowSets: Record<string, unknown>[][]): SqlMock {
   let callIndex = 0;
   return jest
@@ -43,14 +24,7 @@ function makeSql(...rowSets: Record<string, unknown>[][]): SqlMock {
     .mockImplementation(() => Promise.resolve(rowSets[callIndex++] ?? []));
 }
 
-const mockEmailService = {
-  sendReplyPosted: jest.fn(),
-};
-
-async function buildService(
-  sql: SqlMock,
-  googleTokensOverride?: { withAutoRefresh: jest.Mock },
-): Promise<ReviewsService> {
+async function buildService(sql: SqlMock): Promise<ReviewsService> {
   (sql as any).json = jest.fn((x: unknown) => x);
   const configMock: Partial<AppConfigService> = {
     get: jest.fn((key: string) => {
@@ -58,20 +32,16 @@ async function buildService(
       throw new Error(`Unknown config key: ${key}`);
     }),
   };
-  const mockGoogleTokens = googleTokensOverride ?? {
-    withAutoRefresh: jest.fn().mockImplementation(
-      (_: string, fn: (token: string) => Promise<unknown>) => fn(FAKE_ACCESS_TOKEN),
-    ),
-  };
   const module = await Test.createTestingModule({
     providers: [
       ReviewsService,
       { provide: 'SQL', useValue: sql },
       { provide: 'OPENAI', useValue: openaiMock },
       { provide: AppConfigService, useValue: configMock },
-      { provide: GoogleTokensService, useValue: mockGoogleTokens },
-      { provide: EmailService, useValue: mockEmailService },
-      { provide: getLoggerToken(ReviewsService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
+      {
+        provide: getLoggerToken(ReviewsService.name),
+        useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+      },
     ],
   }).compile();
   return module.get<ReviewsService>(ReviewsService);
@@ -88,20 +58,6 @@ const FAKE_RESTAURANT: Record<string, unknown> = {
   name: 'Pasta Place',
   additional_info: 'Family friendly',
 };
-
-const FAKE_RESTAURANT_WITH_OAUTH: Record<string, unknown> = {
-  user_id: 'user-1',
-  google_account_id: 'accounts/123',
-  google_location_id: 'locations/456',
-  name: 'Pasta Place',
-};
-
-const FAKE_USER: Record<string, unknown> = {
-  email: 'user@example.com',
-  name: 'Bob',
-};
-
-const FAKE_ACCESS_TOKEN = 'ya29.fake-token';
 
 const FAKE_RESPONSES = {
   empathetic: 'We really appreciate your kind words!',
@@ -123,23 +79,9 @@ function mockOpenAiResponse(): void {
   } as Awaited<ReturnType<CreateFn>>);
 }
 
-function mockGoogleApiSuccess(): void {
-  mockAuthRequest.mockResolvedValueOnce({
-    data: {},
-    status: 200,
-  } as GaxiosResponse<unknown>);
-}
-
 describe('ReviewsService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    jest.spyOn(mockedAuth, 'OAuth2').mockImplementation(
-      () =>
-        ({
-          setCredentials: mockSetCredentials,
-          request: mockAuthRequest,
-        }) as unknown as InstanceType<typeof mockedAuth.OAuth2>,
-    );
   });
 
   describe('generateResponses', () => {
@@ -220,12 +162,6 @@ describe('ReviewsService', () => {
   });
 
   describe('replyToReview', () => {
-    const reviewRow: Record<string, unknown> = {
-      google_review_id: 'review-abc',
-      restaurant_id: 'rest-1',
-      reviewer_name: 'Alice',
-    };
-
     it('throws NotFoundException when the review does not exist', async () => {
       const service = await buildService(makeSql([]));
 
@@ -234,69 +170,15 @@ describe('ReviewsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('calls the Google My Business API with the correct URL and body', async () => {
-      const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], [FAKE_USER]));
-      mockGoogleApiSuccess();
+    it('updates DB and returns success', async () => {
+      const sql = makeSql([{ id: 'review-abc' }], []);
+      const service = await buildService(sql);
 
       const result = await service.replyToReview('review-1', 'user-1', 'Thank you!');
 
-      expect(mockSetCredentials).toHaveBeenCalledWith({ access_token: FAKE_ACCESS_TOKEN });
-      expect(mockAuthRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: 'PUT',
-          body: JSON.stringify({ comment: 'Thank you!' }),
-          url: expect.stringContaining('review-abc/reply') as string,
-        }),
-      );
+      expect(sql).toHaveBeenCalledTimes(2);
       expect(result.success).toBe(true);
       expect(result.replied_at).toBeInstanceOf(Date);
-    });
-
-    it('persists reply text and replied flag after a successful API call', async () => {
-      const sql = makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], [FAKE_USER]);
-      const service = await buildService(sql);
-      mockGoogleApiSuccess();
-
-      await service.replyToReview('review-1', 'user-1', 'Thank you!');
-
-      // index 2 is the UPDATE reviews call (0: select review, 1: select restaurant, 2: update, 3: select user)
-      const updateCall = sql.mock.calls[2];
-      expect(updateCall).toContain('Thank you!');
-    });
-
-    it('does not persist a reply when the Google API call throws', async () => {
-      const sql = makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH]);
-      const service = await buildService(sql);
-      mockAuthRequest.mockRejectedValueOnce(new Error('Network error'));
-
-      await expect(
-        service.replyToReview('review-1', 'user-1', 'Thank you!'),
-      ).rejects.toThrow('Network error');
-
-      expect(sql).toHaveBeenCalledTimes(2);
-    });
-
-    it('sends a reply posted email after successfully posting to Google', async () => {
-      const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], [FAKE_USER]));
-      mockGoogleApiSuccess();
-
-      await service.replyToReview('review-1', 'user-1', 'Thank you!');
-
-      expect(mockEmailService.sendReplyPosted).toHaveBeenCalledWith(
-        'user@example.com',
-        'Bob',
-        'Pasta Place',
-        'Alice',
-      );
-    });
-
-    it('does not send email when user is not found', async () => {
-      const service = await buildService(makeSql([reviewRow], [FAKE_RESTAURANT_WITH_OAUTH], [], []));
-      mockGoogleApiSuccess();
-
-      await service.replyToReview('review-1', 'user-1', 'Thank you!');
-
-      expect(mockEmailService.sendReplyPosted).not.toHaveBeenCalled();
     });
   });
 });
