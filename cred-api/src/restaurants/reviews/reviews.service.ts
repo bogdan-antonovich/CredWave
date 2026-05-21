@@ -24,6 +24,7 @@ export interface OutscraperReview {
   review_datetime_utc: string;
   review_link: string | null;
   review_pagination_id: string | null;
+  owner_answer: string | null;
 }
 
 interface OutscraperPlace {
@@ -119,7 +120,7 @@ export class ReviewsService {
 
     let newReviews = 0;
 
-    for (const review of reviews) {
+    for (const review of reviews.filter((r) => r.owner_answer === null)) {
       const [row] = await this.sql<{ inserted: boolean }[]>`
         INSERT INTO reviews (
           restaurant_id, google_review_id, reviewer_name,
