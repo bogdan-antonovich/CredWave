@@ -185,6 +185,9 @@ export class ReviewsService {
         google_place_id
       FROM restaurants WHERE id = ${restaurantId}
     `;
+
+    this.logger.debug({ restaurant }, 'fetched restaurant from db');
+
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
     if (restaurant.is_stale) await this.syncReviews(restaurantId);
@@ -196,6 +199,8 @@ export class ReviewsService {
     `;
     const dbCount = Number(countRow.count);
 
+    this.logger.debug({ dbCount, offset, perPage }, 'count and pagination');
+
     if (offset + perPage > dbCount) {
       const [lastReview] = await this.sql<
         { outscraper_pagination_id: string | null }[]
@@ -204,6 +209,8 @@ export class ReviewsService {
         WHERE restaurant_id = ${restaurantId}
         ORDER BY posted_at ASC LIMIT 1
       `;
+
+      this.logger.debug({ lastReview }, 'LastReview');
 
       if (lastReview?.outscraper_pagination_id) {
         const moreReviews = await this.fetchFromOutscraper(
