@@ -27,7 +27,7 @@ export interface OutscraperReview {
 }
 
 interface OutscraperPlace {
-  reviews?: OutscraperReview[];
+  reviews_data?: OutscraperReview[];
 }
 
 export interface OutscraperClient {
@@ -42,7 +42,7 @@ export interface OutscraperClient {
     cutoff: string | null,
     cutoffRating: null,
     ignoreEmpty: boolean,
-  ): Promise<OutscraperPlace[][]>;
+  ): Promise<OutscraperPlace[]>;
 }
 
 @LogMethods()
@@ -68,7 +68,7 @@ export class ReviewsService {
     options?: { lastPaginationId?: string; cutoff?: number },
   ): Promise<OutscraperReview[]> {
     const data = await this.outscraperClient.googleMapsReviews(
-      placeId,
+      `r${placeId}`,
       limit,
       null,
       1,
@@ -79,7 +79,7 @@ export class ReviewsService {
       null,
       true,
     );
-    return data[0]?.[0]?.reviews ?? [];
+    return data[0]?.reviews_data ?? [];
   }
 
   async syncReviews(

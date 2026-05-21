@@ -283,7 +283,7 @@ describe('/restaurants/:id/reviews', () => {
         WHERE id = ${restaurantId}
       `;
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [] }]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [] }]);
 
       await request(server)
         .get(`/restaurants/${restaurantId}/reviews`)
@@ -320,9 +320,9 @@ describe('/restaurants/:id/reviews', () => {
     it('inserts new reviews from Outscraper and returns count', async () => {
       await sql`TRUNCATE reviews CASCADE`;
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[
-        { reviews: [FAKE_OUTSCRAPER_REVIEW] },
-      ]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([
+        { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
+      ]);
 
       const res = await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)
@@ -340,9 +340,9 @@ describe('/restaurants/:id/reviews', () => {
     });
 
     it('does not count existing reviews as new', async () => {
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[
-        { reviews: [{ ...FAKE_OUTSCRAPER_REVIEW, review_id: 'google-review-abc' }] },
-      ]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([
+        { reviews_data: [{ ...FAKE_OUTSCRAPER_REVIEW, review_id: 'google-review-abc' }] },
+      ]);
 
       const res = await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)
@@ -358,7 +358,7 @@ describe('/restaurants/:id/reviews', () => {
         SELECT last_synced_at FROM restaurants WHERE id = ${restaurantId}
       `;
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [] }]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [] }]);
 
       await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)

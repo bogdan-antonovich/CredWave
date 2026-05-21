@@ -80,13 +80,13 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ inserted: true }])
         .mockResolvedValueOnce([]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [FAKE_OUTSCRAPER_REVIEW] }]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
 
       const result = await service.syncReviews('r1');
 
       expect(result.new_reviews).toBe(1);
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        'place1', 5, null, 1, 'newest', null, null, null, null, true,
+        'rplace1', 5, null, 1, 'newest', null, null, null, null, true,
       );
     });
 
@@ -96,7 +96,7 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([])  // ON CONFLICT DO NOTHING returns no row
         .mockResolvedValueOnce([]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [FAKE_OUTSCRAPER_REVIEW] }]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
 
       const result = await service.syncReviews('r1');
 
@@ -111,7 +111,7 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ email: 'u@test.com', name: 'Alice' }])
         .mockResolvedValueOnce([]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [FAKE_OUTSCRAPER_REVIEW] }]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
 
       await service.syncReviews('r1');
 
@@ -131,7 +131,7 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ inserted: true }])
         .mockResolvedValueOnce([]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [FAKE_OUTSCRAPER_REVIEW] }]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
 
       await service.syncReviews('r1');
 
@@ -147,7 +147,7 @@ describe('ReviewsService', () => {
       const result = await service.syncReviews('r1');
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        'place1', 5, null, 1, 'newest', null, null,
+        'rplace1', 5, null, 1, 'newest', null, null,
         String(Math.floor(lastSync.getTime() / 1000)),
         null, true,
       );
@@ -231,12 +231,12 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ id: 1 }, { id: 2 }, { id: 3 }])
         .mockResolvedValueOnce([{ pending: 3, replied: 0, total: 3 }]);
 
-      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([[{ reviews: [FAKE_OUTSCRAPER_REVIEW] }]]);
+      mockOutscraperClient.googleMapsReviews.mockResolvedValueOnce([{ reviews_data: [FAKE_OUTSCRAPER_REVIEW] }]);
 
       await service.getReviews('r1', 'all', 1, 5);
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
-        'place1', 5, null, 1, 'newest', 'cursor-abc', null, null, null, true,
+        'rplace1', 5, null, 1, 'newest', 'cursor-abc', null, null, null, true,
       );
     });
   });
