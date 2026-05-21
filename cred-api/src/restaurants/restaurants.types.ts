@@ -20,7 +20,24 @@ export interface Restaurant {
   googleReviewCount: number | null;
   googlePhotoUrl: string | null;
   googleDescription: string | null;
+  restaurantChangedAt: Date | null;
   updatedAt: Date;
+}
+
+export class SwitchRestaurantDto {
+  @IsString()
+  @IsNotEmpty()
+  placeId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  address: string | null;
 }
 
 export class CreateRestaurantDto {

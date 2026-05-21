@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { RestaurantsService } from './restaurants.service';
 import { AppConfigService } from 'src/config/config.service';
 import { RestaurantChanges } from './restaurants.types';
@@ -113,6 +114,52 @@ describe('RestaurantsService', () => {
       });
 
       expect(sql).toHaveBeenCalled();
+    });
+  });
+
+  describe('switchRestaurant', () => {
+    const dto = { placeId: 'new-place', name: 'New Place', address: '1 New St' };
+
+    it('should switch restaurant and return updated row', async () => {
+      sql
+        .mockResolvedValueOnce([{ restaurant_changed_at: null }]) // rate limit check
+        .mockResolvedValueOnce([]) // DELETE reviews
+        .mockResolvedValueOnce([{ id: '1', name: 'New Place', slug: 'new-place' }]); // UPDATE RETURNING
+
+      const result = await service.switchRestaurant('1', 'u1', dto);
+
+      expect(result.name).toBe('New Place');
+      expect(sql).toHaveBeenCalledTimes(3);
+    });
+
+    it('should throw 429 if changed within last 7 days', async () => {
+      const recentChange = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000); // 2 days ago
+      sql.mockResolvedValueOnce([{ restaurant_changed_at: recentChange }]);
+
+      const err = await service.switchRestaurant('1', 'u1', dto).catch((e) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+      expect((err as HttpException).message).toMatch(/day/);
+      expect(sql).toHaveBeenCalledTimes(1);
+    });
+
+    it('should allow switch when restaurant_changed_at is null (initial setup)', async () => {
+      sql
+        .mockResolvedValueOnce([{ restaurant_changed_at: null }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: '1', name: 'New Place' }]);
+
+      await expect(service.switchRestaurant('1', 'u1', dto)).resolves.not.toThrow();
+    });
+
+    it('should allow switch when 7 days have passed', async () => {
+      const oldChange = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
+      sql
+        .mockResolvedValueOnce([{ restaurant_changed_at: oldChange }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: '1', name: 'New Place' }]);
+
+      await expect(service.switchRestaurant('1', 'u1', dto)).resolves.not.toThrow();
     });
   });
 

@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import type { Sql } from 'postgres';
 import { Inject } from '@nestjs/common';
 import type {
   AutoReplyChanges,
   RestaurantChanges,
   Restaurant,
+  SwitchRestaurantDto,
 } from './restaurants.types';
 import { AppConfigService } from '../config/config.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
@@ -36,8 +37,9 @@ export class RestaurantsService {
         google_rating        AS "googleRating",
         google_review_count  AS "googleReviewCount",
         google_photo_url     AS "googlePhotoUrl",
-        google_description   AS "googleDescription",
-        updated_at           AS "updatedAt"
+        google_description      AS "googleDescription",
+        restaurant_changed_at   AS "restaurantChangedAt",
+        updated_at              AS "updatedAt"
       FROM restaurants
       WHERE user_id = ${userId}
     `;
@@ -121,6 +123,70 @@ export class RestaurantsService {
       WHERE id = ${id} AND user_id = ${userId}
     `;
     this.logger.debug({ id }, 'Auto reply updated');
+  }
+
+  async switchRestaurant(
+    id: string,
+    userId: string,
+    data: SwitchRestaurantDto,
+  ): Promise<Restaurant> {
+    const [current] = await this.sql<{ restaurant_changed_at: Date | null }[]>`
+      SELECT restaurant_changed_at FROM restaurants WHERE id = ${id} AND user_id = ${userId}
+    `;
+
+    if (current?.restaurant_changed_at) {
+      const msSinceChange =
+        Date.now() - new Date(current.restaurant_changed_at).getTime();
+      const msInWeek = 7 * 24 * 60 * 60 * 1000;
+      if (msSinceChange < msInWeek) {
+        const daysLeft = Math.ceil((msInWeek - msSinceChange) / 86_400_000);
+        throw new HttpException(
+          `You can change your restaurant again in ${daysLeft} day(s).`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+
+    const slug = data.name
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+
+    await this.sql`DELETE FROM reviews WHERE restaurant_id = ${id}`;
+
+    const [row] = await this.sql<Restaurant[]>`
+      UPDATE restaurants
+      SET
+        google_place_id       = ${data.placeId},
+        name                  = ${data.name},
+        slug                  = ${slug},
+        address               = ${data.address ?? null},
+        last_synced_at        = NULL,
+        google_rating         = NULL,
+        google_review_count   = NULL,
+        google_photo_url      = NULL,
+        google_description    = NULL,
+        restaurant_changed_at = NOW(),
+        updated_at            = NOW()
+      WHERE id = ${id} AND user_id = ${userId}
+      RETURNING
+        id,
+        name,
+        slug,
+        address,
+        google_place_id         AS "googlePlaceId",
+        owner_name              AS "ownerName",
+        additional_info         AS "additionalInfo",
+        google_rating           AS "googleRating",
+        google_review_count     AS "googleReviewCount",
+        google_photo_url        AS "googlePhotoUrl",
+        google_description      AS "googleDescription",
+        restaurant_changed_at   AS "restaurantChangedAt",
+        updated_at              AS "updatedAt"
+    `;
+
+    this.logger.debug({ id, placeId: data.placeId }, 'Restaurant switched');
+    return row;
   }
 
   async searchRestaurants(query: string) {

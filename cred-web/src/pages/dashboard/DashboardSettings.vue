@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Save, Loader2, Check, AlertTriangle, Unlink, ExternalLink } from "lucide-vue-next";
+import { Save, Loader2, Check, AlertTriangle, Unlink, ExternalLink, RefreshCw } from "lucide-vue-next";
 import { useUserStore } from "@/stores/user.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { useRouter } from "vue-router";
 
 const userStore = useUserStore();
 const authStore = useAuthStore();
+const router = useRouter();
+
+function handleChangeRestaurant() {
+    userStore.changingRestaurant = true;
+    void router.push({ name: "dashboard" });
+}
 
 const saving = ref(false);
 const saved = ref(false);
@@ -218,6 +225,27 @@ async function handleDeleteAccount() {
                             <ExternalLink class="w-3.5 h-3.5" />
                             View on Google Maps
                         </a>
+                    </div>
+
+                    <div>
+                        <label
+                            class="block text-xs font-medium text-text-secondary mb-1.5"
+                            >Change Restaurant</label
+                        >
+                        <button
+                            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-border-strong transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            :disabled="!userStore.canChangeRestaurant"
+                            @click="handleChangeRestaurant"
+                        >
+                            <RefreshCw class="w-3.5 h-3.5" />
+                            Change Restaurant
+                        </button>
+                        <p
+                            v-if="!userStore.canChangeRestaurant"
+                            class="text-[10px] text-text-muted mt-1"
+                        >
+                            Available in {{ userStore.daysUntilCanChange }} day(s).
+                        </p>
                     </div>
 
                     <div>

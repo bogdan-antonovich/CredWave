@@ -14,7 +14,7 @@ import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { RestaurantsService } from './restaurants.service';
 import type { RestaurantChanges, AutoReplyChanges } from './restaurants.types';
-import { CreateRestaurantDto } from './restaurants.types';
+import { CreateRestaurantDto, SwitchRestaurantDto } from './restaurants.types';
 import { BadRequestException } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -117,6 +117,32 @@ export class RestaurantsController {
     this.logger.info('Updating restaurant additional info');
     const userId = (req.user as { id: string }).id;
     await this.restaurantsService.updateRestaurantInfo(id, userId, body);
+  }
+
+  @Post(':id/switch')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Switch restaurant to a different Google place (once per week)' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({
+    schema: {
+      required: ['placeId', 'name'],
+      properties: {
+        placeId: { type: 'string' },
+        name: { type: 'string' },
+        address: { type: 'string', nullable: true },
+      },
+    },
+  })
+  @ApiOkResponse({ schema: restaurantSchema })
+  async switchRestaurant(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: SwitchRestaurantDto,
+  ) {
+    this.logger.info('Switching restaurant');
+    const userId = (req.user as { id: string }).id;
+    return await this.restaurantsService.switchRestaurant(id, userId, body);
   }
 
   @Get(':id/auto-reply')

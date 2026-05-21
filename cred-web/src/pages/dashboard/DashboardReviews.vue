@@ -155,11 +155,19 @@ async function handleOnboardingSearch() {
 async function handleSelectRestaurant(result: SearchResult) {
     onboardingCreating.value = true;
     try {
-        await userStore.createRestaurant(
-            result.google_place_id,
-            result.name,
-            result.location,
-        );
+        if (userStore.changingRestaurant) {
+            await userStore.switchRestaurant(
+                result.google_place_id,
+                result.name,
+                result.location,
+            );
+        } else {
+            await userStore.createRestaurant(
+                result.google_place_id,
+                result.name,
+                result.location,
+            );
+        }
         void reviewsStore.fetchReviews(
             userStore.restaurantId!,
             1,
@@ -260,18 +268,25 @@ async function handleSelectRestaurant(result: SearchResult) {
             </button>
         </div>
 
-        <!-- Onboarding: no restaurant yet -->
+        <!-- Onboarding: no restaurant yet OR changing restaurant -->
         <div
-            v-if="!userStore.loading && !userStore.restaurantId"
+            v-if="!userStore.loading && (!userStore.restaurantId || userStore.changingRestaurant)"
             class="max-w-lg mx-auto py-12"
         >
             <div class="text-center mb-8">
                 <h2 class="text-lg font-bold font-display text-text-primary">
-                    Find your restaurant
+                    {{ userStore.changingRestaurant ? "Change your restaurant" : "Find your restaurant" }}
                 </h2>
                 <p class="text-sm text-text-muted mt-1">
-                    Search for your restaurant on Google Maps to get started.
+                    {{ userStore.changingRestaurant ? "Search for the new restaurant and select it." : "Search for your restaurant on Google Maps to get started." }}
                 </p>
+                <button
+                    v-if="userStore.changingRestaurant"
+                    class="mt-3 text-xs text-text-muted hover:text-text-secondary underline"
+                    @click="userStore.changingRestaurant = false"
+                >
+                    Cancel
+                </button>
             </div>
 
             <!-- Search box -->

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { api } from "@/services/api";
 import { identifyUser, resetUser } from "@/services/analytics";
 import { config } from "@/config/env";
@@ -24,6 +24,7 @@ interface ApiRestaurant {
   googleReviewCount: number | null;
   googlePhotoUrl: string | null;
   googleDescription: string | null;
+  restaurantChangedAt: string | null;
   updatedAt: string;
 }
 
@@ -54,6 +55,22 @@ export const useUserStore = defineStore("user", () => {
     googleReviewCount: null as number | null,
     googlePhotoUrl: null as string | null,
     googleDescription: null as string | null,
+    restaurantChangedAt: null as string | null,
+  });
+
+  const changingRestaurant = ref(false);
+
+  const canChangeRestaurant = computed(() => {
+    const changedAt = restaurant.value.restaurantChangedAt;
+    if (!changedAt) return true;
+    return Date.now() - new Date(changedAt).getTime() > 7 * 24 * 60 * 60 * 1000;
+  });
+
+  const daysUntilCanChange = computed(() => {
+    const changedAt = restaurant.value.restaurantChangedAt;
+    if (!changedAt) return 0;
+    const ms = 7 * 24 * 60 * 60 * 1000 - (Date.now() - new Date(changedAt).getTime());
+    return Math.max(1, Math.ceil(ms / 86_400_000));
   });
 
   const autoReply = ref<ApiAutoReply>({
@@ -94,6 +111,7 @@ export const useUserStore = defineStore("user", () => {
         restaurant.value.googleReviewCount = r.googleReviewCount ?? null;
         restaurant.value.googlePhotoUrl = r.googlePhotoUrl ?? null;
         restaurant.value.googleDescription = r.googleDescription ?? null;
+        restaurant.value.restaurantChangedAt = r.restaurantChangedAt ?? null;
 
         const ar = await api.get<ApiAutoReply>(
           `/restaurants/${r.id}/auto-reply`,
@@ -153,6 +171,29 @@ export const useUserStore = defineStore("user", () => {
     restaurant.value.googleReviewCount = r.googleReviewCount ?? null;
     restaurant.value.googlePhotoUrl = r.googlePhotoUrl ?? null;
     restaurant.value.googleDescription = r.googleDescription ?? null;
+    restaurant.value.restaurantChangedAt = r.restaurantChangedAt ?? null;
+  }
+
+  async function switchRestaurant(
+    placeId: string,
+    name: string,
+    address: string | null,
+  ) {
+    if (!restaurantId.value) throw new Error("No restaurant to switch");
+    const r = await api.post<ApiRestaurant>(
+      `/restaurants/${restaurantId.value}/switch`,
+      { placeId, name, address },
+    );
+    restaurant.value.name = r.name ?? "";
+    restaurant.value.ownerName = r.ownerName ?? "";
+    restaurant.value.additionalInfo = r.additionalInfo ?? "";
+    restaurant.value.googlePlaceId = r.googlePlaceId ?? null;
+    restaurant.value.googleRating = r.googleRating ?? null;
+    restaurant.value.googleReviewCount = r.googleReviewCount ?? null;
+    restaurant.value.googlePhotoUrl = r.googlePhotoUrl ?? null;
+    restaurant.value.googleDescription = r.googleDescription ?? null;
+    restaurant.value.restaurantChangedAt = r.restaurantChangedAt ?? null;
+    changingRestaurant.value = false;
   }
 
   async function disconnectGoogle() {
@@ -176,11 +217,15 @@ export const useUserStore = defineStore("user", () => {
     profile,
     restaurant,
     autoReply,
+    changingRestaurant,
+    canChangeRestaurant,
+    daysUntilCanChange,
     fetchAll,
     saveSettings,
     setAutoReplyEnabled,
     setAutoReplyTone,
     createRestaurant,
+    switchRestaurant,
     disconnectGoogle,
     deleteAccount,
   };

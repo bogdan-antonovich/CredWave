@@ -208,6 +208,96 @@ describe('Restaurants (integration)', () => {
     });
   });
 
+  describe('POST /restaurants/:id/switch', () => {
+    it('switches to a new restaurant and returns 201', async () => {
+      const res = await request(server)
+        .post(`/restaurants/${restaurantId}/switch`)
+        .set('Authorization', 'Bearer token')
+        .send({ placeId: 'ChIJ_new_place', name: 'New Bistro', address: '2 New St' })
+        .expect(201);
+
+      const body = res.body as { name: string; googlePlaceId: string };
+      expect(body.name).toBe('New Bistro');
+      expect(body.googlePlaceId).toBe('ChIJ_new_place');
+    });
+
+    it('updates the restaurant row in the DB', async () => {
+      await request(server)
+        .post(`/restaurants/${restaurantId}/switch`)
+        .set('Authorization', 'Bearer token')
+        .send({ placeId: 'ChIJ_new_place', name: 'New Bistro', address: null })
+        .expect(201);
+
+      const [row] = await sql<{ name: string; google_place_id: string; last_synced_at: Date | null }[]>`
+        SELECT name, google_place_id, last_synced_at FROM restaurants WHERE id = ${restaurantId}
+      `;
+      expect(row.name).toBe('New Bistro');
+      expect(row.google_place_id).toBe('ChIJ_new_place');
+      expect(row.last_synced_at).toBeNull();
+    });
+
+    it('deletes all existing reviews', async () => {
+      await sql`
+        INSERT INTO reviews (restaurant_id, google_review_id, reviewer_name, reviewer_avatar_url, review_text, rating, posted_at, replied)
+        VALUES (${restaurantId}, 'rev-001', 'Alice', 'https://example.com/alice.jpg', 'Great!', 5, NOW(), false)
+      `;
+
+      await request(server)
+        .post(`/restaurants/${restaurantId}/switch`)
+        .set('Authorization', 'Bearer token')
+        .send({ placeId: 'ChIJ_new_place', name: 'New Bistro', address: null })
+        .expect(201);
+
+      const reviews = await sql`SELECT * FROM reviews WHERE restaurant_id = ${restaurantId}`;
+      expect(reviews).toHaveLength(0);
+    });
+
+    it('sets restaurant_changed_at', async () => {
+      const before = new Date();
+
+      await request(server)
+        .post(`/restaurants/${restaurantId}/switch`)
+        .set('Authorization', 'Bearer token')
+        .send({ placeId: 'ChIJ_new_place', name: 'New Bistro', address: null })
+        .expect(201);
+
+      const [row] = await sql<{ restaurant_changed_at: Date }[]>`
+        SELECT restaurant_changed_at FROM restaurants WHERE id = ${restaurantId}
+      `;
+      expect(row.restaurant_changed_at.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    });
+
+    it('returns 429 when switched within the last 7 days', async () => {
+      await sql`
+        UPDATE restaurants
+        SET restaurant_changed_at = NOW() - INTERVAL '2 days'
+        WHERE id = ${restaurantId}
+      `;
+
+      const res = await request(server)
+        .post(`/restaurants/${restaurantId}/switch`)
+        .set('Authorization', 'Bearer token')
+        .send({ placeId: 'ChIJ_other', name: 'Other Place', address: null })
+        .expect(429);
+
+      expect(res.body.message).toMatch(/day/);
+    });
+
+    it('allows switch when 7 days have passed', async () => {
+      await sql`
+        UPDATE restaurants
+        SET restaurant_changed_at = NOW() - INTERVAL '8 days'
+        WHERE id = ${restaurantId}
+      `;
+
+      await request(server)
+        .post(`/restaurants/${restaurantId}/switch`)
+        .set('Authorization', 'Bearer token')
+        .send({ placeId: 'ChIJ_new_place', name: 'New Bistro', address: null })
+        .expect(201);
+    });
+  });
+
   describe('GET /restaurants/search', () => {
     it('returns 400 when query is missing', async () => {
       await request(server).get('/restaurants/search').expect(400);
