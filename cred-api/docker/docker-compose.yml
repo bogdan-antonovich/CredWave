@@ -47,6 +47,8 @@ services:
         target: ADMIN_PASSWORD_FILE
       - source: RESEND_API_KEY_FILE
         target: RESEND_API_KEY_FILE
+      - source: OUTSCRAPER_API_KEY_FILE
+        target: OUTSCRAPER_API_KEY_FILE
     networks:
       - credwave
     ports:
