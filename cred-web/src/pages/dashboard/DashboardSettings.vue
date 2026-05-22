@@ -9,8 +9,11 @@ const userStore = useUserStore();
 const authStore = useAuthStore();
 const router = useRouter();
 
+const showChangeRestaurantModal = ref(false);
+
 function handleChangeRestaurant() {
     userStore.changingRestaurant = true;
+    showChangeRestaurantModal.value = false;
     void router.push({ name: "dashboard" });
 }
 
@@ -235,7 +238,7 @@ async function handleDeleteAccount() {
                         <button
                             class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-border-strong transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             :disabled="!userStore.canChangeRestaurant"
-                            @click="handleChangeRestaurant"
+                            @click="showChangeRestaurantModal = true"
                         >
                             <RefreshCw class="w-3.5 h-3.5" />
                             Change Restaurant
@@ -325,6 +328,36 @@ async function handleDeleteAccount() {
             </section>
         </div>
     </div>
+
+    <!-- ═══ Change Restaurant Modal ═══ -->
+    <Teleport to="body">
+        <div
+            v-if="showChangeRestaurantModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            @click.self="showChangeRestaurantModal = false"
+        >
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+                <h3 class="text-base font-bold text-text-primary mb-1">Change restaurant?</h3>
+                <p class="text-xs text-text-muted mb-5 leading-relaxed">
+                    This will replace your current restaurant with a new one. All existing reviews and replies will be deleted. You won't be able to change it again for 7 days.
+                </p>
+                <div class="flex gap-3">
+                    <button
+                        class="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-text-secondary hover:bg-surface-warm transition-colors"
+                        @click="showChangeRestaurantModal = false"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        class="flex-1 px-4 py-2.5 text-sm font-semibold rounded-lg bg-brand text-white hover:bg-brand-subtle transition-all duration-200"
+                        @click="handleChangeRestaurant"
+                    >
+                        Yes, change restaurant
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
 
     <!-- ═══ Delete Account Modal ═══ -->
     <Teleport to="body">

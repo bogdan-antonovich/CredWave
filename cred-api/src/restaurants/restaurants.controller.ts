@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   Body,
+  Delete,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
