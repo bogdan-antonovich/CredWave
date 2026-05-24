@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Save, Loader2, Check, AlertTriangle, Unlink, ExternalLink, RefreshCw } from "lucide-vue-next";
+import {
+    Save,
+    Loader2,
+    Check,
+    AlertTriangle,
+    Unlink,
+    ExternalLink,
+    RefreshCw,
+} from "lucide-vue-next";
 import { useUserStore } from "@/stores/user.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useRouter } from "vue-router";
@@ -133,7 +141,10 @@ async function handleDeleteAccount() {
                     </div>
                     <div>
                         <p class="text-sm font-semibold text-text-primary">
-                            {{ userStore.restaurant.ownerName || userStore.profile.name }}
+                            {{
+                                userStore.restaurant.ownerName ||
+                                userStore.profile.name
+                            }}
                         </p>
                         <p class="text-xs text-text-muted">
                             {{ userStore.profile.email }}
@@ -168,16 +179,24 @@ async function handleDeleteAccount() {
             >
                 <AlertTriangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <div>
-                    <p class="text-sm font-semibold text-amber-800">No restaurant connected</p>
+                    <p class="text-sm font-semibold text-amber-800">
+                        No restaurant connected
+                    </p>
                     <p class="text-xs text-amber-700 mt-1 leading-relaxed">
-                        CredWave couldn't find a Google Business Profile linked to your account.
-                        Make sure your Google account has a verified Business Profile, then reconnect below.
+                        You haven't connected your restaurant to your CredWave
+                        account. You can do it
+                        <a
+                            href="#"
+                            class="text-amber-700 underline"
+                            @click.prevent="router.push({ name: 'dashboard' })"
+                            >here</a
+                        >, by searching for your restaurant on Google Maps.
                     </p>
                     <button
                         class="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors"
-                        @click="authStore.login()"
+                        @click="router.push({ name: 'dashboard' })"
                     >
-                        Reconnect Google account
+                        Connect Your Restaurant
                     </button>
                 </div>
             </section>
@@ -247,7 +266,8 @@ async function handleDeleteAccount() {
                             v-if="!userStore.canChangeRestaurant"
                             class="text-[10px] text-text-muted mt-1"
                         >
-                            Available in {{ userStore.daysUntilCanChange }} day(s).
+                            Available in
+                            {{ userStore.daysUntilCanChange }} day(s).
                         </p>
                     </div>
 
@@ -284,26 +304,42 @@ async function handleDeleteAccount() {
             </section>
 
             <!-- ═══ Google Account ═══ -->
-            <section class="bg-white border border-border-subtle rounded-2xl p-6">
-                <h2 class="text-sm font-bold text-text-primary mb-1">Google Account</h2>
+            <section
+                class="bg-white border border-border-subtle rounded-2xl p-6"
+            >
+                <h2 class="text-sm font-bold text-text-primary mb-1">
+                    Google Account
+                </h2>
                 <p class="text-xs text-text-muted mb-4">
-                    Disconnecting removes access to review sync and auto-reply. Your existing data is kept.
+                    Disconnecting removes access to review sync and auto-reply.
+                    Your existing data is kept.
                 </p>
 
                 <div v-if="userStore.googleConnected">
-                    <p v-if="disconnectError" class="text-xs text-error mb-3">{{ disconnectError }}</p>
+                    <p v-if="disconnectError" class="text-xs text-error mb-3">
+                        {{ disconnectError }}
+                    </p>
                     <button
                         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-border text-text-secondary hover:border-error/40 hover:text-error transition-all duration-200 disabled:opacity-50"
                         :disabled="disconnecting"
                         @click="handleDisconnectGoogle"
                     >
-                        <Loader2 v-if="disconnecting" class="w-4 h-4 animate-spin" />
+                        <Loader2
+                            v-if="disconnecting"
+                            class="w-4 h-4 animate-spin"
+                        />
                         <Unlink v-else class="w-4 h-4" />
-                        {{ disconnecting ? "Disconnecting..." : "Disconnect Google" }}
+                        {{
+                            disconnecting
+                                ? "Disconnecting..."
+                                : "Disconnect Google"
+                        }}
                     </button>
                 </div>
                 <div v-else class="flex items-center justify-between">
-                    <p class="text-xs text-amber-600 font-medium">Google account disconnected — sync paused</p>
+                    <p class="text-xs text-amber-600 font-medium">
+                        Google account disconnected — sync paused
+                    </p>
                     <button
                         class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-brand text-white hover:bg-brand-subtle transition-colors"
                         @click="authStore.login()"
@@ -317,7 +353,9 @@ async function handleDeleteAccount() {
             <section class="bg-white border border-error/20 rounded-2xl p-6">
                 <h2 class="text-sm font-bold text-error mb-1">Danger Zone</h2>
                 <p class="text-xs text-text-muted mb-4">
-                    Permanently deletes your account, all restaurant data, reviews, and cancels your subscription. This cannot be undone.
+                    Permanently deletes your account, all restaurant data,
+                    reviews, and cancels your subscription. This cannot be
+                    undone.
                 </p>
                 <button
                     class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-error/30 text-error hover:bg-error/5 transition-all duration-200"
@@ -337,9 +375,13 @@ async function handleDeleteAccount() {
             @click.self="showChangeRestaurantModal = false"
         >
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-                <h3 class="text-base font-bold text-text-primary mb-1">Change restaurant?</h3>
+                <h3 class="text-base font-bold text-text-primary mb-1">
+                    Change restaurant?
+                </h3>
                 <p class="text-xs text-text-muted mb-5 leading-relaxed">
-                    This will replace your current restaurant with a new one. All existing reviews and replies will be deleted. You won't be able to change it again for 7 days.
+                    This will replace your current restaurant with a new one.
+                    All existing reviews and replies will be deleted. You won't
+                    be able to change it again for 7 days.
                 </p>
                 <div class="flex gap-3">
                     <button
@@ -367,12 +409,18 @@ async function handleDeleteAccount() {
             @click.self="showDeleteModal = false"
         >
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-                <h3 class="text-base font-bold text-text-primary mb-1">Delete your account?</h3>
+                <h3 class="text-base font-bold text-text-primary mb-1">
+                    Delete your account?
+                </h3>
                 <p class="text-xs text-text-muted mb-5 leading-relaxed">
-                    This will permanently delete all your data and cancel your subscription immediately. To confirm, type your email address below.
+                    This will permanently delete all your data and cancel your
+                    subscription immediately. To confirm, type your email
+                    address below.
                 </p>
 
-                <label class="block text-xs font-medium text-text-secondary mb-1.5">
+                <label
+                    class="block text-xs font-medium text-text-secondary mb-1.5"
+                >
                     Your email address
                 </label>
                 <input
@@ -382,7 +430,9 @@ async function handleDeleteAccount() {
                     class="w-full px-3.5 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-error/20 focus:border-error transition-all mb-4"
                 />
 
-                <p v-if="deleteError" class="text-xs text-error mb-3">{{ deleteError }}</p>
+                <p v-if="deleteError" class="text-xs text-error mb-3">
+                    {{ deleteError }}
+                </p>
 
                 <div class="flex gap-3">
                     <button
@@ -393,11 +443,18 @@ async function handleDeleteAccount() {
                     </button>
                     <button
                         class="flex-1 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 disabled:opacity-40"
-                        :class="deleteEmailMatches ? 'bg-error text-white hover:bg-error/90' : 'bg-error/20 text-error cursor-not-allowed'"
+                        :class="
+                            deleteEmailMatches
+                                ? 'bg-error text-white hover:bg-error/90'
+                                : 'bg-error/20 text-error cursor-not-allowed'
+                        "
                         :disabled="!deleteEmailMatches || deleting"
                         @click="handleDeleteAccount"
                     >
-                        <span v-if="deleting" class="flex items-center justify-center gap-2">
+                        <span
+                            v-if="deleting"
+                            class="flex items-center justify-center gap-2"
+                        >
                             <Loader2 class="w-4 h-4 animate-spin" /> Deleting...
                         </span>
                         <span v-else>Yes, delete my account</span>
