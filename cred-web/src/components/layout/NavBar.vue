@@ -5,6 +5,8 @@ import { Menu, X } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUserStore } from '@/stores/user.store'
 import { config } from '@/config/env'
+import { isDashboardDomain } from '@/utils/domain'
+import { api, ApiError } from '@/services/api'
 
 defineProps<{
   dark?: boolean
@@ -15,6 +17,36 @@ const auth = useAuthStore()
 const userStore = useUserStore()
 const mobileOpen = ref(false)
 const avatarOpen = ref(false)
+
+// Build a dashboard URL that carries current tokens so the dashboard
+// subdomain always has fresh auth regardless of its own localStorage state.
+function buildDashboardUrl(): string {
+  const base = config.dashboardUrl
+  if (!base || !auth.accessToken || !auth.refreshToken) return base || '/dashboard'
+  const url = new URL(`${base}/auth/callback`)
+  url.searchParams.set('access_token', auth.accessToken)
+  url.searchParams.set('refresh_token', auth.refreshToken)
+  return url.toString()
+}
+
+// When clicking "Dashboard" on the marketing site: verify the user has an
+// active subscription first. If not, send them to /pricing instead.
+// On the dashboard subdomain the link is a no-op (user is already there).
+async function goToDashboard() {
+  if (isDashboardDomain) return
+
+  try {
+    await api.get('/billing/subscription')
+    window.location.href = buildDashboardUrl()
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      window.location.href = '/pricing'
+    } else {
+      // Any other error (network, 401 handled by api.ts) — fall back to dashboard
+      window.location.href = buildDashboardUrl()
+    }
+  }
+}
 
 function isActive(path: string) {
   return route.path === path || route.path.startsWith(path + '/')
@@ -98,9 +130,10 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
         </RouterLink>
         <a
           v-if="auth.isAuthenticated"
-          :href="config.dashboardUrl || '/dashboard'"
+          href="#"
           class="text-sm transition-colors duration-200 px-3 py-2 text-center"
           :class="dark ? 'text-white/40 hover:text-white/70' : 'text-text-muted hover:text-text-primary'"
+          @click.prevent="goToDashboard"
         >
           Dashboard
         </a>
@@ -194,9 +227,9 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
         <div class="border-t border-border-subtle my-1" />
         <a
           v-if="auth.isAuthenticated"
-          :href="config.dashboardUrl || '/dashboard'"
+          href="#"
           class="px-3 py-2.5 text-sm text-text-secondary rounded-lg hover:bg-surface-warm transition-colors"
-          @click="closeMenu"
+          @click.prevent="closeMenu(); goToDashboard()"
         >
           Dashboard
         </a>
