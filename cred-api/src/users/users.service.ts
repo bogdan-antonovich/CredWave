@@ -94,7 +94,6 @@ export class UsersService {
       `;
       await tx`DELETE FROM restaurants WHERE user_id = ${userId}`;
       await tx`DELETE FROM auth_tokens WHERE user_id = ${userId}`;
-      await tx`DELETE FROM blacklisted_tokens WHERE user_id = ${userId}`;
       await tx`DELETE FROM gl_access_tokens WHERE user_id = ${userId}`;
       await tx`DELETE FROM gl_refresh_tokens WHERE user_id = ${userId}`;
       await tx`DELETE FROM subscriptions WHERE user_id = ${userId}`;

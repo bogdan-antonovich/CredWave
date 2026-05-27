@@ -88,7 +88,7 @@ export class BillingService {
         SELECT id FROM restaurants WHERE user_id = ${userId}
       )
       AND posted_at > (
-        SELECT current_period_end - INTERVAL '1 month' FROM subscriptions WHERE user_id = ${userId}
+        SELECT current_period_end - INTERVAL '1 month' FROM subscriptions WHERE user_id = ${userId} LIMIT 1
       )
     `;
 
@@ -191,7 +191,15 @@ export class BillingService {
         ${this.planLimits[planName] ?? 50},
         ${data.currentBillingPeriod?.endsAt ?? null}
       FROM users u WHERE u.paddle_customer_id = ${data.customerId}
-      ON CONFLICT (paddle_subscription_id) DO NOTHING
+      ON CONFLICT (user_id) DO UPDATE SET
+        paddle_subscription_id = EXCLUDED.paddle_subscription_id,
+        plan_name              = EXCLUDED.plan_name,
+        price                  = EXCLUDED.price,
+        period                 = EXCLUDED.period,
+        status                 = EXCLUDED.status,
+        reviews_limit          = EXCLUDED.reviews_limit,
+        current_period_end     = EXCLUDED.current_period_end,
+        updated_at             = NOW()
     `;
 
     this.logger.debug(
