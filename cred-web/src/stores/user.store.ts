@@ -206,6 +206,23 @@ export const useUserStore = defineStore("user", () => {
     resetUser();
     localStorage.removeItem("cw_access_token");
     localStorage.removeItem("cw_refresh_token");
+    // Wipe in-memory state so nothing flashes before navigation
+    id.value = null;
+    restaurantId.value = null;
+    googleConnected.value = false;
+    profile.value = { email: "", name: "", pictureUrl: "" };
+    restaurant.value = {
+      name: "",
+      ownerName: "",
+      additionalInfo: "",
+      googlePlaceId: null,
+      googleRating: null,
+      googleReviewCount: null,
+      googlePhotoUrl: null,
+      googleDescription: null,
+      restaurantChangedAt: null,
+    };
+    autoReply.value = { enabled: false, defaultTone: "professional", customInstructions: "" };
     window.location.href = config.appUrl;
   }
 

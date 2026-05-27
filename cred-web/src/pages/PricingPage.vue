@@ -10,7 +10,7 @@ useHead({
         {
             name: "description",
             content:
-                "Start free for 14 days. Plans from $29/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.",
+                "Start free for 14 days. Plans from $9/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.",
         },
         { property: "og:image", content: "https://credwave.app/meta.png" },
         { property: "og:image:width", content: "1200" },
@@ -106,8 +106,8 @@ const isAnnual = ref(true);
 const plans = computed(() => [
     {
         name: "Starter",
-        priceMonthly: 29,
-        priceAnnual: 24,
+        priceMonthly: 9,
+        priceAnnual: 8,
         features: [
             "Google Business Profile integration",
             "3 AI response options per review",
@@ -121,8 +121,8 @@ const plans = computed(() => [
     },
     {
         name: "Growth",
-        priceMonthly: 79,
-        priceAnnual: 66,
+        priceMonthly: 19,
+        priceAnnual: 16,
         features: [
             "Everything in Starter",
             "Auto-reply to new reviews",
@@ -137,8 +137,8 @@ const plans = computed(() => [
     },
     {
         name: "Scale",
-        priceMonthly: 149,
-        priceAnnual: 124,
+        priceMonthly: 49,
+        priceAnnual: 41,
         features: [
             "Everything in Growth",
             "Multiple location support",
