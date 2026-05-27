@@ -444,6 +444,19 @@ export class BillingService {
     }
   }
 
+  async cancelSubscription(userId: string): Promise<void> {
+    const [sub] = await this.sql<{ paddle_subscription_id: string }[]>`
+      SELECT paddle_subscription_id FROM subscriptions WHERE user_id = ${userId}
+    `;
+    if (!sub) throw new NotFoundException('No active subscription found');
+
+    await this.paddle.subscriptions.cancel(sub.paddle_subscription_id, {
+      effectiveFrom: 'next_billing_period',
+    });
+
+    this.logger.debug({ userId }, 'Subscription cancellation initiated');
+  }
+
   async changePlan(
     userId: string,
     priceId: string,

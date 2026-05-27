@@ -8,12 +8,13 @@ import { EmailService } from '../email/email.serivice';
 const mockGetInvoicePDF = jest.fn();
 
 const mockSubscriptionsUpdate = jest.fn();
+const mockSubscriptionsCancel = jest.fn();
 
 const mockPaddle = {
   transactions: { getInvoicePDF: mockGetInvoicePDF },
   customerPortalSessions: { create: jest.fn() },
   webhooks: { unmarshal: jest.fn() },
-  subscriptions: { update: mockSubscriptionsUpdate },
+  subscriptions: { update: mockSubscriptionsUpdate, cancel: mockSubscriptionsCancel },
 };
 
 const mockSql = jest.fn().mockResolvedValue([]);
@@ -42,6 +43,28 @@ async function buildService(): Promise<BillingService> {
 
 describe('BillingService', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  describe('cancelSubscription', () => {
+    it('calls paddle subscriptions.cancel with next_billing_period', async () => {
+      mockSql.mockResolvedValueOnce([{ paddle_subscription_id: 'sub_abc' }]);
+      mockSubscriptionsCancel.mockResolvedValueOnce({});
+      const service = await buildService();
+
+      await service.cancelSubscription('user_1');
+
+      expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_abc', {
+        effectiveFrom: 'next_billing_period',
+      });
+    });
+
+    it('throws NotFoundException when user has no subscription', async () => {
+      mockSql.mockResolvedValueOnce([]);
+      const service = await buildService();
+
+      const err = await service.cancelSubscription('user_1').catch(e => e);
+      expect(err.getStatus()).toBe(404);
+    });
+  });
 
   describe('changePlan', () => {
     it('uses prorated_immediately for an active subscription', async () => {

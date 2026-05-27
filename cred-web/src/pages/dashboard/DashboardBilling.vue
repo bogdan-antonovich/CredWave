@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { CreditCard, Download, ExternalLink, Check, AlertCircle, Loader2, Tag, ChevronDown } from 'lucide-vue-next'
+import { CreditCard, Download, ExternalLink, Check, AlertCircle, Loader2, Tag, ChevronDown, X } from 'lucide-vue-next'
 import { useBillingStore } from '@/stores/billing.store'
 import { config } from '@/config/env'
 
@@ -10,6 +10,8 @@ onMounted(() => void billingStore.fetchAll())
 
 const showPlanPicker = ref(false)
 const changePlanError = ref('')
+const showCancelModal = ref(false)
+const cancelError = ref('')
 
 const usagePercent = computed(() => {
   const usage = billingStore.subscription?.usage
@@ -70,6 +72,16 @@ async function selectPlan(plan: (typeof availablePlans.value)[number]) {
     showPlanPicker.value = false
   } catch {
     changePlanError.value = 'Failed to change plan. Please try again or contact support.'
+  }
+}
+
+async function handleCancel() {
+  cancelError.value = ''
+  try {
+    await billingStore.cancelSubscription()
+    showCancelModal.value = false
+  } catch {
+    cancelError.value = 'Failed to cancel. Please try again or contact support.'
   }
 }
 
@@ -346,8 +358,8 @@ function statusLabel(status: string) {
         </div>
       </section>
 
-      <!-- Manage externally -->
-      <div class="text-center">
+      <!-- Manage externally / Cancel -->
+      <div class="flex items-center justify-between">
         <button
           class="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-accent transition-colors disabled:opacity-50"
           :disabled="billingStore.portalLoading"
@@ -357,7 +369,59 @@ function statusLabel(status: string) {
           <ExternalLink v-else class="w-3.5 h-3.5" />
           Manage subscription via Paddle
         </button>
+
+        <button
+          v-if="billingStore.subscription?.plan.status !== 'canceled'"
+          class="text-xs text-text-muted hover:text-error transition-colors"
+          @click="showCancelModal = true"
+        >
+          Cancel subscription
+        </button>
       </div>
     </div>
   </div>
+
+  <!-- ═══ Cancel Subscription Modal ═══ -->
+  <Teleport to="body">
+    <div
+      v-if="showCancelModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      @click.self="showCancelModal = false"
+    >
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-text-primary">Cancel subscription?</h3>
+            <p class="text-xs text-text-muted mt-1 leading-relaxed">
+              You'll keep access until
+              <span class="font-medium text-text-primary">{{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}</span>.
+              No refund is issued for the remaining period.
+            </p>
+          </div>
+          <button class="text-text-muted hover:text-text-primary transition-colors ml-4 shrink-0" @click="showCancelModal = false">
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <p v-if="cancelError" class="text-xs text-error mb-3">{{ cancelError }}</p>
+
+        <div class="flex gap-3">
+          <button
+            class="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-text-secondary hover:bg-surface-warm transition-colors"
+            @click="showCancelModal = false"
+          >
+            Keep subscription
+          </button>
+          <button
+            class="flex-1 px-4 py-2.5 text-sm font-semibold rounded-lg bg-error text-white hover:bg-error/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            :disabled="billingStore.cancelLoading"
+            @click="handleCancel"
+          >
+            <Loader2 v-if="billingStore.cancelLoading" class="w-3.5 h-3.5 animate-spin" />
+            Yes, cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>

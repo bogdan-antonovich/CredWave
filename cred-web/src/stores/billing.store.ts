@@ -50,6 +50,7 @@ export const useBillingStore = defineStore('billing', () => {
   const loading = ref(false)
   const portalLoading = ref(false)
   const changePlanLoading = ref(false)
+  const cancelLoading = ref(false)
   const hasSubscription = ref(true)
   const downloadingInvoiceId = ref<string | null>(null)
 
@@ -97,6 +98,17 @@ export const useBillingStore = defineStore('billing', () => {
     }
   }
 
+  async function cancelSubscription() {
+    cancelLoading.value = true
+    try {
+      await api.post('/billing/subscription/cancel')
+      await new Promise(r => setTimeout(r, 1500))
+      await fetchSubscription()
+    } finally {
+      cancelLoading.value = false
+    }
+  }
+
   async function changePlan(priceId: string, planName: string) {
     changePlanLoading.value = true
     try {
@@ -127,11 +139,13 @@ export const useBillingStore = defineStore('billing', () => {
     loading,
     portalLoading,
     changePlanLoading,
+    cancelLoading,
     hasSubscription,
     downloadingInvoiceId,
     fetchAll,
     openPortal,
     downloadInvoice,
     changePlan,
+    cancelSubscription,
   }
 })

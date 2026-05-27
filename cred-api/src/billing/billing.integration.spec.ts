@@ -56,6 +56,7 @@ const mockPortalCreate = jest.fn();
 const mockUnmarshal = jest.fn();
 const mockGetInvoicePDF = jest.fn();
 const mockSubscriptionsUpdate = jest.fn();
+const mockSubscriptionsCancel = jest.fn();
 
 const mockPaddle = {
   customerPortalSessions: {
@@ -69,6 +70,7 @@ const mockPaddle = {
   },
   subscriptions: {
     update: mockSubscriptionsUpdate,
+    cancel: mockSubscriptionsCancel,
   },
 };
 
@@ -225,6 +227,34 @@ describe('/billing route', () => {
       const body = res.body as InvoicesResponse;
 
       expect(body.invoices.length).toBe(2);
+    });
+  });
+
+  describe('POST /billing/subscription/cancel', () => {
+    it('calls paddle subscriptions.cancel and returns ok', async () => {
+      await sql`
+        INSERT INTO subscriptions (
+          user_id, plan_name, price, period, status,
+          current_period_end, paddle_subscription_id, reviews_limit
+        )
+        VALUES (1, 'growth', 2300, 'month', 'active', NOW() + INTERVAL '1 month', 'sub_123', 100)
+      `;
+      mockSubscriptionsCancel.mockResolvedValueOnce({});
+
+      const res = await request(server)
+        .post('/billing/subscription/cancel')
+        .expect(201);
+
+      expect(res.body).toEqual({ ok: true });
+      expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_123', {
+        effectiveFrom: 'next_billing_period',
+      });
+    });
+
+    it('returns 404 when user has no subscription', async () => {
+      await request(server)
+        .post('/billing/subscription/cancel')
+        .expect(404);
     });
   });
 

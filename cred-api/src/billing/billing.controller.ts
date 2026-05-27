@@ -86,6 +86,18 @@ export class BillingController {
     return await this.srv.getInvoices(userId);
   }
 
+  @Post('subscription/cancel')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel the current subscription at period end' })
+  @ApiOkResponse({ description: 'Cancellation scheduled' })
+  async cancelSubscription(@Req() req: Request) {
+    this.logger.info('Cancelling subscription');
+    const userId = (req.user as { id: string }).id;
+    await this.srv.cancelSubscription(userId);
+    return { ok: true };
+  }
+
   @Post('subscription/change')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
