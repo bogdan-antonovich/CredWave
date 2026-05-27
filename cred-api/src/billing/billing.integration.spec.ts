@@ -231,7 +231,7 @@ describe('/billing route', () => {
   });
 
   describe('POST /billing/subscription/cancel', () => {
-    it('calls paddle subscriptions.cancel and returns ok', async () => {
+    it('clears scheduled changes then cancels at period end', async () => {
       await sql`
         INSERT INTO subscriptions (
           user_id, plan_name, price, period, status,
@@ -239,6 +239,7 @@ describe('/billing route', () => {
         )
         VALUES (1, 'growth', 2300, 'month', 'active', NOW() + INTERVAL '1 month', 'sub_123', 100)
       `;
+      mockSubscriptionsUpdate.mockResolvedValueOnce({});
       mockSubscriptionsCancel.mockResolvedValueOnce({});
 
       const res = await request(server)
@@ -246,9 +247,8 @@ describe('/billing route', () => {
         .expect(201);
 
       expect(res.body).toEqual({ ok: true });
-      expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_123', {
-        effectiveFrom: 'next_billing_period',
-      });
+      expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_123', { scheduledChange: null });
+      expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_123', { effectiveFrom: 'next_billing_period' });
     });
 
     it('returns 404 when user has no subscription', async () => {

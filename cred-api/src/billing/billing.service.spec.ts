@@ -45,16 +45,16 @@ describe('BillingService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('cancelSubscription', () => {
-    it('calls paddle subscriptions.cancel with next_billing_period', async () => {
+    it('clears scheduled changes then cancels at next_billing_period', async () => {
       mockSql.mockResolvedValueOnce([{ paddle_subscription_id: 'sub_abc' }]);
+      mockSubscriptionsUpdate.mockResolvedValueOnce({});
       mockSubscriptionsCancel.mockResolvedValueOnce({});
       const service = await buildService();
 
       await service.cancelSubscription('user_1');
 
-      expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_abc', {
-        effectiveFrom: 'next_billing_period',
-      });
+      expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_abc', { scheduledChange: null });
+      expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_abc', { effectiveFrom: 'next_billing_period' });
     });
 
     it('throws NotFoundException when user has no subscription', async () => {

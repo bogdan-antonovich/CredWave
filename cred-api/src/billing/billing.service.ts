@@ -460,6 +460,13 @@ export class BillingService {
     `;
     if (!sub) throw new NotFoundException('No active subscription found');
 
+    // Paddle rejects cancel with subscription_locked_pending_changes if there
+    // are scheduled changes queued (e.g. a previous plan switch). Clear them
+    // first — passing null is a no-op when nothing is pending.
+    await this.paddle.subscriptions.update(sub.paddle_subscription_id, {
+      scheduledChange: null,
+    });
+
     await this.paddle.subscriptions.cancel(sub.paddle_subscription_id, {
       effectiveFrom: 'next_billing_period',
     });
