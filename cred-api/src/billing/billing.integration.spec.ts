@@ -438,6 +438,39 @@ describe('/billing route', () => {
       expect(body.received).toBe(true);
     });
 
+    it('subscription.updated with scheduledChange.cancel sets status to canceled', async () => {
+      await sql`
+        INSERT INTO subscriptions (
+          user_id, plan_name, price, period, status,
+          current_period_end, paddle_subscription_id, reviews_limit
+        )
+        VALUES (1, 'growth', 2300, 'month', 'active', NOW() + INTERVAL '1 month', 'sub_123', 100)
+      `;
+
+      mockUnmarshal.mockResolvedValueOnce({
+        eventType: 'subscription.updated',
+        data: {
+          id: 'sub_123',
+          customerId: 'cust_123',
+          customData: null,
+          status: 'active',
+          scheduledChange: { action: 'cancel', effectiveAt: new Date(), resumeAt: null },
+          billingCycle: { interval: 'month' },
+          items: [{ price: { name: 'Growth', unitPrice: { amount: '2300' } } }],
+          currentBillingPeriod: { endsAt: new Date(Date.now() + 30 * 86400000) },
+        },
+      });
+
+      await request(server)
+        .post('/billing/webhooks/paddle')
+        .set('paddle-signature', 'ok')
+        .send({})
+        .expect(201);
+
+      const [sub] = await sql<{ status: string }[]>`SELECT status FROM subscriptions WHERE user_id = 1`;
+      expect(sub.status).toBe('canceled');
+    });
+
     it('transaction.completed with $0 does not save invoice or payment method', async () => {
       mockUnmarshal.mockResolvedValueOnce({
         eventType: 'transaction.completed',

@@ -275,9 +275,15 @@ export class BillingService {
 
     const price = Number(data.items[0]?.price?.unitPrice?.amount ?? 0);
 
+    // If Paddle reports a scheduled cancellation treat the subscription as
+    // already canceled — the actual subscription.canceled event fires at period
+    // end, but we want the UI to reflect the user's intent immediately.
+    const effectiveStatus =
+      data.scheduledChange?.action === 'cancel' ? 'canceled' : data.status;
+
     await this.sql`
       UPDATE subscriptions
-      SET status = ${data.status},
+      SET status = ${effectiveStatus},
           plan_name = ${planName},
           price = ${price},
           period = ${data.billingCycle.interval},
