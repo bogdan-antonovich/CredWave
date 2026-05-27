@@ -62,6 +62,7 @@ export function openCheckout(
   priceId: string,
   userId: number,
   userEmail: string,
+  planName: string,
   successUrl?: string,
 ): void {
   if (!window.Paddle) {
@@ -70,7 +71,8 @@ export function openCheckout(
   }
   window.Paddle.Checkout.open({
     items: [{ priceId, quantity: 1 }],
-    customData: { userId },
+    // planName lets the backend identify the plan reliably — price.name can be null
+    customData: { userId, planName },
     customer: { email: userEmail },
     ...(successUrl ? { settings: { successUrl } } : {}),
   });

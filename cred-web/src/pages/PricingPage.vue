@@ -42,14 +42,15 @@ const promoError = ref("");
 
 onMounted(async () => {
     // Resume pending Paddle checkout after auth
-    const pending = localStorage.getItem(PENDING_KEY);
-    if (pending && auth.isAuthenticated) {
+    const pendingRaw = localStorage.getItem(PENDING_KEY);
+    if (pendingRaw && auth.isAuthenticated) {
         localStorage.removeItem(PENDING_KEY);
         try {
+            const pending = JSON.parse(pendingRaw) as { priceId: string; planName: string };
             await waitForPaddle();
-            openCheckout(pending, user.id!, user.profile.email, buildDashboardSuccessUrl());
+            openCheckout(pending.priceId, user.id!, user.profile.email, pending.planName, buildDashboardSuccessUrl());
         } catch {
-            // paddle didn't load — ignore, user can click manually
+            // paddle didn't load or bad stored value — ignore, user can click manually
         }
     }
 
@@ -168,13 +169,15 @@ function handleSelect(plan: (typeof plans.value)[number]) {
         : plan.paddlePriceMonthly;
     if (!priceId) return;
 
+    const planName = plan.name.toLowerCase(); // 'starter' | 'growth' | 'scale'
+
     if (!auth.isAuthenticated) {
-        localStorage.setItem(PENDING_KEY, priceId);
+        localStorage.setItem(PENDING_KEY, JSON.stringify({ priceId, planName }));
         void router.push("/auth");
         return;
     }
 
-    openCheckout(priceId, user.id!, user.profile.email, buildDashboardSuccessUrl());
+    openCheckout(priceId, user.id!, user.profile.email, planName, buildDashboardSuccessUrl());
 }
 
 const faq = [

@@ -26,4 +26,5 @@ export interface Subscription {
 
 export interface WebhookMetadata {
   userId: number;
+  planName?: string;
 }

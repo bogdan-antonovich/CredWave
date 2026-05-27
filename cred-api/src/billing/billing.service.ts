@@ -34,6 +34,31 @@ export class BillingService {
     scale: 300,
   };
 
+  /**
+   * Resolve a canonical plan name ('starter' | 'growth' | 'scale') from raw
+   * strings that may come from Paddle's price.name (which is nullable and can
+   * contain extra words like "Growth Monthly") or from customData.planName
+   * (which we set ourselves and is always the exact plan name).
+   *
+   * Priority: exact match → substring match → null (caller provides fallback).
+   */
+  private resolvePlanName(
+    ...candidates: (string | null | undefined)[]
+  ): string {
+    for (const raw of candidates) {
+      const lower = (raw ?? '').toLowerCase().trim();
+      if (!lower) continue;
+      // Exact match first
+      if (lower === 'starter' || lower === 'growth' || lower === 'scale')
+        return lower;
+      // Substring match for names like "Growth Monthly", "Scale Plan Annual"
+      if (lower.includes('scale')) return 'scale';
+      if (lower.includes('growth')) return 'growth';
+      if (lower.includes('starter')) return 'starter';
+    }
+    return 'starter'; // safe fallback
+  }
+
   constructor(
     @Inject('SQL') private readonly sql: Sql,
     @Inject('PADDLE') private readonly paddle: Paddle,
@@ -175,7 +200,14 @@ export class BillingService {
       `;
 
     const price = data.items[0]?.price;
-    const planName = price?.name?.toLowerCase() ?? 'starter';
+    // customData.planName is set by the frontend at checkout time and is the
+    // most reliable source. price.name is nullable in Paddle's SDK so we use
+    // it only as a fallback with substring matching.
+    const planName = this.resolvePlanName(metadata?.planName, price?.name);
+    this.logger.debug(
+      { planName, priceId: price?.id, priceName: price?.name },
+      'Resolved plan name on subscription created',
+    );
 
     await this.sql`
       INSERT INTO subscriptions (
@@ -209,8 +241,9 @@ export class BillingService {
 
     const user = await this.getUserByCustomerId(data.customerId);
     if (user) {
-      const price = data.items[0]?.price;
-      const planName = price?.name ?? 'Starter';
+      // Use the already-resolved planName (capitalised for display)
+      const emailPlanName =
+        planName.charAt(0).toUpperCase() + planName.slice(1);
       const nextBillingDate = data.currentBillingPeriod?.endsAt
         ? new Date(data.currentBillingPeriod.endsAt).toLocaleDateString(
             'en-US',
@@ -220,7 +253,7 @@ export class BillingService {
       void this.email.sendSubscriptionStarted(
         user.email,
         user.name ?? 'there',
-        planName,
+        emailPlanName,
         data.billingCycle.interval,
         nextBillingDate,
       );
@@ -230,7 +263,11 @@ export class BillingService {
   private async onSubscriptionUpdated(
     @Exclude() data: SubscriptionNotification,
   ) {
-    const planName = data.items[0]?.price?.name?.toLowerCase() ?? 'starter';
+    const planName = this.resolvePlanName(data.items[0]?.price?.name);
+    this.logger.debug(
+      { planName, priceName: data.items[0]?.price?.name },
+      'Resolved plan name on subscription updated',
+    );
 
     await this.sql`
       UPDATE subscriptions
