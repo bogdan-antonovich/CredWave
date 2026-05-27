@@ -66,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
     resetUser()
     clearTokens()
     window.location.href = isDashboardDomain
-      ? `${config.appUrl}/auth`
+      ? `${config.appUrl}/auth/signout`
       : '/auth'
   }
 
@@ -75,6 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken,
     isAuthenticated,
     setTokens,
+    clearTokens,
     login,
     refresh,
     logout,

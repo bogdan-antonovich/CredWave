@@ -223,7 +223,7 @@ export const useUserStore = defineStore("user", () => {
       restaurantChangedAt: null,
     };
     autoReply.value = { enabled: false, defaultTone: "professional", customInstructions: "" };
-    window.location.href = config.appUrl;
+    window.location.href = `${config.appUrl}/auth/signout`;
   }
 
   return {

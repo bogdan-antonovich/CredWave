@@ -83,6 +83,11 @@ const router = createRouter({
           component: () => import('@/pages/AuthCallbackPage.vue'),
         },
         {
+          path: '/auth/signout',
+          name: 'auth-signout',
+          component: () => import('@/pages/AuthSignoutPage.vue'),
+        },
+        {
           path: '/login',
           name: 'login',
           component: () => import('@/pages/LoginPage.vue'),
