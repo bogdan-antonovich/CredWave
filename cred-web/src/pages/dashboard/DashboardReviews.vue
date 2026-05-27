@@ -8,6 +8,7 @@ import {
     ExternalLink,
     Search,
     Star,
+    Zap,
 } from "lucide-vue-next";
 import StarRating from "@/components/shared/StarRating.vue";
 import { useUserStore } from "@/stores/user.store";
@@ -212,6 +213,22 @@ async function handleSelectRestaurant(result: SearchResult) {
                     :class="reviewsStore.loading ? 'animate-spin' : ''"
                 />
             </button>
+        </div>
+
+        <!-- Limit reached banner -->
+        <div
+            v-if="reviewsStore.limitReached"
+            class="flex items-start gap-3 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl"
+        >
+            <Zap class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+                <p class="text-sm font-semibold text-amber-800">Monthly limit reached</p>
+                <p class="text-xs text-amber-700 mt-0.5">
+                    You've used all your AI-generated replies for this billing period.
+                    <a href="https://credwave.app/pricing" target="_blank" class="underline font-medium">Upgrade your plan</a>
+                    to generate more.
+                </p>
+            </div>
         </div>
 
         <!-- Google place info banner -->

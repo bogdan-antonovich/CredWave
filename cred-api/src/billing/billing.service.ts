@@ -29,9 +29,9 @@ export class BillingService {
   protected readonly logger: PinoLogger;
 
   private readonly planLimits: Record<string, number> = {
-    starter: 50,
-    growth: 200,
-    scale: 1000,
+    starter: 30,
+    growth: 100,
+    scale: 300,
   };
 
   constructor(

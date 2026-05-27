@@ -1,5 +1,5 @@
 import type { Sql } from 'postgres';
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, HttpException, HttpStatus } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AppConfigService } from 'src/config/config.service';
@@ -39,6 +39,34 @@ export class ReviewsService {
       WHERE r.id = ${reviewId}
     `;
     if (!review) throw new NotFoundException('Review not found');
+
+    // Enforce per-billing-period generation limit
+    const [sub] = await this.sql<
+      { reviews_limit: number; current_period_end: Date; period: string }[]
+    >`
+      SELECT reviews_limit, current_period_end, period
+      FROM subscriptions WHERE user_id = ${userId} LIMIT 1
+    `;
+
+    if (sub) {
+      const interval =
+        sub.period === 'year' ? "INTERVAL '1 year'" : "INTERVAL '1 month'";
+      const [usage] = await this.sql<{ count: string }[]>`
+        SELECT COUNT(*) AS count
+        FROM responses res
+        JOIN reviews r   ON r.id   = res.review_id
+        JOIN restaurants rest ON rest.id = r.restaurant_id
+        WHERE rest.user_id = ${userId}
+          AND res.responses_generated_at > ${sub.current_period_end}::timestamptz
+            - ${this.sql.unsafe(interval)}
+      `;
+      if (Number(usage.count) >= sub.reviews_limit) {
+        throw new HttpException(
+          'Monthly generation limit reached. Please upgrade your plan.',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
 
     const [restaurant] = await this.sql<
       { name: string; additional_info: string | null }[]

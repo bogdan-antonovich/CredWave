@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { AppConfigService } from 'src/config/config.service';
 import { getLoggerToken } from 'nestjs-pino';
@@ -26,6 +26,7 @@ function makeSql(...rowSets: Record<string, unknown>[][]): SqlMock {
 
 async function buildService(sql: SqlMock): Promise<ReviewsService> {
   (sql as any).json = jest.fn((x: unknown) => x);
+  (sql as any).unsafe = jest.fn((x: unknown) => x);
   const configMock: Partial<AppConfigService> = {
     get: jest.fn((key: string) => {
       if (key === 'openai') return { model: 'gpt-4o' };
@@ -93,9 +94,10 @@ describe('ReviewsService', () => {
       );
     });
 
+    // sql call order: review, subscription ([] = no sub), restaurant, INSERT
     it('returns generated responses and persists them to the database', async () => {
       const service = await buildService(
-        makeSql([FAKE_REVIEW], [FAKE_RESTAURANT], []),
+        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
       );
       mockOpenAiResponse();
 
@@ -110,7 +112,7 @@ describe('ReviewsService', () => {
 
     it('includes additionalContext in the prompt when provided', async () => {
       const service = await buildService(
-        makeSql([FAKE_REVIEW], [FAKE_RESTAURANT], []),
+        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
       );
       mockOpenAiResponse();
 
@@ -122,7 +124,7 @@ describe('ReviewsService', () => {
 
     it('omits additionalContext block when not provided', async () => {
       const service = await buildService(
-        makeSql([FAKE_REVIEW], [FAKE_RESTAURANT], []),
+        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
       );
       mockOpenAiResponse();
 
@@ -134,7 +136,7 @@ describe('ReviewsService', () => {
 
     it('includes restaurant additional_info in the prompt when present', async () => {
       const service = await buildService(
-        makeSql([FAKE_REVIEW], [FAKE_RESTAURANT], []),
+        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
       );
       mockOpenAiResponse();
 
@@ -148,6 +150,7 @@ describe('ReviewsService', () => {
       const service = await buildService(
         makeSql(
           [FAKE_REVIEW],
+          [],
           [{ ...FAKE_RESTAURANT, additional_info: null }],
           [],
         ),
@@ -158,6 +161,49 @@ describe('ReviewsService', () => {
 
       const prompt = mockCreate.mock.calls[0][0].messages[0].content;
       expect(prompt).not.toContain('About restaurant');
+    });
+
+    it('throws 429 when monthly limit is reached', async () => {
+      const sub = {
+        reviews_limit: 30,
+        current_period_end: new Date(Date.now() + 86_400_000),
+        period: 'month',
+      };
+      // sql: review, subscription, usage count (= limit)
+      const service = await buildService(
+        makeSql([FAKE_REVIEW], [sub], [{ count: '30' }]),
+      );
+
+      const err = await service.generateResponses('review-1', 'user-1').catch((e) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    });
+
+    it('allows generation when usage is below the limit', async () => {
+      const sub = {
+        reviews_limit: 30,
+        current_period_end: new Date(Date.now() + 86_400_000),
+        period: 'month',
+      };
+      // sql: review, subscription, usage count (below limit), restaurant, INSERT
+      const service = await buildService(
+        makeSql([FAKE_REVIEW], [sub], [{ count: '5' }], [FAKE_RESTAURANT], []),
+      );
+      mockOpenAiResponse();
+
+      const result = await service.generateResponses('review-1', 'user-1');
+      expect(result.responses).toEqual(FAKE_RESPONSES);
+    });
+
+    it('skips limit check when user has no subscription', async () => {
+      // sql: review, subscription (none), restaurant, INSERT
+      const service = await buildService(
+        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
+      );
+      mockOpenAiResponse();
+
+      const result = await service.generateResponses('review-1', 'user-1');
+      expect(result.responses).toEqual(FAKE_RESPONSES);
     });
   });
 

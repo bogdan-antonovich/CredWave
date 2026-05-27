@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { api } from "@/services/api";
+import { api, ApiError } from "@/services/api";
 import { track } from "@/services/analytics";
 
 export interface ReviewResponses {
@@ -53,6 +53,7 @@ export const useReviewsStore = defineStore("reviews", () => {
   const sending = ref<Record<string, boolean>>({});
   const currentStatus = ref("all");
   const syncing = ref(false);
+  const limitReached = ref(false);
 
   let pollingTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -137,6 +138,10 @@ export const useReviewsStore = defineStore("reviews", () => {
         review.responsesGeneratedAt = data.generated_at;
         track("reply_generated", { rating: review.rating });
       }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        limitReached.value = true;
+      }
     } finally {
       generating.value[reviewId] = false;
     }
@@ -169,6 +174,7 @@ export const useReviewsStore = defineStore("reviews", () => {
     generating,
     sending,
     syncing,
+    limitReached,
     fetchReviews,
     syncReviews,
     stopPolling,
