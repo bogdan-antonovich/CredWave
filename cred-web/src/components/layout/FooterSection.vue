@@ -22,6 +22,7 @@ import { RouterLink } from 'vue-router'
             <RouterLink to="/contact" class="hover:text-white/70 transition-colors duration-200">Contact</RouterLink>
             <RouterLink to="/privacy" class="hover:text-white/70 transition-colors duration-200">Privacy Policy</RouterLink>
             <RouterLink to="/terms" class="hover:text-white/70 transition-colors duration-200">Terms of Service</RouterLink>
+            <RouterLink to="/refund" class="hover:text-white/70 transition-colors duration-200">Refund Policy</RouterLink>
           </div>
         </div>
       </div>

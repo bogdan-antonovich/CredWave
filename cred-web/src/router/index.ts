@@ -97,6 +97,11 @@ const router = createRouter({
           name: 'terms',
           component: () => import('@/pages/TermsPage.vue'),
         },
+        {
+          path: '/refund',
+          name: 'refund',
+          component: () => import('@/pages/RefundPage.vue'),
+        },
         // Redirect /dashboard to the subdomain
         {
           path: '/dashboard',
