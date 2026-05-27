@@ -449,10 +449,12 @@ export class BillingService {
     priceId: string,
     planName: string,
   ): Promise<void> {
-    const [sub] = await this.sql<{
-      paddle_subscription_id: string;
-      status: string;
-    }[]>`
+    const [sub] = await this.sql<
+      {
+        paddle_subscription_id: string;
+        status: string;
+      }[]
+    >`
       SELECT paddle_subscription_id, status FROM subscriptions WHERE user_id = ${userId}
     `;
     if (!sub) throw new NotFoundException('No active subscription found');
