@@ -49,6 +49,7 @@ export const useBillingStore = defineStore('billing', () => {
   const promoAccess = ref<PromoAccess | null>(null)
   const loading = ref(false)
   const portalLoading = ref(false)
+  const changePlanLoading = ref(false)
   const hasSubscription = ref(true)
   const downloadingInvoiceId = ref<string | null>(null)
 
@@ -96,6 +97,18 @@ export const useBillingStore = defineStore('billing', () => {
     }
   }
 
+  async function changePlan(priceId: string, planName: string) {
+    changePlanLoading.value = true
+    try {
+      await api.post('/billing/subscription/change', { priceId, planName })
+      // Webhook will update the DB; refresh after a short delay to show new state
+      await new Promise(r => setTimeout(r, 1500))
+      await fetchSubscription()
+    } finally {
+      changePlanLoading.value = false
+    }
+  }
+
   async function openPortal() {
     portalLoading.value = true
     try {
@@ -113,10 +126,12 @@ export const useBillingStore = defineStore('billing', () => {
     promoAccess,
     loading,
     portalLoading,
+    changePlanLoading,
     hasSubscription,
     downloadingInvoiceId,
     fetchAll,
     openPortal,
     downloadInvoice,
+    changePlan,
   }
 })

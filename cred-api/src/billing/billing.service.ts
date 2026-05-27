@@ -263,16 +263,24 @@ export class BillingService {
   private async onSubscriptionUpdated(
     @Exclude() data: SubscriptionNotification,
   ) {
-    const planName = this.resolvePlanName(data.items[0]?.price?.name);
+    const metadata = data.customData as WebhookMetadata | undefined;
+    const planName = this.resolvePlanName(
+      metadata?.planName,
+      data.items[0]?.price?.name,
+    );
     this.logger.debug(
       { planName, priceName: data.items[0]?.price?.name },
       'Resolved plan name on subscription updated',
     );
 
+    const price = Number(data.items[0]?.price?.unitPrice?.amount ?? 0);
+
     await this.sql`
       UPDATE subscriptions
       SET status = ${data.status},
           plan_name = ${planName},
+          price = ${price},
+          period = ${data.billingCycle.interval},
           reviews_limit = ${this.planLimits[planName] ?? 50},
           current_period_end = ${data.currentBillingPeriod?.endsAt ?? null},
           updated_at = NOW()
@@ -434,6 +442,28 @@ export class BillingService {
         this.logger.debug({ user, sub }, 'Subscription renewed email sent');
       }
     }
+  }
+
+  async changePlan(
+    userId: string,
+    priceId: string,
+    planName: string,
+  ): Promise<void> {
+    const [sub] = await this.sql<{ paddle_subscription_id: string }[]>`
+      SELECT paddle_subscription_id FROM subscriptions WHERE user_id = ${userId}
+    `;
+    if (!sub) throw new NotFoundException('No active subscription found');
+
+    await this.paddle.subscriptions.update(sub.paddle_subscription_id, {
+      items: [{ priceId, quantity: 1 }],
+      prorationBillingMode: 'prorated_immediately',
+      customData: { planName },
+    });
+
+    this.logger.debug(
+      { userId, priceId, planName },
+      'Plan change initiated via Paddle subscriptions.update',
+    );
   }
 
   async handleWebhook(

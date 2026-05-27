@@ -55,6 +55,7 @@ class MockAuthGuard implements CanActivate {
 const mockPortalCreate = jest.fn();
 const mockUnmarshal = jest.fn();
 const mockGetInvoicePDF = jest.fn();
+const mockSubscriptionsUpdate = jest.fn();
 
 const mockPaddle = {
   customerPortalSessions: {
@@ -65,6 +66,9 @@ const mockPaddle = {
   },
   transactions: {
     getInvoicePDF: mockGetInvoicePDF,
+  },
+  subscriptions: {
+    update: mockSubscriptionsUpdate,
   },
 };
 
@@ -221,6 +225,54 @@ describe('/billing route', () => {
       const body = res.body as InvoicesResponse;
 
       expect(body.invoices.length).toBe(2);
+    });
+  });
+
+  describe('POST /billing/subscription/change', () => {
+    it('calls paddle subscriptions.update and returns ok when subscription exists', async () => {
+      await sql`
+        INSERT INTO subscriptions (
+          user_id, plan_name, price, period, status,
+          current_period_end, paddle_subscription_id, reviews_limit
+        )
+        VALUES (1, 'starter', 1100, 'month', 'active', NOW() + INTERVAL '1 month', 'sub_123', 30)
+      `;
+      mockSubscriptionsUpdate.mockResolvedValueOnce({});
+
+      const res = await request(server)
+        .post('/billing/subscription/change')
+        .send({ priceId: 'pri_growth', planName: 'growth' })
+        .expect(201);
+
+      expect(res.body).toEqual({ ok: true });
+      expect(mockSubscriptionsUpdate).toHaveBeenCalledWith(
+        'sub_123',
+        expect.objectContaining({
+          items: [{ priceId: 'pri_growth', quantity: 1 }],
+          prorationBillingMode: 'prorated_immediately',
+        }),
+      );
+    });
+
+    it('returns 404 when user has no subscription', async () => {
+      await request(server)
+        .post('/billing/subscription/change')
+        .send({ priceId: 'pri_growth', planName: 'growth' })
+        .expect(404);
+    });
+
+    it('returns 400 when priceId is missing', async () => {
+      await request(server)
+        .post('/billing/subscription/change')
+        .send({ planName: 'growth' })
+        .expect(400);
+    });
+
+    it('returns 400 when planName is missing', async () => {
+      await request(server)
+        .post('/billing/subscription/change')
+        .send({ priceId: 'pri_growth' })
+        .expect(400);
     });
   });
 

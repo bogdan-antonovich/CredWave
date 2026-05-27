@@ -7,10 +7,13 @@ import { EmailService } from '../email/email.serivice';
 
 const mockGetInvoicePDF = jest.fn();
 
+const mockSubscriptionsUpdate = jest.fn();
+
 const mockPaddle = {
   transactions: { getInvoicePDF: mockGetInvoicePDF },
   customerPortalSessions: { create: jest.fn() },
   webhooks: { unmarshal: jest.fn() },
+  subscriptions: { update: mockSubscriptionsUpdate },
 };
 
 const mockSql = jest.fn().mockResolvedValue([]);
@@ -39,6 +42,28 @@ async function buildService(): Promise<BillingService> {
 
 describe('BillingService', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  describe('changePlan', () => {
+    it('calls paddle subscriptions.update with the given priceId', async () => {
+      mockSql.mockResolvedValueOnce([{ paddle_subscription_id: 'sub_abc' }]);
+      mockSubscriptionsUpdate.mockResolvedValueOnce({});
+      const service = await buildService();
+
+      await service.changePlan('user_1', 'pri_scale', 'scale');
+
+      expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_abc', expect.objectContaining({
+        items: [{ priceId: 'pri_scale', quantity: 1 }],
+      }));
+    });
+
+    it('throws NotFoundException when user has no subscription', async () => {
+      mockSql.mockResolvedValueOnce([]);
+      const service = await buildService();
+
+      const err = await service.changePlan('user_1', 'pri_scale', 'scale').catch(e => e);
+      expect(err.getStatus()).toBe(404);
+    });
+  });
 
   describe('getDownloadLink', () => {
     it('returns the URL when Paddle resolves one', async () => {

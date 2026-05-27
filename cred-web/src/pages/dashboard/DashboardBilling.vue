@@ -1,17 +1,77 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { CreditCard, Download, ExternalLink, Check, AlertCircle, Loader2, Tag } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { CreditCard, Download, ExternalLink, Check, AlertCircle, Loader2, Tag, ChevronDown } from 'lucide-vue-next'
 import { useBillingStore } from '@/stores/billing.store'
+import { config } from '@/config/env'
 
 const billingStore = useBillingStore()
 
 onMounted(() => void billingStore.fetchAll())
+
+const showPlanPicker = ref(false)
+const changePlanError = ref('')
 
 const usagePercent = computed(() => {
   const usage = billingStore.subscription?.usage
   if (!usage || usage.reviewsLimit === 0) return 0
   return Math.round((usage.reviewsUsed / usage.reviewsLimit) * 100)
 })
+
+// Price is stored in cents; for annual plans show the monthly equivalent.
+const displayPrice = computed(() => {
+  const price = billingStore.subscription?.plan.price ?? 0
+  const period = billingStore.subscription?.plan.period
+  const dollars = price / 100
+  return Math.round(period === 'year' ? dollars / 12 : dollars)
+})
+
+const displayPeriodLabel = computed(() => {
+  const period = billingStore.subscription?.plan.period
+  return period === 'year' ? '/mo billed annually' : '/mo'
+})
+
+// Plans available for switching — same billing period as current subscription.
+const availablePlans = computed(() => {
+  const period = billingStore.subscription?.plan.period ?? 'month'
+  const currentPlanName = billingStore.subscription?.plan.name?.toLowerCase()
+  return [
+    {
+      name: 'starter',
+      label: 'Starter',
+      priceDisplay: period === 'year' ? 9 : 11,
+      limit: 30,
+      priceId: period === 'year' ? config.paddle.prices.starterAnnual : config.paddle.prices.starterMonthly,
+      isCurrent: currentPlanName === 'starter',
+    },
+    {
+      name: 'growth',
+      label: 'Growth',
+      priceDisplay: period === 'year' ? 19 : 23,
+      limit: 100,
+      priceId: period === 'year' ? config.paddle.prices.growthAnnual : config.paddle.prices.growthMonthly,
+      isCurrent: currentPlanName === 'growth',
+    },
+    {
+      name: 'scale',
+      label: 'Scale',
+      priceDisplay: period === 'year' ? 49 : 59,
+      limit: 300,
+      priceId: period === 'year' ? config.paddle.prices.scaleAnnual : config.paddle.prices.scaleMonthly,
+      isCurrent: currentPlanName === 'scale',
+    },
+  ]
+})
+
+async function selectPlan(plan: (typeof availablePlans.value)[number]) {
+  if (plan.isCurrent || billingStore.changePlanLoading) return
+  changePlanError.value = ''
+  try {
+    await billingStore.changePlan(plan.priceId, plan.name)
+    showPlanPicker.value = false
+  } catch {
+    changePlanError.value = 'Failed to change plan. Please try again or contact support.'
+  }
+}
 
 function formatDate(iso: string | null) {
   if (!iso) return '—'
@@ -142,9 +202,9 @@ function statusLabel(status: string) {
               </div>
               <p class="text-sm text-text-muted mt-1">
                 <span class="text-2xl font-bold font-display text-text-primary">
-                  ${{ billingStore.subscription?.plan.price }}
+                  ${{ displayPrice }}
                 </span>
-                /mo billed {{ billingStore.subscription?.plan.period }}ly
+                {{ displayPeriodLabel }}
               </p>
               <p
                 v-if="billingStore.subscription?.plan.status !== 'canceled'"
@@ -160,13 +220,42 @@ function statusLabel(status: string) {
               </p>
             </div>
             <button
-              class="px-4 py-2 text-xs font-semibold border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all disabled:opacity-50"
-              :disabled="billingStore.portalLoading"
-              @click="billingStore.openPortal()"
+              class="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all"
+              @click="showPlanPicker = !showPlanPicker; changePlanError = ''"
             >
               Change Plan
+              <ChevronDown
+                class="w-3.5 h-3.5 transition-transform duration-200"
+                :class="showPlanPicker ? 'rotate-180' : ''"
+              />
             </button>
           </div>
+        </div>
+
+        <!-- Plan picker -->
+        <div v-if="showPlanPicker" class="px-6 pb-6 border-t border-border-subtle pt-4">
+          <p class="text-xs text-text-muted mb-3">
+            Switch to a different plan — you'll be charged or credited the prorated difference immediately.
+          </p>
+          <div class="grid grid-cols-3 gap-3">
+            <button
+              v-for="plan in availablePlans"
+              :key="plan.name"
+              class="relative flex flex-col items-start p-3 rounded-xl border text-left transition-all"
+              :class="plan.isCurrent
+                ? 'border-accent bg-accent/5 cursor-default'
+                : 'border-border hover:border-brand/40 hover:bg-surface-warm cursor-pointer disabled:opacity-50'"
+              :disabled="billingStore.changePlanLoading"
+              @click="selectPlan(plan)"
+            >
+              <span v-if="plan.isCurrent" class="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider text-accent">Current</span>
+              <Loader2 v-if="billingStore.changePlanLoading && !plan.isCurrent" class="absolute top-2 right-2 w-3 h-3 animate-spin text-text-muted" />
+              <p class="text-sm font-bold text-text-primary">{{ plan.label }}</p>
+              <p class="text-xs text-text-muted mt-0.5">${{ plan.priceDisplay }}/mo</p>
+              <p class="text-xs text-text-muted mt-0.5">{{ plan.limit }} replies/mo</p>
+            </button>
+          </div>
+          <p v-if="changePlanError" class="mt-3 text-xs text-error">{{ changePlanError }}</p>
         </div>
 
         <!-- Usage bar -->

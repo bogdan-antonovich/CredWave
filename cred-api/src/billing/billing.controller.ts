@@ -6,6 +6,8 @@ import {
   UseGuards,
   Param,
   Headers,
+  Body,
+  BadRequestException,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { NotFoundException } from '@nestjs/common';
@@ -82,6 +84,24 @@ export class BillingController {
     this.logger.info("Getting a user's invoices");
     const userId = (req.user as { id: string }).id;
     return await this.srv.getInvoices(userId);
+  }
+
+  @Post('subscription/change')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change the plan for the current subscription' })
+  @ApiOkResponse({ description: 'Plan change initiated' })
+  async changePlan(
+    @Req() req: Request,
+    @Body() body: { priceId: string; planName: string },
+  ) {
+    const { priceId, planName } = body;
+    if (!priceId || !planName)
+      throw new BadRequestException('priceId and planName are required');
+    const userId = (req.user as { id: string }).id;
+    this.logger.info({ planName }, 'Changing subscription plan');
+    await this.srv.changePlan(userId, priceId, planName);
+    return { ok: true };
   }
 
   @Post('portal')
