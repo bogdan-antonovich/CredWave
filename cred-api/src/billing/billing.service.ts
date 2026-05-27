@@ -368,6 +368,16 @@ export class BillingService {
     @Exclude() data: TransactionNotification,
   ) {
     const total = data.details?.totals?.grandTotal ?? '0';
+
+    // $0 transactions are trial activations — nothing to invoice or email about.
+    if (Number(total) === 0) {
+      this.logger.debug(
+        { transactionId: data.id },
+        'Skipping $0 transaction (trial activation)',
+      );
+      return;
+    }
+
     const card = data.payments[0]?.methodDetails?.card;
 
     // save payment method if card exists

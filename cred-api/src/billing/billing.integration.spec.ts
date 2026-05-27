@@ -405,6 +405,72 @@ describe('/billing route', () => {
 
       expect(body.received).toBe(true);
     });
+
+    it('transaction.completed with $0 does not save invoice or payment method', async () => {
+      mockUnmarshal.mockResolvedValueOnce({
+        eventType: 'transaction.completed',
+        data: {
+          id: 'txn_trial',
+          customerId: 'cust_123',
+          subscriptionId: 'sub_123',
+          currencyCode: 'USD',
+          details: { totals: { grandTotal: '0' } },
+          payments: [],
+        },
+      });
+
+      await request(server)
+        .post('/billing/webhooks/paddle')
+        .set('paddle-signature', 'ok')
+        .send({})
+        .expect(201);
+
+      const [invoice] = await sql<{ id: string }[]>`SELECT id FROM invoices WHERE paddle_invoice_id = 'txn_trial'`;
+      expect(invoice).toBeUndefined();
+
+      const [pm] = await sql<{ id: string }[]>`SELECT id FROM payment_methods WHERE user_id = 1`;
+      expect(pm).toBeUndefined();
+    });
+
+    it('transaction.completed with real amount saves invoice and payment method', async () => {
+      await sql`
+        INSERT INTO subscriptions (
+          user_id, plan_name, price, period, status,
+          current_period_end, paddle_subscription_id, reviews_limit
+        )
+        VALUES (1, 'growth', 2300, 'month', 'active', NOW() + INTERVAL '1 month', 'sub_123', 100)
+      `;
+
+      mockUnmarshal.mockResolvedValueOnce({
+        eventType: 'transaction.completed',
+        data: {
+          id: 'txn_real',
+          customerId: 'cust_123',
+          subscriptionId: 'sub_123',
+          currencyCode: 'USD',
+          details: { totals: { grandTotal: '2300' } },
+          payments: [{
+            methodDetails: {
+              card: { type: 'visa', last4: '4242', expiryMonth: '12', expiryYear: '2027' },
+            },
+          }],
+        },
+      });
+
+      await request(server)
+        .post('/billing/webhooks/paddle')
+        .set('paddle-signature', 'ok')
+        .send({})
+        .expect(201);
+
+      const [invoice] = await sql<{ amount: number }[]>`SELECT amount FROM invoices WHERE paddle_invoice_id = 'txn_real'`;
+      expect(invoice).toBeDefined();
+      expect(Number(invoice.amount)).toBe(2300);
+
+      const [pm] = await sql<{ last4: string }[]>`SELECT last4 FROM payment_methods WHERE user_id = 1`;
+      expect(pm).toBeDefined();
+      expect(pm.last4).toBe('4242');
+    });
   });
 
   describe('GET /billing/invoice/:invoiceId', () => {
