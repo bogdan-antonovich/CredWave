@@ -113,7 +113,6 @@ export const useBillingStore = defineStore('billing', () => {
     cancelLoading.value = true
     try {
       await api.post('/billing/subscription/cancel')
-      await new Promise(r => setTimeout(r, 1500))
       await fetchSubscription()
     } finally {
       cancelLoading.value = false

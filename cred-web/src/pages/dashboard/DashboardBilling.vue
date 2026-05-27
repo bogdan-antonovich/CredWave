@@ -152,6 +152,66 @@ function statusLabel(status: string) {
       </section>
     </div>
 
+    <!-- ═══ Canceled state (full replacement) ═══ -->
+    <div v-else-if="billingStore.subscription?.plan.status === 'canceled'" class="space-y-6">
+      <div class="rounded-2xl border border-border-subtle bg-white overflow-hidden">
+        <div class="p-6">
+          <p class="text-xs font-bold uppercase tracking-wider text-text-muted mb-1">Subscription canceled</p>
+          <h2 class="text-lg font-bold font-display text-text-primary">We're sorry to see you go.</h2>
+          <p class="text-sm text-text-secondary mt-2 leading-relaxed">
+            You still have full access to CredWave until
+            <span class="font-semibold text-text-primary">{{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}</span>.
+            Changed your mind? Reactivate in one click — your plan and settings are untouched.
+          </p>
+          <div class="flex items-center gap-3 mt-5">
+            <button
+              class="px-5 py-2.5 text-sm font-semibold bg-brand text-white rounded-xl hover:bg-brand-subtle transition-all disabled:opacity-50 flex items-center gap-2"
+              :disabled="billingStore.reactivateLoading"
+              @click="billingStore.reactivateSubscription()"
+            >
+              <Loader2 v-if="billingStore.reactivateLoading" class="w-3.5 h-3.5 animate-spin" />
+              Reactivate subscription
+            </button>
+            <a :href="`${config.appUrl}/pricing`" class="text-sm text-text-muted hover:text-text-primary transition-colors">
+              View plans
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoices still visible after cancellation -->
+      <section v-if="billingStore.invoices.length > 0" class="bg-white border border-border-subtle rounded-2xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-border-subtle">
+          <h2 class="text-sm font-bold text-text-primary">Invoice History</h2>
+        </div>
+        <div class="divide-y divide-border-subtle">
+          <div
+            v-for="invoice in billingStore.invoices"
+            :key="invoice.id"
+            class="flex items-center justify-between px-6 py-3 hover:bg-surface-warm/30 transition-colors"
+          >
+            <div class="flex items-center gap-4">
+              <p class="text-sm text-text-primary w-28">{{ formatDate(invoice.date) }}</p>
+              <p class="text-sm font-medium text-text-primary">{{ formatAmount(invoice.amount, invoice.currency) }}</p>
+              <span class="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-success">
+                <Check class="w-3 h-3" />
+                {{ invoice.status }}
+              </span>
+            </div>
+            <button
+              class="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-warm transition-all disabled:opacity-40"
+              title="Download invoice"
+              :disabled="billingStore.downloadingInvoiceId === invoice.paddle_invoice_id"
+              @click="billingStore.downloadInvoice(invoice.paddle_invoice_id)"
+            >
+              <Loader2 v-if="billingStore.downloadingInvoiceId === invoice.paddle_invoice_id" class="w-3.5 h-3.5 animate-spin" />
+              <Download v-else class="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
     <div v-else class="space-y-6">
       <!-- Promo banner inside subscription view -->
       <section v-if="billingStore.promoAccess" class="bg-accent/5 border border-accent/20 rounded-2xl p-4 flex items-center justify-between">
@@ -170,34 +230,6 @@ function statusLabel(status: string) {
           Active
         </span>
       </section>
-      <!-- ═══ Canceled banner ═══ -->
-      <div
-        v-if="billingStore.subscription?.plan.status === 'canceled'"
-        class="rounded-2xl border border-border-subtle bg-white overflow-hidden"
-      >
-        <div class="p-6">
-          <p class="text-xs font-bold uppercase tracking-wider text-text-muted mb-1">Subscription canceled</p>
-          <h2 class="text-lg font-bold font-display text-text-primary">We're sorry to see you go.</h2>
-          <p class="text-sm text-text-secondary mt-1 leading-relaxed">
-            You still have full access to CredWave until
-            <span class="font-semibold text-text-primary">{{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}</span>.
-            Changed your mind? Reactivate in one click — your plan and settings are untouched.
-          </p>
-        </div>
-        <div class="px-6 pb-6 flex items-center gap-3">
-          <button
-            class="px-5 py-2.5 text-sm font-semibold bg-brand text-white rounded-xl hover:bg-brand-subtle transition-all disabled:opacity-50 flex items-center gap-2"
-            :disabled="billingStore.reactivateLoading"
-            @click="billingStore.reactivateSubscription()"
-          >
-            <Loader2 v-if="billingStore.reactivateLoading" class="w-3.5 h-3.5 animate-spin" />
-            Reactivate subscription
-          </button>
-          <a href="/pricing" class="text-sm text-text-muted hover:text-text-primary transition-colors">
-            View plans
-          </a>
-        </div>
-      </div>
 
       <!-- ═══ Past-due banner ═══ -->
       <div
@@ -235,7 +267,6 @@ function statusLabel(status: string) {
                     'bg-success/10 text-success': billingStore.subscription?.plan.status === 'active',
                     'bg-accent/10 text-accent': billingStore.subscription?.plan.status === 'trialing',
                     'bg-error/10 text-error': billingStore.subscription?.plan.status === 'past_due',
-                    'bg-text-muted/10 text-text-muted': billingStore.subscription?.plan.status === 'canceled',
                   }"
                 >
                   {{ statusLabel(billingStore.subscription?.plan.status ?? '') }}
@@ -247,17 +278,8 @@ function statusLabel(status: string) {
                 </span>
                 {{ displayPeriodLabel }}
               </p>
-              <p
-                v-if="billingStore.subscription?.plan.status !== 'canceled'"
-                class="text-xs text-text-muted mt-2"
-              >
+              <p class="text-xs text-text-muted mt-2">
                 Next billing date: {{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}
-              </p>
-              <p
-                v-else
-                class="text-xs text-text-muted mt-2"
-              >
-                Access until: {{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}
               </p>
             </div>
             <button
@@ -400,7 +422,6 @@ function statusLabel(status: string) {
         </button>
 
         <button
-          v-if="billingStore.subscription?.plan.status !== 'canceled'"
           class="text-xs text-text-muted hover:text-error transition-colors"
           @click="showCancelModal = true"
         >
