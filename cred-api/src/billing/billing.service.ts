@@ -449,14 +449,22 @@ export class BillingService {
     priceId: string,
     planName: string,
   ): Promise<void> {
-    const [sub] = await this.sql<{ paddle_subscription_id: string }[]>`
-      SELECT paddle_subscription_id FROM subscriptions WHERE user_id = ${userId}
+    const [sub] = await this.sql<{
+      paddle_subscription_id: string;
+      status: string;
+    }[]>`
+      SELECT paddle_subscription_id, status FROM subscriptions WHERE user_id = ${userId}
     `;
     if (!sub) throw new NotFoundException('No active subscription found');
 
+    // Paddle rejects prorated_immediately for trialing subscriptions — use
+    // do_not_bill instead so the plan switch takes effect without charging now.
+    const prorationBillingMode =
+      sub.status === 'trialing' ? 'do_not_bill' : 'prorated_immediately';
+
     await this.paddle.subscriptions.update(sub.paddle_subscription_id, {
       items: [{ priceId, quantity: 1 }],
-      prorationBillingMode: 'prorated_immediately',
+      prorationBillingMode,
       customData: { planName },
     });
 

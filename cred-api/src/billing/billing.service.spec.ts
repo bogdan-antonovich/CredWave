@@ -44,8 +44,8 @@ describe('BillingService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('changePlan', () => {
-    it('calls paddle subscriptions.update with the given priceId', async () => {
-      mockSql.mockResolvedValueOnce([{ paddle_subscription_id: 'sub_abc' }]);
+    it('uses prorated_immediately for an active subscription', async () => {
+      mockSql.mockResolvedValueOnce([{ paddle_subscription_id: 'sub_abc', status: 'active' }]);
       mockSubscriptionsUpdate.mockResolvedValueOnce({});
       const service = await buildService();
 
@@ -53,6 +53,19 @@ describe('BillingService', () => {
 
       expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_abc', expect.objectContaining({
         items: [{ priceId: 'pri_scale', quantity: 1 }],
+        prorationBillingMode: 'prorated_immediately',
+      }));
+    });
+
+    it('uses do_not_bill for a trialing subscription', async () => {
+      mockSql.mockResolvedValueOnce([{ paddle_subscription_id: 'sub_trial', status: 'trialing' }]);
+      mockSubscriptionsUpdate.mockResolvedValueOnce({});
+      const service = await buildService();
+
+      await service.changePlan('user_1', 'pri_growth', 'growth');
+
+      expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_trial', expect.objectContaining({
+        prorationBillingMode: 'do_not_bill',
       }));
     });
 

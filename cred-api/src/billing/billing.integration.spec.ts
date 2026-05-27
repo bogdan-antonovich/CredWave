@@ -229,7 +229,7 @@ describe('/billing route', () => {
   });
 
   describe('POST /billing/subscription/change', () => {
-    it('calls paddle subscriptions.update and returns ok when subscription exists', async () => {
+    it('uses prorated_immediately for an active subscription', async () => {
       await sql`
         INSERT INTO subscriptions (
           user_id, plan_name, price, period, status,
@@ -250,6 +250,29 @@ describe('/billing route', () => {
         expect.objectContaining({
           items: [{ priceId: 'pri_growth', quantity: 1 }],
           prorationBillingMode: 'prorated_immediately',
+        }),
+      );
+    });
+
+    it('uses do_not_bill for a trialing subscription', async () => {
+      await sql`
+        INSERT INTO subscriptions (
+          user_id, plan_name, price, period, status,
+          current_period_end, paddle_subscription_id, reviews_limit
+        )
+        VALUES (1, 'starter', 1100, 'month', 'trialing', NOW() + INTERVAL '14 days', 'sub_trial', 30)
+      `;
+      mockSubscriptionsUpdate.mockResolvedValueOnce({});
+
+      await request(server)
+        .post('/billing/subscription/change')
+        .send({ priceId: 'pri_growth', planName: 'growth' })
+        .expect(201);
+
+      expect(mockSubscriptionsUpdate).toHaveBeenCalledWith(
+        'sub_trial',
+        expect.objectContaining({
+          prorationBillingMode: 'do_not_bill',
         }),
       );
     });
