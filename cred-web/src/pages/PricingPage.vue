@@ -106,8 +106,8 @@ const isAnnual = ref(true);
 const plans = computed(() => [
     {
         name: "Starter",
-        priceMonthly: 9,
-        priceAnnual: 8,
+        priceMonthly: 11,
+        priceAnnual: 9,
         features: [
             "Google Business Profile integration",
             "3 AI response options per review",
@@ -121,8 +121,8 @@ const plans = computed(() => [
     },
     {
         name: "Growth",
-        priceMonthly: 19,
-        priceAnnual: 16,
+        priceMonthly: 23,
+        priceAnnual: 19,
         features: [
             "Everything in Starter",
             "Auto-reply to new reviews",
@@ -137,8 +137,8 @@ const plans = computed(() => [
     },
     {
         name: "Scale",
-        priceMonthly: 49,
-        priceAnnual: 41,
+        priceMonthly: 59,
+        priceAnnual: 49,
         features: [
             "Everything in Growth",
             "Multiple location support",
