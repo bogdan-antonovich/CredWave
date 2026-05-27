@@ -51,6 +51,7 @@ export const useBillingStore = defineStore('billing', () => {
   const portalLoading = ref(false)
   const changePlanLoading = ref(false)
   const cancelLoading = ref(false)
+  const reactivateLoading = ref(false)
   const hasSubscription = ref(true)
   const downloadingInvoiceId = ref<string | null>(null)
 
@@ -95,6 +96,16 @@ export const useBillingStore = defineStore('billing', () => {
       window.open(data.url, '_blank')
     } finally {
       downloadingInvoiceId.value = null
+    }
+  }
+
+  async function reactivateSubscription() {
+    reactivateLoading.value = true
+    try {
+      await api.post('/billing/subscription/reactivate')
+      await fetchSubscription()
+    } finally {
+      reactivateLoading.value = false
     }
   }
 
@@ -147,5 +158,7 @@ export const useBillingStore = defineStore('billing', () => {
     downloadInvoice,
     changePlan,
     cancelSubscription,
+    reactivateLoading,
+    reactivateSubscription,
   }
 })

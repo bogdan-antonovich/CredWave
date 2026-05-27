@@ -471,7 +471,33 @@ export class BillingService {
       effectiveFrom: 'next_billing_period',
     });
 
+    // Optimistically mark as canceled so the UI reflects it immediately.
+    // The subscription.canceled webhook will confirm this at period end.
+    await this.sql`
+      UPDATE subscriptions SET status = 'canceled', updated_at = NOW()
+      WHERE user_id = ${userId}
+    `;
+
     this.logger.debug({ userId }, 'Subscription cancellation initiated');
+  }
+
+  async reactivateSubscription(userId: string): Promise<void> {
+    const [sub] = await this.sql<{ paddle_subscription_id: string }[]>`
+      SELECT paddle_subscription_id FROM subscriptions WHERE user_id = ${userId}
+    `;
+    if (!sub) throw new NotFoundException('No subscription found');
+
+    // Clear the scheduled cancellation on Paddle's side.
+    await this.paddle.subscriptions.update(sub.paddle_subscription_id, {
+      scheduledChange: null,
+    });
+
+    await this.sql`
+      UPDATE subscriptions SET status = 'active', updated_at = NOW()
+      WHERE user_id = ${userId}
+    `;
+
+    this.logger.debug({ userId }, 'Subscription reactivated');
   }
 
   async changePlan(

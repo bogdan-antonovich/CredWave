@@ -45,7 +45,9 @@ describe('BillingService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('cancelSubscription', () => {
-    it('clears scheduled changes then cancels at next_billing_period', async () => {
+    it('clears scheduled changes, cancels at period end, and marks DB as canceled', async () => {
+      // Only 2 SQL calls: SELECT subscription + UPDATE status.
+      // The paddle update/cancel calls go through mockSubscriptionsUpdate/Cancel, not mockSql.
       mockSql.mockResolvedValueOnce([{ paddle_subscription_id: 'sub_abc' }]);
       mockSubscriptionsUpdate.mockResolvedValueOnce({});
       mockSubscriptionsCancel.mockResolvedValueOnce({});
@@ -55,6 +57,7 @@ describe('BillingService', () => {
 
       expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_abc', { scheduledChange: null });
       expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_abc', { effectiveFrom: 'next_billing_period' });
+      expect(mockSql).toHaveBeenCalledTimes(2); // SELECT + UPDATE status
     });
 
     it('throws NotFoundException when user has no subscription', async () => {
@@ -62,6 +65,27 @@ describe('BillingService', () => {
       const service = await buildService();
 
       const err = await service.cancelSubscription('user_1').catch(e => e);
+      expect(err.getStatus()).toBe(404);
+    });
+  });
+
+  describe('reactivateSubscription', () => {
+    it('clears scheduled changes on Paddle and marks DB as active', async () => {
+      mockSql.mockResolvedValueOnce([{ paddle_subscription_id: 'sub_abc' }]);
+      mockSubscriptionsUpdate.mockResolvedValueOnce({});
+      const service = await buildService();
+
+      await service.reactivateSubscription('user_1');
+
+      expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_abc', { scheduledChange: null });
+      expect(mockSql).toHaveBeenCalledTimes(2); // SELECT + UPDATE status
+    });
+
+    it('throws NotFoundException when user has no subscription', async () => {
+      mockSql.mockResolvedValueOnce([]);
+      const service = await buildService();
+
+      const err = await service.reactivateSubscription('user_1').catch(e => e);
       expect(err.getStatus()).toBe(404);
     });
   });

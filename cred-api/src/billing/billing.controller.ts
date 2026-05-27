@@ -98,6 +98,20 @@ export class BillingController {
     return { ok: true };
   }
 
+  @Post('subscription/reactivate')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Reactivate a subscription scheduled for cancellation',
+  })
+  @ApiOkResponse({ description: 'Subscription reactivated' })
+  async reactivateSubscription(@Req() req: Request) {
+    this.logger.info('Reactivating subscription');
+    const userId = (req.user as { id: string }).id;
+    await this.srv.reactivateSubscription(userId);
+    return { ok: true };
+  }
+
   @Post('subscription/change')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()

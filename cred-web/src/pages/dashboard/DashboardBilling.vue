@@ -170,6 +170,35 @@ function statusLabel(status: string) {
           Active
         </span>
       </section>
+      <!-- ═══ Canceled banner ═══ -->
+      <div
+        v-if="billingStore.subscription?.plan.status === 'canceled'"
+        class="rounded-2xl border border-border-subtle bg-white overflow-hidden"
+      >
+        <div class="p-6">
+          <p class="text-xs font-bold uppercase tracking-wider text-text-muted mb-1">Subscription canceled</p>
+          <h2 class="text-lg font-bold font-display text-text-primary">We're sorry to see you go.</h2>
+          <p class="text-sm text-text-secondary mt-1 leading-relaxed">
+            You still have full access to CredWave until
+            <span class="font-semibold text-text-primary">{{ formatDate(billingStore.subscription?.plan.nextBillingDate ?? null) }}</span>.
+            Changed your mind? Reactivate in one click — your plan and settings are untouched.
+          </p>
+        </div>
+        <div class="px-6 pb-6 flex items-center gap-3">
+          <button
+            class="px-5 py-2.5 text-sm font-semibold bg-brand text-white rounded-xl hover:bg-brand-subtle transition-all disabled:opacity-50 flex items-center gap-2"
+            :disabled="billingStore.reactivateLoading"
+            @click="billingStore.reactivateSubscription()"
+          >
+            <Loader2 v-if="billingStore.reactivateLoading" class="w-3.5 h-3.5 animate-spin" />
+            Reactivate subscription
+          </button>
+          <a href="/pricing" class="text-sm text-text-muted hover:text-text-primary transition-colors">
+            View plans
+          </a>
+        </div>
+      </div>
+
       <!-- ═══ Past-due banner ═══ -->
       <div
         v-if="billingStore.subscription?.plan.status === 'past_due'"

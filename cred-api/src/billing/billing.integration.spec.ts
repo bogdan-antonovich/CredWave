@@ -231,7 +231,7 @@ describe('/billing route', () => {
   });
 
   describe('POST /billing/subscription/cancel', () => {
-    it('clears scheduled changes then cancels at period end', async () => {
+    it('clears scheduled changes, cancels at period end, and sets DB status to canceled', async () => {
       await sql`
         INSERT INTO subscriptions (
           user_id, plan_name, price, period, status,
@@ -249,11 +249,43 @@ describe('/billing route', () => {
       expect(res.body).toEqual({ ok: true });
       expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_123', { scheduledChange: null });
       expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_123', { effectiveFrom: 'next_billing_period' });
+
+      const [sub] = await sql<{ status: string }[]>`SELECT status FROM subscriptions WHERE user_id = 1`;
+      expect(sub.status).toBe('canceled');
     });
 
     it('returns 404 when user has no subscription', async () => {
       await request(server)
         .post('/billing/subscription/cancel')
+        .expect(404);
+    });
+  });
+
+  describe('POST /billing/subscription/reactivate', () => {
+    it('clears scheduled change on Paddle and sets DB status to active', async () => {
+      await sql`
+        INSERT INTO subscriptions (
+          user_id, plan_name, price, period, status,
+          current_period_end, paddle_subscription_id, reviews_limit
+        )
+        VALUES (1, 'growth', 2300, 'month', 'canceled', NOW() + INTERVAL '20 days', 'sub_123', 100)
+      `;
+      mockSubscriptionsUpdate.mockResolvedValueOnce({});
+
+      const res = await request(server)
+        .post('/billing/subscription/reactivate')
+        .expect(201);
+
+      expect(res.body).toEqual({ ok: true });
+      expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_123', { scheduledChange: null });
+
+      const [sub] = await sql<{ status: string }[]>`SELECT status FROM subscriptions WHERE user_id = 1`;
+      expect(sub.status).toBe('active');
+    });
+
+    it('returns 404 when user has no subscription', async () => {
+      await request(server)
+        .post('/billing/subscription/reactivate')
         .expect(404);
     });
   });
