@@ -5,16 +5,13 @@ import {
     Loader2,
     Check,
     AlertTriangle,
-    Unlink,
     ExternalLink,
     RefreshCw,
 } from "lucide-vue-next";
 import { useUserStore } from "@/stores/user.store";
-import { useAuthStore } from "@/stores/auth.store";
 import { useRouter } from "vue-router";
 
 const userStore = useUserStore();
-const authStore = useAuthStore();
 const router = useRouter();
 
 const showChangeRestaurantModal = ref(false);
@@ -28,10 +25,6 @@ function handleChangeRestaurant() {
 const saving = ref(false);
 const saved = ref(false);
 const saveError = ref<string | null>(null);
-
-// Google disconnect
-const disconnecting = ref(false);
-const disconnectError = ref<string | null>(null);
 
 // Delete account modal
 const showDeleteModal = ref(false);
@@ -57,18 +50,6 @@ async function handleSave() {
         saveError.value = "Failed to save. Please try again.";
     } finally {
         saving.value = false;
-    }
-}
-
-async function handleDisconnectGoogle() {
-    disconnecting.value = true;
-    disconnectError.value = null;
-    try {
-        await userStore.disconnectGoogle();
-    } catch {
-        disconnectError.value = "Failed to disconnect. Please try again.";
-    } finally {
-        disconnecting.value = false;
     }
 }
 
@@ -300,52 +281,6 @@ async function handleDeleteAccount() {
                             class="w-full px-3.5 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all resize-none leading-relaxed"
                         />
                     </div>
-                </div>
-            </section>
-
-            <!-- ═══ Google Account ═══ -->
-            <section
-                class="bg-white border border-border-subtle rounded-2xl p-6"
-            >
-                <h2 class="text-sm font-bold text-text-primary mb-1">
-                    Google Account
-                </h2>
-                <p class="text-xs text-text-muted mb-4">
-                    Disconnecting removes access to review sync and auto-reply.
-                    Your existing data is kept.
-                </p>
-
-                <div v-if="userStore.googleConnected">
-                    <p v-if="disconnectError" class="text-xs text-error mb-3">
-                        {{ disconnectError }}
-                    </p>
-                    <button
-                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-border text-text-secondary hover:border-error/40 hover:text-error transition-all duration-200 disabled:opacity-50"
-                        :disabled="disconnecting"
-                        @click="handleDisconnectGoogle"
-                    >
-                        <Loader2
-                            v-if="disconnecting"
-                            class="w-4 h-4 animate-spin"
-                        />
-                        <Unlink v-else class="w-4 h-4" />
-                        {{
-                            disconnecting
-                                ? "Disconnecting..."
-                                : "Disconnect Google"
-                        }}
-                    </button>
-                </div>
-                <div v-else class="flex items-center justify-between">
-                    <p class="text-xs text-amber-600 font-medium">
-                        Google account disconnected — sync paused
-                    </p>
-                    <button
-                        class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-brand text-white hover:bg-brand-subtle transition-colors"
-                        @click="authStore.login()"
-                    >
-                        Reconnect
-                    </button>
                 </div>
             </section>
 
