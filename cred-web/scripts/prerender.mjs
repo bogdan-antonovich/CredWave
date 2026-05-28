@@ -141,3 +141,30 @@ for (const route of routes) {
   const label = route.path === "/" ? "dist/index.html" : `dist${route.path}.html`;
   console.log(`✓ ${label}`);
 }
+
+// Sitemap
+const today = new Date().toISOString().split("T")[0];
+const sitemapPriority = {
+  "/": "1.0",
+  "/pricing": "0.9",
+  "/demo": "0.8",
+  "/blog": "0.8",
+};
+const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${routes
+  .map((r) => {
+    const url = `${SITE_URL}${r.path === "/" ? "" : r.path}`;
+    const priority = sitemapPriority[r.path] ?? "0.6";
+    return `  <url>
+    <loc>${url}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${r.path.startsWith("/blog/") ? "monthly" : "weekly"}</changefreq>
+    <priority>${priority}</priority>
+  </url>`;
+  })
+  .join("\n")}
+</urlset>`;
+
+writeFileSync(join(distDir, "sitemap.xml"), sitemapXml);
+console.log("✓ dist/sitemap.xml");
