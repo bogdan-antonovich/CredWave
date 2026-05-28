@@ -1,4 +1,4 @@
-import { readFileSync, mkdirSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -58,30 +58,64 @@ const routes = [
     title: "Terms of Service — CredWave",
     description: "CredWave terms of service and user agreement.",
   },
+  {
+    path: "/refund",
+    title: "Refund Policy — CredWave",
+    description: "CredWave refund and cancellation policy.",
+  },
+  {
+    path: "/blog",
+    title: "Blog — CredWave",
+    description: "Practical guides on Google review management, restaurant reputation, and getting more customers from your online presence.",
+  },
+  {
+    path: "/blog/how-to-respond-to-negative-google-reviews",
+    title: "How to Respond to Negative Google Reviews — CredWave",
+    description: "A bad review doesn't have to damage your reputation. Here's a practical, step-by-step framework for responding to negative Google reviews — with real examples.",
+  },
+  {
+    path: "/blog/how-to-respond-to-positive-google-reviews",
+    title: "How to Respond to Positive Google Reviews — CredWave",
+    description: "Most restaurants ignore five-star reviews entirely. Here's why that's a mistake, and how to respond in a way that builds loyalty and improves your Google ranking.",
+  },
+  {
+    path: "/blog/google-review-response-templates",
+    title: "Google Review Response Templates for Restaurants — CredWave",
+    description: "Ready-to-use templates for responding to negative, mixed, and positive Google reviews — organized by scenario, with tips on how to personalize each one.",
+  },
+  {
+    path: "/blog/how-to-get-more-google-reviews",
+    title: "How to Get More Google Reviews for Your Restaurant — CredWave",
+    description: "Review count is a direct Google local ranking factor. Here's exactly how to get more Google reviews from real customers — without violating Google's policies.",
+  },
+  {
+    path: "/blog/why-respond-to-every-google-review",
+    title: "Why Restaurants Should Respond to Every Google Review — CredWave",
+    description: "Businesses that respond to reviews consistently convert more customers and rank higher. Here's what the research actually says.",
+  },
+  {
+    path: "/blog/how-to-deal-with-fake-google-reviews",
+    title: "How to Deal with Fake Google Reviews at Your Restaurant — CredWave",
+    description: "Fake reviews are a growing problem. Here's how to identify them, report them to Google, respond publicly while you wait, and protect your reputation.",
+  },
+  {
+    path: "/blog/restaurant-reputation-management",
+    title: "Restaurant Reputation Management: The Complete Guide — CredWave",
+    description: "Your restaurant's online reputation directly affects revenue. This guide covers the full strategy — earning reviews, monitoring them, and responding effectively.",
+  },
 ];
-
-const baseHtml = readFileSync(join(distDir, "index.html"), "utf-8");
 
 function buildHtml(html, route) {
   const { path, title, description, jsonLd } = route;
   const url = `${SITE_URL}${path === "/" ? "" : path}`;
-
-  html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
-
-  html = html.replace(
-    /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/,
-    `<meta name="description" content="${description}" />`,
-  );
+  const canonical = url === SITE_URL ? SITE_URL + "/" : url;
 
   const inject = [
-    `<link rel="canonical" href="${url === SITE_URL ? SITE_URL + "/" : url}" />`,
-    `<meta property="og:image" content="https://credwave.app/meta.png" />`,
-    `<meta property="og:image:width" content="1200" />`,
-    `<meta property="og:image:height" content="630" />`,
+    `<link rel="canonical" href="${canonical}" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:title" content="${title}" />`,
     `<meta property="og:description" content="${description}" />`,
-    `<meta property="og:url" content="${url === SITE_URL ? SITE_URL + "/" : url}" />`,
+    `<meta property="og:url" content="${canonical}" />`,
     `<meta property="og:site_name" content="CredWave" />`,
     ...(jsonLd
       ? [
@@ -90,21 +124,20 @@ function buildHtml(html, route) {
       : []),
   ].join("\n    ");
 
-  html = html.replace("</head>", `    ${inject}\n  </head>`);
-
-  return html;
+  return html.replace("</head>", `    ${inject}\n  </head>`);
 }
 
 for (const route of routes) {
-  const html = buildHtml(baseHtml, route);
+  // vite-ssg outputs dist/index.html for "/" and dist/pricing.html for "/pricing"
+  // For nested routes like /blog/article-slug, it outputs dist/blog/article-slug.html
+  const filePath =
+    route.path === "/"
+      ? join(distDir, "index.html")
+      : join(distDir, `${route.path}.html`);
 
-  if (route.path === "/") {
-    writeFileSync(join(distDir, "index.html"), html);
-    console.log("✓ dist/index.html");
-  } else {
-    const dir = join(distDir, route.path);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "index.html"), html);
-    console.log(`✓ dist${route.path}/index.html`);
-  }
+  const html = readFileSync(filePath, "utf-8");
+  const updated = buildHtml(html, route);
+  writeFileSync(filePath, updated);
+  const label = route.path === "/" ? "dist/index.html" : `dist${route.path}.html`;
+  console.log(`✓ ${label}`);
 }

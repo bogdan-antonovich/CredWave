@@ -17,6 +17,7 @@ import { RouterLink } from 'vue-router'
           <div class="flex flex-col gap-2.5">
             <RouterLink to="/demo" class="hover:text-white/70 transition-colors duration-200">Demo</RouterLink>
             <RouterLink to="/pricing" class="hover:text-white/70 transition-colors duration-200">Pricing</RouterLink>
+            <RouterLink to="/blog" class="hover:text-white/70 transition-colors duration-200">Blog</RouterLink>
           </div>
           <div class="flex flex-col gap-2.5">
             <RouterLink to="/contact" class="hover:text-white/70 transition-colors duration-200">Contact</RouterLink>

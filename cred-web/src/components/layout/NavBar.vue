@@ -120,6 +120,15 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
           Pricing
         </RouterLink>
         <RouterLink
+          to="/blog"
+          class="text-sm transition-colors duration-200 px-3 py-2 text-center"
+          :class="dark
+            ? (isActive('/blog') ? 'text-white' : 'text-white/40 hover:text-white/70')
+            : (isActive('/blog') ? 'text-text-primary' : 'text-text-muted hover:text-text-primary')"
+        >
+          Blog
+        </RouterLink>
+        <RouterLink
           to="/contact"
           class="text-sm transition-colors duration-200 px-3 py-2 text-center"
           :class="dark
@@ -215,6 +224,14 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
           @click="closeMenu"
         >
           Pricing
+        </RouterLink>
+        <RouterLink
+          to="/blog"
+          class="px-3 py-2.5 text-sm rounded-lg transition-colors"
+          :class="isActive('/blog') ? 'text-text-primary font-semibold bg-surface-warm' : 'text-text-secondary hover:bg-surface-warm'"
+          @click="closeMenu"
+        >
+          Blog
         </RouterLink>
         <RouterLink
           to="/contact"

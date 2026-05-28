@@ -42,7 +42,7 @@ export function resetUser() {
 }
 
 export function trackPageview(path: string) {
-  if (!config.posthog.key) return
+  if (!config.posthog.key || typeof window === 'undefined') return
   posthog.capture('$pageview', { $current_url: window.location.origin + path })
 }
 

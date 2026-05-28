@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build && node scripts/prerender.mjs",
+    "build": "vue-tsc -b && vite-ssg build && node scripts/prerender.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
     "pinia": "^3.0.4",
     "posthog-js": "^1.372.8",
     "tailwindcss": "^4.2.2",
+    "vite-ssg": "^28.3.0",
     "vue": "^3.5.32",
     "vue-router": "^4.6.4",
     "zod": "^4.3.6"

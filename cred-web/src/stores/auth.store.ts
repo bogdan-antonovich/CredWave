@@ -8,8 +8,8 @@ const ACCESS_KEY = 'cw_access_token'
 const REFRESH_KEY = 'cw_refresh_token'
 
 export const useAuthStore = defineStore('auth', () => {
-  const accessToken = ref<string | null>(localStorage.getItem(ACCESS_KEY))
-  const refreshToken = ref<string | null>(localStorage.getItem(REFRESH_KEY))
+  const accessToken = ref<string | null>(typeof window !== 'undefined' ? localStorage.getItem(ACCESS_KEY) : null)
+  const refreshToken = ref<string | null>(typeof window !== 'undefined' ? localStorage.getItem(REFRESH_KEY) : null)
 
   const isAuthenticated = computed(() => !!accessToken.value)
 
