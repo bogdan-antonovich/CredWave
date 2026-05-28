@@ -35,7 +35,7 @@ const routes = [
     path: "/pricing",
     title: "Pricing — CredWave",
     description:
-      "Start free for 14 days. Plans from $29/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.",
+      "Plans from $29/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.",
   },
   {
     path: "/demo",

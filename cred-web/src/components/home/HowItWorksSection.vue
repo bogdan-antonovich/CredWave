@@ -145,8 +145,8 @@ onUnmounted(() => {
                     From new review to Google reply. In seconds.
                 </h2>
                 <p class="mt-3 text-white/40 max-w-[480px] mx-auto">
-                    Watch CredWave turn a real review into three ready-to-post
-                    replies — no editing required.
+                    Watch CredWave turn a real review into three ready-to-copy
+                    replies — pick your tone and reply on Google in seconds.
                 </p>
             </div>
 
@@ -325,7 +325,7 @@ onUnmounted(() => {
                                         class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2"
                                     >
                                         <p class="text-[10px] text-white/25">
-                                            Edit before sending, or send as-is.
+                                            Edit if needed, then copy and post on Google.
                                         </p>
                                         <a
                                             v-if="hasResults"
@@ -360,7 +360,7 @@ onUnmounted(() => {
                                         }}
                                     </button>
 
-                                    <!-- Post Reply button -->
+                                    <!-- Copy Reply button -->
                                     <button
                                         v-else
                                         class="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-lg transition-all duration-300 whitespace-nowrap self-start sm:self-auto"
@@ -377,8 +377,8 @@ onUnmounted(() => {
                                         <Send v-else class="w-3.5 h-3.5" />
                                         {{
                                             copyDone
-                                                ? "Reply Posted!"
-                                                : "Post Reply"
+                                                ? "Copied!"
+                                                : "Copy Reply"
                                         }}
                                     </button>
                                 </div>
@@ -397,12 +397,12 @@ onUnmounted(() => {
                         v-for="(step, i) in [
                             {
                                 n: '1',
-                                label: 'Connect Google Business Profile',
+                                label: 'Sign up, find your restaurant',
                             },
-                            { n: '2', label: 'New review arrives' },
+                            { n: '2', label: 'Reviews sync, AI generates replies' },
                             {
                                 n: '3',
-                                label: 'Pick a reply, post in one click',
+                                label: 'Copy a reply, post on Google',
                             },
                         ]"
                         :key="i"

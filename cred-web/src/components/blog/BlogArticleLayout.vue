@@ -44,13 +44,13 @@ defineProps<{
           <h2 class="text-2xl font-bold font-display text-white mb-3">Stop responding manually</h2>
           <p class="text-sm text-white/65 leading-relaxed mb-6">
             CredWave syncs your Google reviews and generates on-brand AI responses automatically.
-            14-day free trial — no credit card required.
+            No contracts — cancel anytime.
           </p>
           <RouterLink
             to="/pricing"
             class="inline-block bg-white text-brand text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-white/90 transition-colors"
           >
-            Start free trial →
+            See pricing →
           </RouterLink>
         </div>
 

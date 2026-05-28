@@ -22,7 +22,7 @@ useHead({
         {
             name: "description",
             content:
-                "Restaurants that respond to every Google review earn 35% more. CredWave generates AI-written replies in 3 tones and posts them directly to Google — automatically.",
+                "Restaurants that respond to every Google review earn 35% more. CredWave generates AI-written replies in 3 tones — pick the one you like and reply on Google in seconds.",
         },
         { property: "og:image", content: "https://credwave.app/meta.png" },
         { property: "og:image:width", content: "1200" },
@@ -183,7 +183,7 @@ const stats = [
                     </div>
 
                     <p class="hero-enter hero-enter-delay-3 mt-5 text-xs text-white/30">
-                        14-day free trial · No credit card required
+                        No contracts · Cancel anytime
                     </p>
                 </div>
 
@@ -376,9 +376,9 @@ const stats = [
                     <p
                         class="mt-5 text-white/45 leading-relaxed max-w-[580px] mx-auto text-lg"
                     >
-                        Plug in your Google Business Profile. CredWave reads
-                        every review, nails the sentiment, and writes three
-                        on-brand responses — ready to post with one click.
+                        Find your restaurant on Google Maps. CredWave syncs your
+                        reviews automatically, reads every one, and writes three
+                        on-brand responses — copy the one you like and reply in seconds.
                     </p>
                 </div>
 
@@ -392,11 +392,11 @@ const stats = [
                             <MessageSquare class="w-5 h-5 text-indigo-400" />
                         </div>
                         <p class="font-semibold text-white mb-1.5">
-                            Pick your tone, post in one click
+                            Pick your tone, copy in one click
                         </p>
                         <p class="text-sm text-white/40 leading-relaxed">
-                            Empathetic, professional, or conversational — three
-                            options, always on-brand, always ready.
+                            Empathetic, professional, or casual — three
+                            options, always on-brand, always ready to copy.
                         </p>
                     </div>
                     <div
@@ -427,7 +427,7 @@ const stats = [
                             Live in under 2 minutes
                         </p>
                         <p class="text-sm text-white/40 leading-relaxed">
-                            Connect your Google Business Profile, configure your
+                            Find your restaurant on Google Maps, configure your
                             brand voice, done. No training, no onboarding.
                         </p>
                     </div>
@@ -451,7 +451,7 @@ const stats = [
                     Every unanswered review is a customer choosing someone else.
                 </h2>
                 <p class="mt-4 text-text-secondary text-lg">
-                    14-day free trial. No credit card. Cancel anytime.
+                    No contracts. Cancel anytime.
                 </p>
                 <div
                     class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3"
@@ -466,7 +466,7 @@ const stats = [
                         to="/pricing"
                         class="inline-flex items-center px-8 py-4 text-sm font-semibold text-text-secondary rounded-full border border-border hover:border-brand hover:text-text-primary transition-all duration-300"
                     >
-                        Start free trial
+                        See pricing
                     </RouterLink>
                 </div>
             </div>

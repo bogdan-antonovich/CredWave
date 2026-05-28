@@ -10,7 +10,7 @@ useHead({
         {
             name: "description",
             content:
-                "Start free for 14 days. Plans from $9/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.",
+                "Plans from $29/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.",
         },
         { property: "og:image", content: "https://credwave.app/meta.png" },
         { property: "og:image:width", content: "1200" },
@@ -210,8 +210,8 @@ const faq = [
         a: "The Scale plan supports multiple locations under one account. Each location gets its own review feed, brand voice settings, and response history. Starter and Growth plans cover a single location.",
     },
     {
-        q: "Can I try it before paying?",
-        a: "Yes. Every plan includes a 14-day free trial with full access — no credit card required to start. You can also try the live demo on our site right now to see the quality of AI responses before signing up.",
+        q: "Can I see the product before subscribing?",
+        a: "Yes — try the live demo on our site right now. Enter any restaurant name and see the AI generate real responses to real reviews, no sign-up required. When you're ready, subscribe and start managing your own reviews immediately.",
     },
 ];
 </script>
@@ -230,8 +230,7 @@ const faq = [
                         <p
                             class="mt-3 text-text-secondary max-w-[480px] mx-auto text-lg"
                         >
-                            Start free for 14 days. No credit card required.
-                            Cancel in one click.
+                            No contracts. Cancel anytime.
                         </p>
 
                         <!-- Toggle -->
@@ -296,7 +295,7 @@ const faq = [
                     >
                         <div class="flex items-center gap-2">
                             <Shield class="w-4 h-4" />
-                            <span>14-day free trial</span>
+                            <span>No contracts</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <RotateCcw class="w-4 h-4" />
