@@ -30,6 +30,7 @@ const validationError = ref<string | null>(null)
 
 type Step = 'input' | 'searching' | 'disambiguation' | 'generating' | 'results'
 const step = ref<Step>('input')
+const selectedRestaurantName = ref('')
 
 const loadingMessages = {
   searching: [
@@ -88,6 +89,7 @@ async function handleGenerate() {
 }
 
 async function selectRestaurant(option: SearchResult) {
+  selectedRestaurantName.value = option.name
   step.value = 'generating'
   startLoadingMessages('generating')
   await demoStore.generateDemo(option.google_place_id, option.name)
@@ -100,6 +102,7 @@ function reset() {
   demoStore.reset()
   input.value = ''
   validationError.value = null
+  selectedRestaurantName.value = ''
 }
 
 const showInput = computed(() => step.value === 'input')
@@ -131,12 +134,22 @@ onMounted(() => {
             <Sparkles class="w-3 h-3" />
             Live Demo
           </div>
-          <h1 class="hero-enter hero-enter-delay-1 text-3xl md:text-4xl font-bold font-display tracking-tight text-text-primary">
-            Type your restaurant name.<br />Get 3 AI replies per review — instantly.
-          </h1>
-          <p class="hero-enter hero-enter-delay-2 mt-3 text-text-secondary text-lg">
-            No signup. No credit card. Just paste your restaurant name and see what CredWave can do.
-          </p>
+          <template v-if="showResults">
+            <h1 class="hero-enter hero-enter-delay-1 text-3xl md:text-4xl font-bold font-display tracking-tight text-text-primary">
+              {{ selectedRestaurantName }}
+            </h1>
+            <p class="hero-enter hero-enter-delay-2 mt-3 text-text-secondary text-lg">
+              3 AI-written replies per review — pick a tone, copy, and post on Google.
+            </p>
+          </template>
+          <template v-else>
+            <h1 class="hero-enter hero-enter-delay-1 text-3xl md:text-4xl font-bold font-display tracking-tight text-text-primary">
+              Type your restaurant name.<br />Get 3 AI replies per review — instantly.
+            </h1>
+            <p class="hero-enter hero-enter-delay-2 mt-3 text-text-secondary text-lg">
+              No signup. No credit card. Just paste your restaurant name and see what CredWave can do.
+            </p>
+          </template>
         </div>
       </section>
 

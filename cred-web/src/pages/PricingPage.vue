@@ -10,7 +10,7 @@ useHead({
         {
             name: "description",
             content:
-                "Plans from $29/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.",
+                "Plans from 9/month — no contracts, cancel anytime. AI-powered Google review replies for restaurants.",
         },
         { property: "og:image", content: "https://credwave.app/meta.png" },
         { property: "og:image:width", content: "1200" },
@@ -46,9 +46,18 @@ onMounted(async () => {
     if (pendingRaw && auth.isAuthenticated) {
         localStorage.removeItem(PENDING_KEY);
         try {
-            const pending = JSON.parse(pendingRaw) as { priceId: string; planName: string };
+            const pending = JSON.parse(pendingRaw) as {
+                priceId: string;
+                planName: string;
+            };
             await waitForPaddle();
-            openCheckout(pending.priceId, user.id!, user.profile.email, pending.planName, buildDashboardSuccessUrl());
+            openCheckout(
+                pending.priceId,
+                user.id!,
+                user.profile.email,
+                pending.planName,
+                buildDashboardSuccessUrl(),
+            );
         } catch {
             // paddle didn't load or bad stored value — ignore, user can click manually
         }
@@ -156,7 +165,8 @@ const plans = computed(() => [
 ]);
 
 function buildDashboardSuccessUrl(): string | undefined {
-    if (!config.dashboardUrl || !auth.accessToken || !auth.refreshToken) return undefined;
+    if (!config.dashboardUrl || !auth.accessToken || !auth.refreshToken)
+        return undefined;
     const target = new URL(`${config.dashboardUrl}/auth/callback`);
     target.searchParams.set("access_token", auth.accessToken);
     target.searchParams.set("refresh_token", auth.refreshToken);
@@ -172,12 +182,21 @@ function handleSelect(plan: (typeof plans.value)[number]) {
     const planName = plan.name.toLowerCase(); // 'starter' | 'growth' | 'scale'
 
     if (!auth.isAuthenticated) {
-        localStorage.setItem(PENDING_KEY, JSON.stringify({ priceId, planName }));
+        localStorage.setItem(
+            PENDING_KEY,
+            JSON.stringify({ priceId, planName }),
+        );
         void router.push("/auth");
         return;
     }
 
-    openCheckout(priceId, user.id!, user.profile.email, planName, buildDashboardSuccessUrl());
+    openCheckout(
+        priceId,
+        user.id!,
+        user.profile.email,
+        planName,
+        buildDashboardSuccessUrl(),
+    );
 }
 
 const faq = [
@@ -225,7 +244,7 @@ const faq = [
                         <h1
                             class="text-3xl md:text-[2.5rem] font-bold font-display tracking-tight text-text-primary"
                         >
-                            Spend $24/mo to stop losing $2,400/mo
+                            Spend $19/mo to stop losing $1,900/mo
                         </h1>
                         <p
                             class="mt-3 text-text-secondary max-w-[480px] mx-auto text-lg"

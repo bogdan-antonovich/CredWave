@@ -442,8 +442,13 @@ export class ReviewsService {
 
     const unanswered = (data.reviews ?? []).filter((r) => !r.response);
     const bad = unanswered.filter((r) => r.rating <= 2).slice(0, 2);
-    const others = unanswered.filter((r) => r.rating > 2).slice(0, 3);
-    const reviews = [...bad, ...others];
+    const needed = 2 - bad.length;
+    const remaining = unanswered
+      .filter((r) => r.rating > 2)
+      .sort((a, b) => a.rating - b.rating);
+    const fallback = remaining.slice(0, needed);
+    const others = remaining.slice(needed, needed + 3);
+    const reviews = [...bad, ...fallback, ...others];
 
     await this.saveDemoReviews(placeId, reviews);
     return { reviews };
