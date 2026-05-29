@@ -202,21 +202,31 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             return;
         }
 
-        // Tell AuthCallbackPage (running inside the popup) to close instead of
-        // navigating to /pricing. Set flag before the popup can reach the callback.
-        localStorage.setItem("cw_checkout_popup", "1");
+        // Cross-subdomain cookie flag — the backend redirects the popup to
+        // dashboard.credwave.app (separate localStorage), so we use a cookie
+        // with domain=.credwave.app which both subdomains can read/write.
+        document.cookie = "cw_checkout_popup=1; domain=.credwave.app; path=/; max-age=300; SameSite=Lax";
+
+        function getCookie(name: string): string | null {
+            const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+            return m ? decodeURIComponent(m[1]) : null;
+        }
 
         let pollInterval: ReturnType<typeof setInterval>;
 
-        // When the popup calls auth.setTokens(), it writes cw_access_token to
-        // localStorage. The browser fires a storage event here automatically.
-        const handleStorage = async (e: StorageEvent) => {
-            if (e.key !== "cw_access_token" || !e.newValue) return;
-            clearInterval(pollInterval);
-            window.removeEventListener("storage", handleStorage);
+        // Poll for the token cookies that AuthCallbackPage writes after closing
+        const pollTokens = setInterval(async () => {
+            const accessToken = getCookie("cw_popup_access");
+            if (!accessToken) return;
+            const refreshToken = getCookie("cw_popup_refresh") ?? "";
 
-            const refresh = localStorage.getItem("cw_refresh_token") ?? "";
-            auth.setTokens(e.newValue, refresh);
+            clearInterval(pollTokens);
+            clearInterval(pollInterval);
+
+            document.cookie = "cw_popup_access=; domain=.credwave.app; path=/; max-age=0";
+            document.cookie = "cw_popup_refresh=; domain=.credwave.app; path=/; max-age=0";
+
+            auth.setTokens(accessToken, refreshToken);
             await user.fetchAll();
 
             try {
@@ -225,15 +235,14 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             } catch {
                 // Paddle timed out — user can click the plan again
             }
-        };
-        window.addEventListener("storage", handleStorage);
+        }, 300);
 
         // Clean up if the user closes the popup without completing auth
         pollInterval = setInterval(() => {
             if (popup.closed) {
                 clearInterval(pollInterval);
-                window.removeEventListener("storage", handleStorage);
-                localStorage.removeItem("cw_checkout_popup");
+                clearInterval(pollTokens);
+                document.cookie = "cw_checkout_popup=; domain=.credwave.app; path=/; max-age=0";
             }
         }, 500);
         return;

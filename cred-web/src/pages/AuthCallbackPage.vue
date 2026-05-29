@@ -20,11 +20,14 @@ onMounted(async () => {
 
   auth.setTokens(accessToken, refreshToken)
 
-  // Popup mode check must come before the domain check — the backend may
-  // redirect to dashboard.credwave.app, which would return early below and
-  // leave the popup open navigating to /pricing.
-  if (localStorage.getItem('cw_checkout_popup')) {
-    localStorage.removeItem('cw_checkout_popup')
+  // Popup mode check must come before the domain check — the backend redirects
+  // to dashboard.credwave.app, which has separate localStorage from credwave.app.
+  // We use a cross-subdomain cookie (.credwave.app) as the flag, and relay the
+  // tokens via cookies so the main window (credwave.app) can read them.
+  if (document.cookie.includes('cw_checkout_popup=1')) {
+    document.cookie = 'cw_checkout_popup=; domain=.credwave.app; path=/; max-age=0'
+    document.cookie = `cw_popup_access=${encodeURIComponent(accessToken)}; domain=.credwave.app; path=/; max-age=60; SameSite=Lax`
+    document.cookie = `cw_popup_refresh=${encodeURIComponent(refreshToken)}; domain=.credwave.app; path=/; max-age=60; SameSite=Lax`
     window.close()
     return
   }
