@@ -27,14 +27,10 @@ onMounted(async () => {
   }
 
   // Popup mode (opened by PricingPage checkout flow via /auth?popup=1).
-  // AuthPage stored the intent in this tab's sessionStorage before redirecting
-  // to Google, so this check is isolated to the popup and never fires in the
-  // normal auth flow.
+  // auth.setTokens() above already fired a storage event in the main window,
+  // which will handle the reload + Paddle open. Just close the popup.
   if (sessionStorage.getItem('cw_auth_intent') === 'checkout') {
     sessionStorage.removeItem('cw_auth_intent')
-    const bc = new BroadcastChannel('cw-auth')
-    bc.postMessage({ type: 'cw-auth-complete', accessToken, refreshToken })
-    bc.close()
     window.close()
     return
   }

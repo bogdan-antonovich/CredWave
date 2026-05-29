@@ -204,39 +204,27 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             return;
         }
 
-        const bc = new BroadcastChannel("cw-auth");
+        // When auth completes in the popup, auth.setTokens() writes to localStorage,
+        // which fires a native storage event here. Save the pending checkout and
+        // reload — onMounted will pick it up and open Paddle automatically.
+        let pollInterval: ReturnType<typeof setInterval>;
 
-        // Clean up channel if user closes the popup without completing auth
-        const pollInterval = setInterval(() => {
+        const handleStorage = (e: StorageEvent) => {
+            if (e.key !== "cw_access_token" || !e.newValue) return;
+            clearInterval(pollInterval);
+            window.removeEventListener("storage", handleStorage);
+            localStorage.setItem(PENDING_KEY, JSON.stringify({ priceId, planName }));
+            window.location.reload();
+        };
+        window.addEventListener("storage", handleStorage);
+
+        // Clean up if the user closes the popup without completing auth
+        pollInterval = setInterval(() => {
             if (popup.closed) {
                 clearInterval(pollInterval);
-                bc.close();
+                window.removeEventListener("storage", handleStorage);
             }
         }, 500);
-
-        bc.onmessage = async (event: MessageEvent) => {
-            clearInterval(pollInterval);
-            bc.close();
-
-            const data = event.data as { type?: string; accessToken?: string; refreshToken?: string };
-            if (data?.type !== "cw-auth-complete" || !data.accessToken || !data.refreshToken) return;
-
-            auth.setTokens(data.accessToken, data.refreshToken);
-            await user.fetchAll();
-
-            try {
-                await waitForPaddle();
-                openCheckout(
-                    priceId,
-                    user.id!,
-                    user.profile.email,
-                    planName,
-                    buildDashboardSuccessUrl(),
-                );
-            } catch {
-                // Paddle timed out — user can click the plan again
-            }
-        };
         return;
     }
 
