@@ -20,14 +20,12 @@ onMounted(async () => {
 
   auth.setTokens(accessToken, refreshToken)
 
-  // Popup mode check must come before the domain check — the backend redirects
-  // to dashboard.credwave.app, which has separate localStorage from credwave.app.
-  // We use a cross-subdomain cookie (.credwave.app) as the flag, and relay the
-  // tokens via cookies so the main window (credwave.app) can read them.
-  if (document.cookie.includes('cw_checkout_popup=1')) {
-    document.cookie = 'cw_checkout_popup=; domain=.credwave.app; path=/; max-age=0'
-    document.cookie = `cw_popup_access=${encodeURIComponent(accessToken)}; domain=.credwave.app; path=/; max-age=60; SameSite=Lax`
-    document.cookie = `cw_popup_refresh=${encodeURIComponent(refreshToken)}; domain=.credwave.app; path=/; max-age=60; SameSite=Lax`
+  // Popup mode: the popup was opened with window.open(url, 'cw-google-auth').
+  // window.name is set by that second argument and survives all cross-origin
+  // redirects inside the popup (backend → Google → backend → here).
+  // auth.setTokens() above already wrote to localStorage, which fires a storage
+  // event in the main window (same origin). Just close the popup.
+  if (window.name === 'cw-google-auth') {
     window.close()
     return
   }

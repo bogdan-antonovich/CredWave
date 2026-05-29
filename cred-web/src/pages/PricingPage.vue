@@ -202,31 +202,17 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             return;
         }
 
-        // Cross-subdomain cookie flag — the backend redirects the popup to
-        // dashboard.credwave.app (separate localStorage), so we use a cookie
-        // with domain=.credwave.app which both subdomains can read/write.
-        document.cookie = "cw_checkout_popup=1; domain=.credwave.app; path=/; max-age=300; SameSite=Lax";
-
-        function getCookie(name: string): string | null {
-            const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
-            return m ? decodeURIComponent(m[1]) : null;
-        }
-
         let pollInterval: ReturnType<typeof setInterval>;
 
-        // Poll for the token cookies that AuthCallbackPage writes after closing
-        const pollTokens = setInterval(async () => {
-            const accessToken = getCookie("cw_popup_access");
-            if (!accessToken) return;
-            const refreshToken = getCookie("cw_popup_refresh") ?? "";
-
-            clearInterval(pollTokens);
+        // The popup calls auth.setTokens() on credwave.app, which writes to
+        // localStorage and fires a storage event here (same origin, different window).
+        const handleStorage = async (e: StorageEvent) => {
+            if (e.key !== "cw_access_token" || !e.newValue) return;
             clearInterval(pollInterval);
+            window.removeEventListener("storage", handleStorage);
 
-            document.cookie = "cw_popup_access=; domain=.credwave.app; path=/; max-age=0";
-            document.cookie = "cw_popup_refresh=; domain=.credwave.app; path=/; max-age=0";
-
-            auth.setTokens(accessToken, refreshToken);
+            const refresh = localStorage.getItem("cw_refresh_token") ?? "";
+            auth.setTokens(e.newValue, refresh);
             await user.fetchAll();
 
             try {
@@ -235,14 +221,14 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             } catch {
                 // Paddle timed out — user can click the plan again
             }
-        }, 300);
+        };
+        window.addEventListener("storage", handleStorage);
 
         // Clean up if the user closes the popup without completing auth
         pollInterval = setInterval(() => {
             if (popup.closed) {
                 clearInterval(pollInterval);
-                clearInterval(pollTokens);
-                document.cookie = "cw_checkout_popup=; domain=.credwave.app; path=/; max-age=0";
+                window.removeEventListener("storage", handleStorage);
             }
         }, 500);
         return;
