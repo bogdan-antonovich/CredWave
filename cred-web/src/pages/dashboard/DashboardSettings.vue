@@ -91,7 +91,11 @@ async function handleDeleteAccount() {
                 <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
                 <Check v-else-if="saved" class="w-4 h-4" />
                 <Save v-else class="w-4 h-4" />
-                {{ saving ? "Saving..." : saved ? "Saved" : "Save Changes" }}
+                <span class="hidden sm:inline">
+                    {{
+                        saving ? "Saving..." : saved ? "Saved" : "Save Changes"
+                    }}
+                </span>
             </button>
         </div>
 
