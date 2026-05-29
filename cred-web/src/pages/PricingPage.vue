@@ -50,7 +50,7 @@ onMounted(async () => {
                 priceId: string;
                 planName: string;
             };
-            await waitForPaddle();
+            await Promise.all([waitForPaddle(), user.fetchAll()]);
             openCheckout(
                 pending.priceId,
                 user.id!,
