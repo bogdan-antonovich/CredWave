@@ -72,7 +72,7 @@ defineEmits<{
       "
       @click="$emit('select')"
     >
-      {{ ctaLabel || 'Start Free Trial' }}
+      {{ ctaLabel || 'Get Started' }}
     </button>
   </div>
 </template>
