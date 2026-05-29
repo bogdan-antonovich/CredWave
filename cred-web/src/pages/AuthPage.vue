@@ -1,9 +1,23 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useReveal } from '@/utils/useReveal'
 import { useAuthStore } from '@/stores/auth.store'
+import { config } from '@/config/env'
 
 useReveal()
 const auth = useAuthStore()
+const route = useRoute()
+
+onMounted(() => {
+  if (route.query.popup === '1') {
+    // Opened by PricingPage as a checkout popup.
+    // Store intent in this tab's sessionStorage (isolated from the main window),
+    // then immediately head to Google OAuth — no button needed.
+    sessionStorage.setItem('cw_auth_intent', 'checkout')
+    window.location.href = `${config.apiUrl}/auth/google`
+  }
+})
 </script>
 
 <template>

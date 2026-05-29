@@ -173,14 +173,14 @@ function buildDashboardSuccessUrl(): string | undefined {
     return target.toString();
 }
 
-const POPUP_FLAG = "cw_popup_checkout";
-
 function openAuthPopup(): Window | null {
     const w = 500, h = 620;
     const left = window.screenX + Math.round((window.outerWidth - w) / 2);
     const top = window.screenY + Math.round((window.outerHeight - h) / 2);
+    // Open to our own domain so AuthPage can store the checkout intent in the
+    // popup's own sessionStorage before heading to Google OAuth.
     return window.open(
-        `${config.apiUrl}/auth/google`,
+        `/auth?popup=1`,
         "cw-google-auth",
         `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`,
     );
@@ -204,24 +204,19 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             return;
         }
 
-        // Flag tells AuthCallbackPage it's running inside a checkout popup
-        localStorage.setItem(POPUP_FLAG, "1");
-
         const bc = new BroadcastChannel("cw-auth");
 
-        // Clean up if the user closes the popup without completing auth
+        // Clean up channel if user closes the popup without completing auth
         const pollInterval = setInterval(() => {
             if (popup.closed) {
                 clearInterval(pollInterval);
                 bc.close();
-                localStorage.removeItem(POPUP_FLAG);
             }
         }, 500);
 
         bc.onmessage = async (event: MessageEvent) => {
             clearInterval(pollInterval);
             bc.close();
-            localStorage.removeItem(POPUP_FLAG);
 
             const data = event.data as { type?: string; accessToken?: string; refreshToken?: string };
             if (data?.type !== "cw-auth-complete" || !data.accessToken || !data.refreshToken) return;

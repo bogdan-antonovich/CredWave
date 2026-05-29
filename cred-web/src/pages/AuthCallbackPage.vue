@@ -26,11 +26,12 @@ onMounted(async () => {
     return
   }
 
-  // Popup mode (opened by PricingPage for checkout): broadcast tokens and close.
-  // The flag is set by PricingPage before opening the popup so the normal flow
-  // is untouched when the user authenticates through any other path.
-  if (localStorage.getItem('cw_popup_checkout')) {
-    localStorage.removeItem('cw_popup_checkout')
+  // Popup mode (opened by PricingPage checkout flow via /auth?popup=1).
+  // AuthPage stored the intent in this tab's sessionStorage before redirecting
+  // to Google, so this check is isolated to the popup and never fires in the
+  // normal auth flow.
+  if (sessionStorage.getItem('cw_auth_intent') === 'checkout') {
+    sessionStorage.removeItem('cw_auth_intent')
     const bc = new BroadcastChannel('cw-auth')
     bc.postMessage({ type: 'cw-auth-complete', accessToken, refreshToken })
     bc.close()
