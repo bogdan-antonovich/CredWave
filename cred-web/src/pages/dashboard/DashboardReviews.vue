@@ -512,11 +512,11 @@ async function handleSelectRestaurant(result: SearchResult) {
                                         class="w-3.5 h-3.5"
                                     />
                                     <Copy v-else class="w-3.5 h-3.5" />
-                                    {{
+                                    <span class="hidden sm:inline">{{
                                         copiedId === review.id
                                             ? "Copied!"
                                             : "Copy Response"
-                                    }}
+                                    }}</span>
                                 </button>
 
                                 <!-- Reply on Google -->
@@ -528,7 +528,7 @@ async function handleSelectRestaurant(result: SearchResult) {
                                     class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-brand/40 transition-all duration-200"
                                 >
                                     <ExternalLink class="w-3.5 h-3.5" />
-                                    Reply on Google
+                                    <span class="hidden sm:inline">Reply on Google</span>
                                 </a>
 
                                 <!-- Mark as done -->
@@ -545,11 +545,11 @@ async function handleSelectRestaurant(result: SearchResult) {
                                         class="w-3.5 h-3.5 animate-spin"
                                     />
                                     <Check v-else class="w-3.5 h-3.5" />
-                                    {{
+                                    <span class="hidden sm:inline">{{
                                         reviewsStore.sending[review.id]
                                             ? "Saving..."
                                             : "Mark as Done"
-                                    }}
+                                    }}</span>
                                 </button>
                             </div>
                         </div>
