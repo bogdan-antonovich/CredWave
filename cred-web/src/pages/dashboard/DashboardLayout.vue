@@ -30,14 +30,19 @@ onMounted(async () => {
 
   const headers = { Authorization: `Bearer ${auth.accessToken}` }
 
+  console.log('[access] checking subscription, promo, admin...')
   const [subRes, promoRes, adminRes] = await Promise.all([
-    fetch(`${config.apiUrl}/billing/subscription`, { headers }).catch(() => null),
-    fetch(`${config.apiUrl}/promo/access`, { headers }).catch(() => null),
-    fetch(`${config.apiUrl}/admin/restaurants`, { headers }).catch(() => null),
+    fetch(`${config.apiUrl}/billing/subscription`, { headers }).catch((e) => { console.error('[access] subscription fetch error', e); return null }),
+    fetch(`${config.apiUrl}/promo/access`, { headers }).catch((e) => { console.error('[access] promo fetch error', e); return null }),
+    fetch(`${config.apiUrl}/admin/restaurants`, { headers }).catch((e) => { console.error('[access] admin fetch error', e); return null }),
   ])
+  console.log('[access] subscription:', subRes?.status, '| promo:', promoRes?.status, '| admin:', adminRes?.status)
 
   if (!subRes?.ok && !promoRes?.ok && !adminRes?.ok) {
+    console.log('[access] no access — redirecting to pricing')
     window.location.href = `${config.appUrl}/pricing`
+  } else {
+    console.log('[access] granted')
   }
 })
 
