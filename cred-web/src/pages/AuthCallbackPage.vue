@@ -26,11 +26,12 @@ onMounted(async () => {
     return
   }
 
-  // Popup mode (opened by PricingPage checkout flow via /auth?popup=1).
-  // auth.setTokens() above already fired a storage event in the main window,
-  // which will handle the reload + Paddle open. Just close the popup.
-  if (sessionStorage.getItem('cw_auth_intent') === 'checkout') {
-    sessionStorage.removeItem('cw_auth_intent')
+  // Popup mode (opened by PricingPage for checkout).
+  // auth.setTokens() above already wrote to localStorage, which fires a storage
+  // event in the main window. The main window handles everything from there.
+  // Just close the popup.
+  if (localStorage.getItem('cw_checkout_popup')) {
+    localStorage.removeItem('cw_checkout_popup')
     window.close()
     return
   }

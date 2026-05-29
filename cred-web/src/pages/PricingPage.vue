@@ -177,12 +177,10 @@ function openAuthPopup(): Window | null {
     const w = 500, h = 620;
     const left = window.screenX + Math.round((window.outerWidth - w) / 2);
     const top = window.screenY + Math.round((window.outerHeight - h) / 2);
-    // Open to our own domain so AuthPage can store the checkout intent in the
-    // popup's own sessionStorage before heading to Google OAuth.
     return window.open(
-        `/auth?popup=1`,
+        `${config.apiUrl}/auth/google`,
         "cw-google-auth",
-        `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`,
+        `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`,
     );
 }
 
@@ -204,17 +202,29 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             return;
         }
 
-        // When auth completes in the popup, auth.setTokens() writes to localStorage,
-        // which fires a native storage event here. Save the pending checkout and
-        // reload — onMounted will pick it up and open Paddle automatically.
+        // Tell AuthCallbackPage (running inside the popup) to close instead of
+        // navigating to /pricing. Set flag before the popup can reach the callback.
+        localStorage.setItem("cw_checkout_popup", "1");
+
         let pollInterval: ReturnType<typeof setInterval>;
 
-        const handleStorage = (e: StorageEvent) => {
+        // When the popup calls auth.setTokens(), it writes cw_access_token to
+        // localStorage. The browser fires a storage event here automatically.
+        const handleStorage = async (e: StorageEvent) => {
             if (e.key !== "cw_access_token" || !e.newValue) return;
             clearInterval(pollInterval);
             window.removeEventListener("storage", handleStorage);
-            localStorage.setItem(PENDING_KEY, JSON.stringify({ priceId, planName }));
-            window.location.reload();
+
+            const refresh = localStorage.getItem("cw_refresh_token") ?? "";
+            auth.setTokens(e.newValue, refresh);
+            await user.fetchAll();
+
+            try {
+                await waitForPaddle();
+                openCheckout(priceId, user.id!, user.profile.email, planName, buildDashboardSuccessUrl());
+            } catch {
+                // Paddle timed out — user can click the plan again
+            }
         };
         window.addEventListener("storage", handleStorage);
 
@@ -223,6 +233,7 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             if (popup.closed) {
                 clearInterval(pollInterval);
                 window.removeEventListener("storage", handleStorage);
+                localStorage.removeItem("cw_checkout_popup");
             }
         }, 500);
         return;
