@@ -173,6 +173,8 @@ function buildDashboardSuccessUrl(): string | undefined {
     return target.toString();
 }
 
+const POPUP_FLAG = "cw_popup_checkout";
+
 function openAuthPopup(): Window | null {
     const w = 500, h = 620;
     const left = window.screenX + Math.round((window.outerWidth - w) / 2);
@@ -202,16 +204,29 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             return;
         }
 
-        const handleMessage = async (event: MessageEvent) => {
-            if (event.origin !== window.location.origin) return;
-            if ((event.data as { type?: string })?.type !== "cw-auth-complete") return;
-            window.removeEventListener("message", handleMessage);
+        // Flag tells AuthCallbackPage it's running inside a checkout popup
+        localStorage.setItem(POPUP_FLAG, "1");
 
-            const { accessToken, refreshToken } = event.data as {
-                accessToken: string;
-                refreshToken: string;
-            };
-            auth.setTokens(accessToken, refreshToken);
+        const bc = new BroadcastChannel("cw-auth");
+
+        // Clean up if the user closes the popup without completing auth
+        const pollInterval = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(pollInterval);
+                bc.close();
+                localStorage.removeItem(POPUP_FLAG);
+            }
+        }, 500);
+
+        bc.onmessage = async (event: MessageEvent) => {
+            clearInterval(pollInterval);
+            bc.close();
+            localStorage.removeItem(POPUP_FLAG);
+
+            const data = event.data as { type?: string; accessToken?: string; refreshToken?: string };
+            if (data?.type !== "cw-auth-complete" || !data.accessToken || !data.refreshToken) return;
+
+            auth.setTokens(data.accessToken, data.refreshToken);
             await user.fetchAll();
 
             try {
@@ -227,7 +242,6 @@ function handleSelect(plan: (typeof plans.value)[number]) {
                 // Paddle timed out — user can click the plan again
             }
         };
-        window.addEventListener("message", handleMessage);
         return;
     }
 

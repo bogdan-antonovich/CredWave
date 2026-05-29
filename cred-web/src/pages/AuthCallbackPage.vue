@@ -26,12 +26,14 @@ onMounted(async () => {
     return
   }
 
-  // Popup mode: send tokens back to the opener (PricingPage) and close
-  if (window.opener) {
-    window.opener.postMessage(
-      { type: 'cw-auth-complete', accessToken, refreshToken },
-      window.location.origin,
-    )
+  // Popup mode (opened by PricingPage for checkout): broadcast tokens and close.
+  // The flag is set by PricingPage before opening the popup so the normal flow
+  // is untouched when the user authenticates through any other path.
+  if (localStorage.getItem('cw_popup_checkout')) {
+    localStorage.removeItem('cw_popup_checkout')
+    const bc = new BroadcastChannel('cw-auth')
+    bc.postMessage({ type: 'cw-auth-complete', accessToken, refreshToken })
+    bc.close()
     window.close()
     return
   }
