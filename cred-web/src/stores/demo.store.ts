@@ -42,6 +42,7 @@ const STORAGE_KEY = 'credwave_demo'
 interface StoredDemo {
   phase: 'disambiguation' | 'results'
   query: string
+  restaurantName?: string
   searchResults: SearchResult[]
   blocks: ReviewBlock[]
 }
@@ -53,17 +54,18 @@ export const useDemoStore = defineStore('demo', () => {
   const error = ref<string | null>(null)
   const searchQuery = ref('')
 
-  function saveToStorage(phase: 'disambiguation' | 'results') {
+  function saveToStorage(phase: 'disambiguation' | 'results', restaurantName?: string) {
     const state: StoredDemo = {
       phase,
       query: searchQuery.value,
+      restaurantName,
       searchResults: searchResults.value,
       blocks: blocks.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }
 
-  function restoreFromStorage(): { phase: 'disambiguation' | 'results'; query: string } | null {
+  function restoreFromStorage(): { phase: 'disambiguation' | 'results'; query: string; restaurantName?: string } | null {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (!raw) return null
@@ -71,7 +73,7 @@ export const useDemoStore = defineStore('demo', () => {
       searchResults.value = state.searchResults
       blocks.value = state.blocks
       searchQuery.value = state.query
-      return { phase: state.phase, query: state.query }
+      return { phase: state.phase, query: state.query, restaurantName: state.restaurantName }
     } catch {
       return null
     }
@@ -105,7 +107,7 @@ export const useDemoStore = defineStore('demo', () => {
         name: restaurantName,
       })
       blocks.value = data.blocks.map(mapApiBlock)
-      saveToStorage('results')
+      saveToStorage('results', restaurantName)
       track('demo_generated', { restaurant: restaurantName, blocks: data.blocks.length })
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Generation failed'

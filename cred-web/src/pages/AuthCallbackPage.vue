@@ -26,6 +26,16 @@ onMounted(async () => {
     return
   }
 
+  // Popup mode: send tokens back to the opener (PricingPage) and close
+  if (window.opener) {
+    window.opener.postMessage(
+      { type: 'cw-auth-complete', accessToken, refreshToken },
+      window.location.origin,
+    )
+    window.close()
+    return
+  }
+
   // On main domain: check subscription and decide where to send the user.
   // Use plain fetch — tokens are fresh, so no need for the api interceptor's
   // auto-refresh/auto-logout, which would wipe credwave.app localStorage on any failure.

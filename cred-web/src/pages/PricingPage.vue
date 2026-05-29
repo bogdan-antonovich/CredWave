@@ -173,6 +173,17 @@ function buildDashboardSuccessUrl(): string | undefined {
     return target.toString();
 }
 
+function openAuthPopup(): Window | null {
+    const w = 500, h = 620;
+    const left = window.screenX + Math.round((window.outerWidth - w) / 2);
+    const top = window.screenY + Math.round((window.outerHeight - h) / 2);
+    return window.open(
+        `${config.apiUrl}/auth/google`,
+        "cw-google-auth",
+        `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`,
+    );
+}
+
 function handleSelect(plan: (typeof plans.value)[number]) {
     const priceId = isAnnual.value
         ? plan.paddlePriceAnnual
@@ -182,11 +193,41 @@ function handleSelect(plan: (typeof plans.value)[number]) {
     const planName = plan.name.toLowerCase(); // 'starter' | 'growth' | 'scale'
 
     if (!auth.isAuthenticated) {
-        localStorage.setItem(
-            PENDING_KEY,
-            JSON.stringify({ priceId, planName }),
-        );
-        void router.push("/auth");
+        const popup = openAuthPopup();
+
+        if (!popup) {
+            // Popup blocked — fall back to redirect flow
+            localStorage.setItem(PENDING_KEY, JSON.stringify({ priceId, planName }));
+            void router.push("/auth");
+            return;
+        }
+
+        const handleMessage = async (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            if ((event.data as { type?: string })?.type !== "cw-auth-complete") return;
+            window.removeEventListener("message", handleMessage);
+
+            const { accessToken, refreshToken } = event.data as {
+                accessToken: string;
+                refreshToken: string;
+            };
+            auth.setTokens(accessToken, refreshToken);
+            await user.fetchAll();
+
+            try {
+                await waitForPaddle();
+                openCheckout(
+                    priceId,
+                    user.id!,
+                    user.profile.email,
+                    planName,
+                    buildDashboardSuccessUrl(),
+                );
+            } catch {
+                // Paddle timed out — user can click the plan again
+            }
+        };
+        window.addEventListener("message", handleMessage);
         return;
     }
 

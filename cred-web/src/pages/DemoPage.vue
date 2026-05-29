@@ -125,6 +125,7 @@ onMounted(() => {
     if (!saved) return;
     if (saved.phase === "results") {
         step.value = "results";
+        selectedRestaurantName.value = saved.restaurantName ?? "";
     } else if (saved.phase === "disambiguation") {
         input.value = saved.query;
         step.value = "disambiguation";
