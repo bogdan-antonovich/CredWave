@@ -20,19 +20,18 @@ onMounted(async () => {
 
   auth.setTokens(accessToken, refreshToken)
 
-  if (isDashboardDomain) {
-    // Tokens forwarded from credwave.app — just go home
-    void router.replace('/')
-    return
-  }
-
-  // Popup mode (opened by PricingPage for checkout).
-  // auth.setTokens() above already wrote to localStorage, which fires a storage
-  // event in the main window. The main window handles everything from there.
-  // Just close the popup.
+  // Popup mode check must come before the domain check — the backend may
+  // redirect to dashboard.credwave.app, which would return early below and
+  // leave the popup open navigating to /pricing.
   if (localStorage.getItem('cw_checkout_popup')) {
     localStorage.removeItem('cw_checkout_popup')
     window.close()
+    return
+  }
+
+  if (isDashboardDomain) {
+    // Tokens forwarded from credwave.app — just go home
+    void router.replace('/')
     return
   }
 
