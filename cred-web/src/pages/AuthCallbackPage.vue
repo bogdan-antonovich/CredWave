@@ -20,16 +20,6 @@ onMounted(async () => {
 
   auth.setTokens(accessToken, refreshToken)
 
-  // Popup mode: PricingPage set this flag in localStorage before opening the
-  // popup. The popup lands on credwave.app (same origin), so localStorage is
-  // shared. auth.setTokens() above already fired a storage event in the main
-  // window — just close the popup.
-  if (localStorage.getItem('cw_checkout_popup')) {
-    localStorage.removeItem('cw_checkout_popup')
-    window.close()
-    return
-  }
-
   if (isDashboardDomain) {
     // Tokens forwarded from credwave.app — just go home
     void router.replace('/')

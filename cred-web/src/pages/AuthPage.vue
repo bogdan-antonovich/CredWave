@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useReveal } from '@/utils/useReveal'
 import { useAuthStore } from '@/stores/auth.store'
 
 useReveal()
 const auth = useAuthStore()
+
+const hasPendingCheckout = computed(() => !!localStorage.getItem('cw_pending_checkout'))
 </script>
 
 <template>
@@ -16,12 +19,22 @@ const auth = useAuthStore()
 
       <div class="relative z-10 w-full max-w-[400px]">
         <div class="reveal text-center mb-10">
-          <h1 class="text-2xl font-bold font-display tracking-tight text-white">
-            Sign in to your dashboard
-          </h1>
-          <p class="mt-2 text-sm text-white/40">
-            Connect your Google account to start managing reviews.
-          </p>
+          <template v-if="hasPendingCheckout">
+            <h1 class="text-2xl font-bold font-display tracking-tight text-white">
+              One step away
+            </h1>
+            <p class="mt-2 text-sm text-white/40">
+              Sign in with Google to complete your purchase. You'll be taken straight to checkout.
+            </p>
+          </template>
+          <template v-else>
+            <h1 class="text-2xl font-bold font-display tracking-tight text-white">
+              Sign in to your dashboard
+            </h1>
+            <p class="mt-2 text-sm text-white/40">
+              Connect your Google account to start managing reviews.
+            </p>
+          </template>
         </div>
 
         <div class="reveal">

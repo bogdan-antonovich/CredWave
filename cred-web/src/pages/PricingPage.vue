@@ -173,17 +173,6 @@ function buildDashboardSuccessUrl(): string | undefined {
     return target.toString();
 }
 
-function openAuthPopup(): Window | null {
-    const w = 500, h = 620;
-    const left = window.screenX + Math.round((window.outerWidth - w) / 2);
-    const top = window.screenY + Math.round((window.outerHeight - h) / 2);
-    return window.open(
-        `${config.apiUrl}/auth/google`,
-        "cw-google-auth",
-        `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`,
-    );
-}
-
 function handleSelect(plan: (typeof plans.value)[number]) {
     const priceId = isAnnual.value
         ? plan.paddlePriceAnnual
@@ -193,49 +182,8 @@ function handleSelect(plan: (typeof plans.value)[number]) {
     const planName = plan.name.toLowerCase(); // 'starter' | 'growth' | 'scale'
 
     if (!auth.isAuthenticated) {
-        const popup = openAuthPopup();
-
-        if (!popup) {
-            // Popup blocked — fall back to redirect flow
-            localStorage.setItem(PENDING_KEY, JSON.stringify({ priceId, planName }));
-            void router.push("/auth");
-            return;
-        }
-
-        // Flag read by AuthCallbackPage to detect it's running in the popup.
-        // Must be set before the popup can reach the callback.
-        localStorage.setItem("cw_checkout_popup", "1");
-
-        let pollInterval: ReturnType<typeof setInterval>;
-
-        // The popup calls auth.setTokens() on credwave.app, which writes to
-        // localStorage and fires a storage event here (same origin, different window).
-        const handleStorage = async (e: StorageEvent) => {
-            if (e.key !== "cw_access_token" || !e.newValue) return;
-            clearInterval(pollInterval);
-            window.removeEventListener("storage", handleStorage);
-
-            const refresh = localStorage.getItem("cw_refresh_token") ?? "";
-            auth.setTokens(e.newValue, refresh);
-            await user.fetchAll();
-
-            try {
-                await waitForPaddle();
-                openCheckout(priceId, user.id!, user.profile.email, planName, buildDashboardSuccessUrl());
-            } catch {
-                // Paddle timed out — user can click the plan again
-            }
-        };
-        window.addEventListener("storage", handleStorage);
-
-        // Clean up if the user closes the popup without completing auth
-        pollInterval = setInterval(() => {
-            if (popup.closed) {
-                clearInterval(pollInterval);
-                window.removeEventListener("storage", handleStorage);
-                localStorage.removeItem("cw_checkout_popup");
-            }
-        }, 500);
+        localStorage.setItem(PENDING_KEY, JSON.stringify({ priceId, planName }));
+        void router.push("/auth");
         return;
     }
 
