@@ -202,6 +202,10 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             return;
         }
 
+        // Flag read by AuthCallbackPage to detect it's running in the popup.
+        // Must be set before the popup can reach the callback.
+        localStorage.setItem("cw_checkout_popup", "1");
+
         let pollInterval: ReturnType<typeof setInterval>;
 
         // The popup calls auth.setTokens() on credwave.app, which writes to
@@ -229,6 +233,7 @@ function handleSelect(plan: (typeof plans.value)[number]) {
             if (popup.closed) {
                 clearInterval(pollInterval);
                 window.removeEventListener("storage", handleStorage);
+                localStorage.removeItem("cw_checkout_popup");
             }
         }, 500);
         return;
