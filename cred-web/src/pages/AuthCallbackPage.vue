@@ -29,15 +29,15 @@ onMounted(async () => {
   // On main domain: check subscription and decide where to send the user.
   // Use plain fetch — tokens are fresh, so no need for the api interceptor's
   // auto-refresh/auto-logout, which would wipe credwave.app localStorage on any failure.
-  const res = await fetch(`${config.apiUrl}/billing/subscription`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  }).catch(() => null)
+  const headers = { Authorization: `Bearer ${accessToken}` }
 
-  const isAdmin = !res?.ok && (await fetch(`${config.apiUrl}/admin/restaurants`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  }).catch(() => null))?.ok
+  const [subRes, promoRes, adminRes] = await Promise.all([
+    fetch(`${config.apiUrl}/billing/subscription`, { headers }).catch(() => null),
+    fetch(`${config.apiUrl}/promo/access`, { headers }).catch(() => null),
+    fetch(`${config.apiUrl}/admin/restaurants`, { headers }).catch(() => null),
+  ])
 
-  if (res?.ok || isAdmin) {
+  if (subRes?.ok || promoRes?.ok || adminRes?.ok) {
     // Has subscription (or is admin) → forward to dashboard subdomain with tokens
     localStorage.removeItem('cw_pending_checkout')
     const target = new URL(`${config.dashboardUrl}/auth/callback`)

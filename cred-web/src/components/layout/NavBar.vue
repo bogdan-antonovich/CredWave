@@ -35,16 +35,16 @@ function buildDashboardUrl(): string {
 async function goToDashboard() {
   if (isDashboardDomain) return
 
-  try {
-    await api.get('/billing/subscription')
+  const [subRes, promoRes, adminRes] = await Promise.all([
+    api.get('/billing/subscription').then(() => true).catch((e: unknown) => e instanceof ApiError && e.status === 404 ? false : true),
+    api.get('/promo/access').then(() => true).catch((e: unknown) => e instanceof ApiError && e.status === 404 ? false : true),
+    api.get('/admin/restaurants').then(() => true).catch((e: unknown) => e instanceof ApiError && e.status === 404 ? false : true),
+  ])
+
+  if (subRes || promoRes || adminRes) {
     window.location.href = buildDashboardUrl()
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      window.location.href = '/pricing'
-    } else {
-      // Any other error (network, 401 handled by api.ts) — fall back to dashboard
-      window.location.href = buildDashboardUrl()
-    }
+  } else {
+    window.location.href = '/pricing'
   }
 }
 
