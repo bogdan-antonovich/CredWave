@@ -207,7 +207,7 @@ const faq = [
     },
     {
         q: "Do I need to give you access to my Google account?",
-        a: "You sign in with Google and grant access to your Google Business Profile — that's it. We only request the permissions needed to read your reviews and post responses. We never access your email, contacts, or anything else.",
+        a: "You sign in with Google — that's it. We only request the permissions needed to read your reviews and post responses on your behalf. We never access your email, contacts, or anything else.",
     },
     {
         q: "What happens if I cancel?",
@@ -223,7 +223,7 @@ const faq = [
     },
     {
         q: "What if I have multiple restaurant locations?",
-        a: "The Scale plan supports multiple locations under one account. Each location gets its own review feed, brand voice settings, and response history. Starter and Growth plans cover a single location.",
+        a: "Multi-location support is something we're actively working on. If you manage more than one location, reach out to us at hello@credwave.app — we'll make sure to find the right approach for your setup.",
     },
     {
         q: "Can I see the product before subscribing?",

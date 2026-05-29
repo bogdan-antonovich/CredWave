@@ -92,7 +92,7 @@ export class EmailService {
         p(
           'Thanks for signing up. CredWave helps you stay on top of your Google reviews — generating AI-crafted replies in seconds so you never leave a customer unanswered.',
         ) +
-          p("Connect your Google Business Profile and you're ready to go.") +
+          p("Add your restaurant and you're ready to go.") +
           btn('Go to dashboard', 'https://dashboard.credwave.app') +
           p('If you have any questions, just reply to this email.'),
       ),
@@ -228,7 +228,7 @@ export class EmailService {
           btn('Go to dashboard', 'https://dashboard.credwave.app') +
           divider() +
           p(
-            'Make the most of your access — connect your Google Business Profile and start managing reviews today.',
+            'Make the most of your access — add your restaurant and start managing reviews today.',
           ),
       ),
     );
