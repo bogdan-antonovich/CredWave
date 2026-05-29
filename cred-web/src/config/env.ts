@@ -32,6 +32,6 @@ export const config = {
     },
   },
   admin: {
-    password: (import.meta.env.VITE_ADMIN_PASSWORD as string) || "credwave2024",
+    password: (import.meta.env.VITE_ADMIN_PASSWORD as string) || "",
   },
 } as const;
