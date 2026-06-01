@@ -73,6 +73,7 @@ export class AdminController {
   })
   async addRestaurant(@Body() body: RestaurantCredentials) {
     this.logger.info('Adding a demo restaurant');
+    this.logger.debug({ body }, 'There is the body');
     return await this.adminService.addRestaurant(body);
   }
 
