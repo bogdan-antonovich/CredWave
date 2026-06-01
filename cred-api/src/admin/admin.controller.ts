@@ -23,8 +23,11 @@ import {
 } from '@nestjs/swagger';
 import { AdminGuard } from '../shared/guards/admin.guard';
 import { AdminService } from './admin.service';
-import type { RestaurantCredentials, ReviewBlock } from './admin.types';
-import { PromoCodeDto } from './admin.types';
+import {
+  RestaurantCredentials,
+  ReviewBlock,
+  PromoCodeDto,
+} from './admin.types';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 @ApiTags('Admin')
