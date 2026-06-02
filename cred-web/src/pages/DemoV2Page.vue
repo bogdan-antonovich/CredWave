@@ -79,7 +79,7 @@ watch(() => route.params.restaurantName, loadData)
 
             <div class="reveal mt-12 p-10 rounded-2xl bg-surface-dark text-center">
               <p class="text-xl font-bold font-display text-white">
-                Tired of copy-pasting review responses?
+                What if every review got a response — without you lifting a finger?
               </p>
               <p class="mt-3 text-sm text-white/45 max-w-[440px] mx-auto">
                 CredWave monitors your Google reviews 24/7. Every review, three responses, zero effort.
