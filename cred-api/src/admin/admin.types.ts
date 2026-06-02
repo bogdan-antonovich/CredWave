@@ -41,10 +41,6 @@ export class ReviewBlock {
 
   @IsString()
   @IsNotEmpty()
-  restaurantName: string;
-
-  @IsString()
-  @IsNotEmpty()
   reviewerName: string;
 
   @IsString()
