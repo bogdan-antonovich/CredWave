@@ -14,6 +14,7 @@ import { AuthGuard } from '@nestjs/passport';
 import type OpenAI from 'openai';
 import { ReviewsService } from './reviews.service';
 import { ReviewsController } from './reviews.controller';
+import { AiService } from '../shared/ai.service';
 import type { Server } from 'http';
 
 class MockJwtGuard implements CanActivate {
@@ -88,6 +89,7 @@ describe('/reviews route', () => {
       controllers: [ReviewsController],
       providers: [
         ReviewsService,
+        AiService,
         { provide: 'SQL', useValue: sql },
         { provide: 'OPENAI', useValue: openaiMock },
         {
@@ -101,6 +103,10 @@ describe('/reviews route', () => {
         },
         {
           provide: getLoggerToken(ReviewsService.name),
+          useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
+        },
+        {
+          provide: getLoggerToken(AiService.name),
           useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
         },
         {

@@ -13,6 +13,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AdminGuard } from '../shared/guards/admin.guard';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { AiService } from '../shared/ai.service';
 
 type RestaurantsResponse = {
   restaurants: { name: string; slug: string }[];
@@ -31,6 +32,16 @@ type BlocksResponse = {
     rating: number;
     responses: { text: string; tone: string }[];
   }[];
+};
+
+const FAKE_RESPONSES = {
+  empathetic: 'We appreciate it!',
+  professional: 'Thank you for your feedback.',
+  casual: 'Awesome, glad you liked it!',
+};
+
+const mockAiService = {
+  generateReviewResponses: jest.fn().mockResolvedValue(FAKE_RESPONSES),
 };
 
 class MockJwtGuard implements CanActivate {
@@ -73,7 +84,11 @@ describe('Admin (integration)', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [LoggerModule.forRoot({ pinoHttp: { level: 'silent' } })],
       controllers: [AdminController],
-      providers: [AdminService, { provide: 'SQL', useValue: sql }],
+      providers: [
+        AdminService,
+        { provide: 'SQL', useValue: sql },
+        { provide: AiService, useValue: mockAiService },
+      ],
     })
       .overrideGuard(AuthGuard('jwt'))
       .useClass(MockJwtGuard)
@@ -260,6 +275,30 @@ describe('Admin (integration)', () => {
 
       expect(reviews[0].reviewer_name).toBe('New');
       expect(responses).toHaveLength(1);
+    });
+  });
+
+  describe('POST /admin/blocks/generate', () => {
+    it('returns AI-generated responses', async () => {
+      const payload = {
+        restaurantName: 'Pasta Place',
+        reviewerName: 'Alice',
+        reviewText: 'Great food!',
+        rating: 5,
+      };
+
+      const res = await request(server)
+        .post('/admin/blocks/generate')
+        .send(payload)
+        .expect(201);
+
+      expect(res.body).toEqual(FAKE_RESPONSES);
+      expect(mockAiService.generateReviewResponses).toHaveBeenCalledWith(
+        'Pasta Place',
+        'Alice',
+        5,
+        'Great food!',
+      );
     });
   });
 
