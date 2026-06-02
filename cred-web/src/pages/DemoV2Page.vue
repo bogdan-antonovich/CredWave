@@ -82,7 +82,7 @@ watch(() => route.params.restaurantName, loadData)
                 Tired of copy-pasting review responses?
               </p>
               <p class="mt-3 text-sm text-white/45 max-w-[440px] mx-auto">
-                Automate it. CredWave responds to every review automatically — 35% more revenue, zero extra hours.
+                CredWave monitors your Google reviews 24/7. Every review, three responses, zero effort.
               </p>
               <RouterLink
                 to="/pricing"
