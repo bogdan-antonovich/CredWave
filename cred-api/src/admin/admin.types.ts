@@ -86,3 +86,22 @@ export class PromoCodeDto {
   @IsOptional()
   maxUses?: number;
 }
+
+export class GenerateResponsesDto {
+  @IsString()
+  @IsNotEmpty()
+  restaurantName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  reviewerName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  reviewText: string;
+
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  rating: number;
+}

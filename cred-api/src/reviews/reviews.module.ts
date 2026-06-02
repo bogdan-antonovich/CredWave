@@ -4,12 +4,14 @@ import { AppConfigService } from 'src/config/config.service';
 import { AuthModule } from '../auth/auth.module';
 import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
+import { AiService } from '../shared/ai.service';
 
 @Module({
   imports: [AuthModule],
   controllers: [ReviewsController],
   providers: [
     ReviewsService,
+    AiService,
     {
       provide: 'OPENAI',
       inject: [AppConfigService],

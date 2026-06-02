@@ -5,6 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { getLoggerToken } from 'nestjs-pino';
+import { AiService } from '../shared/ai.service';
+
+const mockAiService = {
+  generateReviewResponses: jest.fn(),
+};
+
+const FAKE_RESPONSES = {
+  empathetic: 'We appreciate it!',
+  professional: 'Thank you.',
+  casual: 'Awesome!',
+};
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -12,16 +23,39 @@ describe('AdminService', () => {
 
   beforeEach(async () => {
     sql = jest.fn();
+    jest.resetAllMocks();
 
     const module = await Test.createTestingModule({
       providers: [
         AdminService,
         { provide: 'SQL', useValue: sql },
+        { provide: AiService, useValue: mockAiService },
         { provide: getLoggerToken(AdminService.name), useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() } },
       ],
     }).compile();
 
     service = module.get(AdminService);
+  });
+
+  describe('generateResponses', () => {
+    it('delegates to aiService and returns the result', async () => {
+      mockAiService.generateReviewResponses.mockResolvedValueOnce(FAKE_RESPONSES);
+
+      const result = await service.generateResponses({
+        restaurantName: 'Pasta Place',
+        reviewerName: 'Alice',
+        reviewText: 'Great food!',
+        rating: 5,
+      });
+
+      expect(mockAiService.generateReviewResponses).toHaveBeenCalledWith(
+        'Pasta Place',
+        'Alice',
+        5,
+        'Great food!',
+      );
+      expect(result).toEqual(FAKE_RESPONSES);
+    });
   });
 
   describe('getRestaurants', () => {

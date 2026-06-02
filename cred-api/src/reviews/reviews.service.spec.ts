@@ -1,52 +1,23 @@
 import { Test } from '@nestjs/testing';
 import { NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
-import { AppConfigService } from 'src/config/config.service';
+import { AiService } from '../shared/ai.service';
 import { getLoggerToken } from 'nestjs-pino';
-import type OpenAI from 'openai';
 
-type CreateFn = OpenAI['chat']['completions']['create'];
 type SqlMock = jest.Mock<
   Promise<unknown[]>,
   [TemplateStringsArray, ...unknown[]]
 >;
 
-const mockCreate = jest.fn<ReturnType<CreateFn>, Parameters<CreateFn>>();
-
-const openaiMock: { chat: { completions: { create: typeof mockCreate } } } = {
-  chat: { completions: { create: mockCreate } },
+const FAKE_RESPONSES = {
+  empathetic: 'We really appreciate your kind words!',
+  professional: 'Thank you for your valuable feedback.',
+  casual: 'Awesome, glad you enjoyed it!',
 };
 
-function makeSql(...rowSets: Record<string, unknown>[][]): SqlMock {
-  let callIndex = 0;
-  return jest
-    .fn<Promise<unknown[]>, [TemplateStringsArray, ...unknown[]]>()
-    .mockImplementation(() => Promise.resolve(rowSets[callIndex++] ?? []));
-}
-
-async function buildService(sql: SqlMock): Promise<ReviewsService> {
-  (sql as any).json = jest.fn((x: unknown) => x);
-  (sql as any).unsafe = jest.fn((x: unknown) => x);
-  const configMock: Partial<AppConfigService> = {
-    get: jest.fn((key: string) => {
-      if (key === 'openai') return { model: 'gpt-4o' };
-      throw new Error(`Unknown config key: ${key}`);
-    }),
-  };
-  const module = await Test.createTestingModule({
-    providers: [
-      ReviewsService,
-      { provide: 'SQL', useValue: sql },
-      { provide: 'OPENAI', useValue: openaiMock },
-      { provide: AppConfigService, useValue: configMock },
-      {
-        provide: getLoggerToken(ReviewsService.name),
-        useValue: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn(), trace: jest.fn() },
-      },
-    ],
-  }).compile();
-  return module.get<ReviewsService>(ReviewsService);
-}
+const mockAiService = {
+  generateReviewResponses: jest.fn<Promise<typeof FAKE_RESPONSES>, unknown[]>(),
+};
 
 const FAKE_REVIEW: Record<string, unknown> = {
   review_text: 'Great food!',
@@ -60,24 +31,34 @@ const FAKE_RESTAURANT: Record<string, unknown> = {
   additional_info: 'Family friendly',
 };
 
-const FAKE_RESPONSES = {
-  empathetic: 'We really appreciate your kind words!',
-  professional: 'Thank you for your valuable feedback.',
-  casual: 'Awesome, glad you enjoyed it!',
-};
+function makeSql(...rowSets: Record<string, unknown>[][]): SqlMock {
+  let callIndex = 0;
+  return jest
+    .fn<Promise<unknown[]>, [TemplateStringsArray, ...unknown[]]>()
+    .mockImplementation(() => Promise.resolve(rowSets[callIndex++] ?? []));
+}
 
-function mockOpenAiResponse(): void {
-  mockCreate.mockResolvedValueOnce({
-    choices: [
+async function buildService(sql: SqlMock): Promise<ReviewsService> {
+  (sql as any).json = jest.fn((x: unknown) => x);
+  (sql as any).unsafe = jest.fn((x: unknown) => x);
+  const module = await Test.createTestingModule({
+    providers: [
+      ReviewsService,
+      { provide: 'SQL', useValue: sql },
+      { provide: AiService, useValue: mockAiService },
       {
-        message: {
-          role: 'assistant',
-          refusal: null,
-          content: JSON.stringify(FAKE_RESPONSES),
+        provide: getLoggerToken(ReviewsService.name),
+        useValue: {
+          debug: jest.fn(),
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          trace: jest.fn(),
         },
       },
     ],
-  } as Awaited<ReturnType<CreateFn>>);
+  }).compile();
+  return module.get<ReviewsService>(ReviewsService);
 }
 
 describe('ReviewsService', () => {
@@ -96,71 +77,56 @@ describe('ReviewsService', () => {
 
     // sql call order: review, subscription ([] = no sub), restaurant, INSERT
     it('returns generated responses and persists them to the database', async () => {
-      const service = await buildService(
-        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
-      );
-      mockOpenAiResponse();
+      const sql = makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []);
+      mockAiService.generateReviewResponses.mockResolvedValueOnce(FAKE_RESPONSES);
+      const service = await buildService(sql);
 
       const result = await service.generateResponses('review-1', 'user-1');
 
       expect(result.responses).toEqual(FAKE_RESPONSES);
       expect(result.generated_at).toBeInstanceOf(Date);
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ model: 'gpt-4o' }),
+      expect(mockAiService.generateReviewResponses).toHaveBeenCalledWith(
+        FAKE_RESTAURANT.name,
+        FAKE_REVIEW.reviewer_name,
+        FAKE_REVIEW.rating,
+        FAKE_REVIEW.review_text,
+        FAKE_RESTAURANT.additional_info,
+        undefined,
       );
     });
 
-    it('includes additionalContext in the prompt when provided', async () => {
-      const service = await buildService(
-        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
-      );
-      mockOpenAiResponse();
+    it('passes additionalContext to aiService when provided', async () => {
+      mockAiService.generateReviewResponses.mockResolvedValueOnce(FAKE_RESPONSES);
+      const service = await buildService(makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []));
 
       await service.generateResponses('review-1', 'user-1', 'Customer is a VIP');
 
-      const prompt = mockCreate.mock.calls[0][0].messages[0].content;
-      expect(prompt).toContain('Customer is a VIP');
+      expect(mockAiService.generateReviewResponses).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        'Customer is a VIP',
+      );
     });
 
-    it('omits additionalContext block when not provided', async () => {
+    it('passes null additional_info to aiService when restaurant has none', async () => {
+      mockAiService.generateReviewResponses.mockResolvedValueOnce(FAKE_RESPONSES);
       const service = await buildService(
-        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
+        makeSql([FAKE_REVIEW], [], [{ ...FAKE_RESTAURANT, additional_info: null }], []),
       );
-      mockOpenAiResponse();
 
       await service.generateResponses('review-1', 'user-1');
 
-      const prompt = mockCreate.mock.calls[0][0].messages[0].content;
-      expect(prompt).not.toContain('Additional context');
-    });
-
-    it('includes restaurant additional_info in the prompt when present', async () => {
-      const service = await buildService(
-        makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
+      expect(mockAiService.generateReviewResponses).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        null,
+        undefined,
       );
-      mockOpenAiResponse();
-
-      await service.generateResponses('review-1', 'user-1');
-
-      const prompt = mockCreate.mock.calls[0][0].messages[0].content;
-      expect(prompt).toContain('Family friendly');
-    });
-
-    it('omits restaurant additional_info block when null', async () => {
-      const service = await buildService(
-        makeSql(
-          [FAKE_REVIEW],
-          [],
-          [{ ...FAKE_RESTAURANT, additional_info: null }],
-          [],
-        ),
-      );
-      mockOpenAiResponse();
-
-      await service.generateResponses('review-1', 'user-1');
-
-      const prompt = mockCreate.mock.calls[0][0].messages[0].content;
-      expect(prompt).not.toContain('About restaurant');
     });
 
     it('throws 429 when monthly limit is reached', async () => {
@@ -185,22 +151,22 @@ describe('ReviewsService', () => {
         current_period_end: new Date(Date.now() + 86_400_000),
         period: 'month',
       };
+      mockAiService.generateReviewResponses.mockResolvedValueOnce(FAKE_RESPONSES);
       // sql: review, subscription, usage count (below limit), restaurant, INSERT
       const service = await buildService(
         makeSql([FAKE_REVIEW], [sub], [{ count: '5' }], [FAKE_RESTAURANT], []),
       );
-      mockOpenAiResponse();
 
       const result = await service.generateResponses('review-1', 'user-1');
       expect(result.responses).toEqual(FAKE_RESPONSES);
     });
 
     it('skips limit check when user has no subscription', async () => {
+      mockAiService.generateReviewResponses.mockResolvedValueOnce(FAKE_RESPONSES);
       // sql: review, subscription (none), restaurant, INSERT
       const service = await buildService(
         makeSql([FAKE_REVIEW], [], [FAKE_RESTAURANT], []),
       );
-      mockOpenAiResponse();
 
       const result = await service.generateResponses('review-1', 'user-1');
       expect(result.responses).toEqual(FAKE_RESPONSES);

@@ -27,6 +27,7 @@ import {
   RestaurantCredentials,
   ReviewBlock,
   PromoCodeDto,
+  GenerateResponsesDto,
 } from './admin.types';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -196,6 +197,35 @@ export class AdminController {
   async createBlock(@Param('slug') slug: string, @Body() body: ReviewBlock) {
     this.logger.info('Creating a new demo review block');
     return await this.adminService.createBlock(slug, body);
+  }
+
+  @Post('blocks/generate')
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate AI responses for a review block' })
+  @ApiBody({
+    schema: {
+      required: ['restaurantName', 'reviewerName', 'reviewText', 'rating'],
+      properties: {
+        restaurantName: { type: 'string' },
+        reviewerName: { type: 'string' },
+        reviewText: { type: 'string' },
+        rating: { type: 'number', minimum: 1, maximum: 5 },
+      },
+    },
+  })
+  @ApiOkResponse({
+    schema: {
+      properties: {
+        empathetic: { type: 'string' },
+        professional: { type: 'string' },
+        casual: { type: 'string' },
+      },
+    },
+  })
+  async generateResponses(@Body() body: GenerateResponsesDto) {
+    this.logger.info('Generating AI responses for a review block');
+    return await this.adminService.generateResponses(body);
   }
 
   @Delete('blocks/:id')

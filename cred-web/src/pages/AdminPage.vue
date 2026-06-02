@@ -16,6 +16,7 @@ import {
   Tag,
   ToggleLeft,
   ToggleRight,
+  Sparkles,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/services/api'
@@ -89,6 +90,7 @@ const loadingBlocks = ref(false)
 
 const editing = ref<EditingBlock | null>(null)
 const saving = ref(false)
+const generating = ref(false)
 
 const urlCopied = ref(false)
 
@@ -203,6 +205,10 @@ async function loadBlocks() {
   }
 }
 
+const selectedRestaurantName = computed(
+  () => restaurants.value.find((r) => r.slug === selectedSlug.value)?.name ?? '',
+)
+
 function getResponse(block: AdminBlock, tone: AdminResponse['tone']) {
   return block.responses.find((r) => r.tone === tone)?.text ?? ''
 }
@@ -265,6 +271,29 @@ async function handleSave() {
     console.error(e)
   } finally {
     saving.value = false
+  }
+}
+
+async function generateResponses() {
+  if (!editing.value) return
+  generating.value = true
+  try {
+    const result = await api.post<{ empathetic: string; professional: string; casual: string }>(
+      '/admin/blocks/generate',
+      {
+        restaurantName: selectedRestaurantName.value,
+        reviewerName: editing.value.reviewer_name,
+        reviewText: editing.value.review_text,
+        rating: editing.value.rating,
+      },
+    )
+    editing.value.empathetic = result.empathetic
+    editing.value.professional = result.professional
+    editing.value.casual = result.casual
+  } catch (e) {
+    console.error(e)
+  } finally {
+    generating.value = false
   }
 }
 
@@ -808,6 +837,19 @@ function formatUses(promo: PromoCode) {
                 placeholder="https://..."
                 class="w-full px-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
               />
+            </div>
+
+            <div class="flex justify-center pt-1">
+              <button
+                type="button"
+                :disabled="generating || !editing.reviewer_name || !editing.review_text || !editing.rating"
+                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent border border-accent rounded-lg hover:bg-accent/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                @click="generateResponses"
+              >
+                <Loader2 v-if="generating" class="w-4 h-4 animate-spin" />
+                <Sparkles v-else class="w-4 h-4" />
+                {{ generating ? 'Generating...' : 'Generate with AI' }}
+              </button>
             </div>
 
             <div v-for="{ key, label } in responseLabels" :key="key">

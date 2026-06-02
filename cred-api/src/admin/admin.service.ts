@@ -10,7 +10,9 @@ import {
   ReviewResponse,
   RestaurantCredentials,
   PromoCodeDto,
+  GenerateResponsesDto,
 } from './admin.types';
+import { AiService } from '../shared/ai.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -21,6 +23,7 @@ export class AdminService {
 
   constructor(
     @Inject('SQL') private readonly sql: Sql,
+    private readonly aiService: AiService,
     @InjectPinoLogger(AdminService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
@@ -166,6 +169,15 @@ export class AdminService {
     await this.sql`
       DELETE FROM d_reviews WHERE id = ${id}
     `;
+  }
+
+  async generateResponses(dto: GenerateResponsesDto) {
+    return this.aiService.generateReviewResponses(
+      dto.restaurantName,
+      dto.reviewerName,
+      dto.rating,
+      dto.reviewText,
+    );
   }
 
   async createPromoCode(promo: PromoCodeDto) {

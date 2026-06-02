@@ -1,8 +1,7 @@
 import type { Sql } from 'postgres';
 import { Injectable, Inject, HttpException, HttpStatus } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common';
-import OpenAI from 'openai';
-import { AppConfigService } from 'src/config/config.service';
+import { AiService } from 'src/shared/ai.service';
 import { LogMethods } from 'src/shared/decorators/log-methods.decorator';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
@@ -13,8 +12,7 @@ export class ReviewsService {
 
   constructor(
     @Inject('SQL') private readonly sql: Sql,
-    @Inject('OPENAI') private readonly openai: OpenAI,
-    private readonly cfg: AppConfigService,
+    private readonly aiService: AiService,
     @InjectPinoLogger(ReviewsService.name) logger: PinoLogger,
   ) {
     this.logger = logger;
@@ -40,7 +38,6 @@ export class ReviewsService {
     `;
     if (!review) throw new NotFoundException('Review not found');
 
-    // Enforce per-billing-period generation limit
     const [sub] = await this.sql<
       { reviews_limit: number; current_period_end: Date; period: string }[]
     >`
@@ -74,34 +71,14 @@ export class ReviewsService {
       SELECT name, additional_info FROM restaurants WHERE id = ${review.restaurant_id}
     `;
 
-    const prompt = `
-      You are an employee of a restaurant ${restaurant.name};
-      Your job is to create 3 different responses to a review you are going to be given;
-      ${restaurant.additional_info ? `About restaurant: ${restaurant.additional_info};` : ''}
-      Reviewer: ${review.reviewer_name};
-      Rating: ${review.rating}/5;
-      Review: ${review.review_text};
-      ${additionalContext ? `Additional context: ${additionalContext};` : ''}
-
-      Return only a JSON object, no markdown:
-      {
-        "empathetic": "...",
-        "professional": "...",
-        "casual": "..."
-      }
-    `;
-
-    const completion = await this.openai.chat.completions.create({
-      model: this.cfg.get('openai').model,
-      messages: [{ role: 'developer', content: prompt }],
-      response_format: { type: 'json_object' },
-    });
-
-    const responses = JSON.parse(completion.choices[0].message.content!) as {
-      empathetic: string;
-      professional: string;
-      casual: string;
-    };
+    const responses = await this.aiService.generateReviewResponses(
+      restaurant.name,
+      review.reviewer_name,
+      review.rating,
+      review.review_text,
+      restaurant.additional_info,
+      additionalContext,
+    );
 
     const generated_at = new Date();
 
