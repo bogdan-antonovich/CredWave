@@ -187,8 +187,12 @@ export class BillingController {
       },
     },
   })
-  async getDowndloadInvoiceLink(@Param('invoiceId') invoiceId: string) {
+  async getDowndloadInvoiceLink(
+    @Req() req: Request,
+    @Param('invoiceId') invoiceId: string,
+  ) {
     this.logger.info(`Getting download link for invoice ${invoiceId}`);
-    return await this.srv.getDownloadLink(invoiceId);
+    const userId = (req.user as { id: string }).id;
+    return await this.srv.getDownloadLink(invoiceId, userId);
   }
 }

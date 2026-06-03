@@ -27,10 +27,12 @@ export class RestaurantCredentials {
 export class ReviewResponse {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(5000)
   text: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(50)
   tone: string;
 }
 
@@ -41,10 +43,12 @@ export class ReviewBlock {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   reviewerName: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(5000)
   reviewText: string;
 
   @IsNumber()
@@ -54,6 +58,7 @@ export class ReviewBlock {
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   link: string;
 
   @IsArray()
@@ -86,14 +91,17 @@ export class PromoCodeDto {
 export class GenerateResponsesDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   restaurantName: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   reviewerName: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(5000)
   reviewText: string;
 
   @IsNumber()

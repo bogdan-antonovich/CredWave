@@ -92,6 +92,7 @@ export class ReviewsService {
 
   async syncReviews(
     restaurantId: string,
+    userId: string,
   ): Promise<{ new_reviews: number; synced_at: Date }> {
     const [restaurant] = await this.sql<
       {
@@ -102,7 +103,7 @@ export class ReviewsService {
       }[]
     >`
       SELECT user_id, google_place_id, name, last_synced_at
-      FROM restaurants WHERE id = ${restaurantId}
+      FROM restaurants WHERE id = ${restaurantId} AND user_id = ${userId}
     `;
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
@@ -209,6 +210,7 @@ export class ReviewsService {
 
   async getReviews(
     restaurantId: string,
+    userId: string,
     status: string,
     page: number,
     perPage: number,
@@ -221,14 +223,14 @@ export class ReviewsService {
         OR (NOW() - last_synced_at) > INTERVAL '1 hour' AS is_stale,
         last_synced_at IS NULL AS never_synced,
         google_place_id
-      FROM restaurants WHERE id = ${restaurantId}
+      FROM restaurants WHERE id = ${restaurantId} AND user_id = ${userId}
     `;
 
     this.logger.debug({ restaurant }, 'fetched restaurant from db');
 
     if (!restaurant) throw new NotFoundException('Restaurant not found');
 
-    if (restaurant.is_stale) void this.syncReviews(restaurantId);
+    if (restaurant.is_stale) void this.syncReviews(restaurantId, userId);
 
     const offset = (page - 1) * perPage;
 

@@ -1,5 +1,15 @@
-import { Controller, Get, Post, Query, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Param,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 import { ReviewsService } from './reviews.service';
 import {
   ApiBearerAuth,
@@ -58,19 +68,22 @@ export class ReviewsController {
     },
   })
   async getReviews(
+    @Req() req: Request,
     @Param('id') id: string,
     @Query('status') status: string = 'all',
     @Query('page') page: string = '1',
     @Query('per_page') perPage: string = '20',
   ) {
     this.logger.info('Fetching reviews for restaurant');
+    const userId = (req.user as { id: string }).id;
     const pageNum = Math.max(1, parseInt(page));
     const perPageNum = Math.min(50, Math.max(1, parseInt(perPage)));
 
-    return await this.serv.getReviews(id, status, pageNum, perPageNum);
+    return await this.serv.getReviews(id, userId, status, pageNum, perPageNum);
   }
 
   @Get('/demo')
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @ApiOperation({
     summary: 'Get demo reviews for a Google Place ID (public)',
   })
@@ -91,8 +104,9 @@ export class ReviewsController {
   })
   @ApiParam({ name: 'id', description: 'Restaurant ID' })
   @ApiOkResponse({ description: 'Sync initiated' })
-  async syncReviews(@Param('id') id: string) {
+  async syncReviews(@Req() req: Request, @Param('id') id: string) {
     this.logger.info('Initiating review sync');
-    return await this.serv.syncReviews(id);
+    const userId = (req.user as { id: string }).id;
+    return await this.serv.syncReviews(id, userId);
   }
 }

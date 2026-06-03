@@ -27,6 +27,7 @@ export interface Restaurant {
 export class SwitchRestaurantDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   placeId: string;
 
   @IsString()
@@ -43,6 +44,7 @@ export class SwitchRestaurantDto {
 export class CreateRestaurantDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   placeId: string;
 
   @IsString()

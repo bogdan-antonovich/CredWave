@@ -584,7 +584,16 @@ export class BillingService {
     return { received: true };
   }
 
-  async getDownloadLink(invoiceId: string): Promise<{ url: string }> {
+  async getDownloadLink(
+    invoiceId: string,
+    userId: string,
+  ): Promise<{ url: string }> {
+    const [owned] = await this.sql`
+      SELECT id FROM invoices
+      WHERE paddle_invoice_id = ${invoiceId} AND user_id = ${userId}
+    `;
+    if (!owned) throw new NotFoundException('Invoice not found');
+
     const result = await this.paddle.transactions.getInvoicePDF(invoiceId);
     if (!result?.url) {
       throw new NotFoundException('Invoice not found');

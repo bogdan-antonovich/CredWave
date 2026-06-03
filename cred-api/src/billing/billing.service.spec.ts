@@ -126,28 +126,39 @@ describe('BillingService', () => {
   });
 
   describe('getDownloadLink', () => {
-    it('returns the URL when Paddle resolves one', async () => {
+    it('returns the URL when invoice belongs to user and Paddle resolves one', async () => {
+      mockSql.mockResolvedValueOnce([{ id: 1 }]); // ownership check
       mockGetInvoicePDF.mockResolvedValueOnce({ url: 'https://pdf.paddle.com/inv_123.pdf' });
       const service = await buildService();
 
-      const result = await service.getDownloadLink('inv_123');
+      const result = await service.getDownloadLink('inv_123', 'user_1');
 
       expect(result).toEqual({ url: 'https://pdf.paddle.com/inv_123.pdf' });
       expect(mockGetInvoicePDF).toHaveBeenCalledWith('inv_123');
     });
 
+    it('throws NotFoundException when invoice does not belong to user', async () => {
+      mockSql.mockResolvedValueOnce([]); // ownership check fails
+      const service = await buildService();
+
+      await expect(service.getDownloadLink('inv_other', 'user_1')).rejects.toThrow(NotFoundException);
+      expect(mockGetInvoicePDF).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundException when Paddle returns null', async () => {
+      mockSql.mockResolvedValueOnce([{ id: 1 }]); // ownership check passes
       mockGetInvoicePDF.mockResolvedValueOnce(null);
       const service = await buildService();
 
-      await expect(service.getDownloadLink('inv_missing')).rejects.toThrow(NotFoundException);
+      await expect(service.getDownloadLink('inv_missing', 'user_1')).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException when Paddle returns undefined', async () => {
+      mockSql.mockResolvedValueOnce([{ id: 1 }]); // ownership check passes
       mockGetInvoicePDF.mockResolvedValueOnce(undefined);
       const service = await buildService();
 
-      await expect(service.getDownloadLink('inv_missing')).rejects.toThrow(NotFoundException);
+      await expect(service.getDownloadLink('inv_missing', 'user_1')).rejects.toThrow(NotFoundException);
     });
   });
 });

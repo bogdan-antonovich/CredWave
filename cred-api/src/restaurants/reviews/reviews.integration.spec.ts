@@ -22,8 +22,9 @@ class MockJwtGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
     const req = ctx
       .switchToHttp()
-      .getRequest<{ headers: Record<string, string> }>();
+      .getRequest<{ headers: Record<string, string>; user: { id: string } }>();
     if (!req.headers['authorization']) throw new UnauthorizedException();
+    req.user = { id: req.headers['authorization'].split(' ')[1] };
     return true;
   }
 }
@@ -179,7 +180,7 @@ describe('/restaurants/:id/reviews', () => {
     it('returns reviews with pagination and stats', async () => {
       const res = await request(server)
         .get(`/restaurants/${restaurantId}/reviews`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
       const body = res.body as {
@@ -210,7 +211,7 @@ describe('/restaurants/:id/reviews', () => {
 
       const res = await request(server)
         .get(`/restaurants/${restaurantId}/reviews?status=pending`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
       const body = res.body as { reviews: unknown[]; pagination: { total: number } };
@@ -233,7 +234,7 @@ describe('/restaurants/:id/reviews', () => {
 
       const res = await request(server)
         .get(`/restaurants/${restaurantId}/reviews?status=replied`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
       const body = res.body as { reviews: unknown[]; pagination: { total: number } };
@@ -258,7 +259,7 @@ describe('/restaurants/:id/reviews', () => {
 
       const res = await request(server)
         .get(`/restaurants/${restaurantId}/reviews?page=1&per_page=2`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
       const body = res.body as {
@@ -274,7 +275,7 @@ describe('/restaurants/:id/reviews', () => {
     it('returns 404 when restaurant does not exist', async () => {
       await request(server)
         .get(`/restaurants/99999/reviews`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(404);
     });
 
@@ -288,7 +289,7 @@ describe('/restaurants/:id/reviews', () => {
 
       await request(server)
         .get(`/restaurants/${restaurantId}/reviews`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalled();
@@ -297,7 +298,7 @@ describe('/restaurants/:id/reviews', () => {
     it('does not trigger syncReviews when data is fresh', async () => {
       await request(server)
         .get(`/restaurants/${restaurantId}/reviews`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(200);
 
       expect(mockOutscraperClient.googleMapsReviews).not.toHaveBeenCalled();
@@ -314,7 +315,7 @@ describe('/restaurants/:id/reviews', () => {
     it('returns 404 when restaurant does not exist', async () => {
       await request(server)
         .post(`/restaurants/99999/reviews/sync`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(404);
     });
 
@@ -327,7 +328,7 @@ describe('/restaurants/:id/reviews', () => {
 
       const res = await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(201);
 
       const body = res.body as { new_reviews: number; synced_at: string };
@@ -347,7 +348,7 @@ describe('/restaurants/:id/reviews', () => {
 
       const res = await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(201);
 
       const body = res.body as { new_reviews: number };
@@ -363,7 +364,7 @@ describe('/restaurants/:id/reviews', () => {
 
       await request(server)
         .post(`/restaurants/${restaurantId}/reviews/sync`)
-        .set('Authorization', 'Bearer fake-token')
+        .set('Authorization', `Bearer ${userId}`)
         .expect(201);
 
       const [after] = await sql<{ last_synced_at: Date }[]>`

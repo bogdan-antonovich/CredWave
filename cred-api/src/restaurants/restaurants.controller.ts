@@ -26,6 +26,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 const restaurantSchema = {
@@ -201,6 +202,7 @@ export class RestaurantsController {
   }
 
   @Get('search')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @ApiOperation({ summary: 'Search restaurants by name (public)' })
   @ApiQuery({ name: 'q', description: 'Search query', example: 'Bella' })
   @ApiOkResponse({

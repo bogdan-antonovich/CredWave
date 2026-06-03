@@ -81,7 +81,7 @@ describe('ReviewsService', () => {
     it('should throw NotFoundException if restaurant not found', async () => {
       sql.mockResolvedValueOnce([]);
 
-      await expect(service.syncReviews('bad-id')).rejects.toThrow(
+      await expect(service.syncReviews('bad-id', 'u1')).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -104,7 +104,7 @@ describe('ReviewsService', () => {
         { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
       ]);
 
-      const result = await service.syncReviews('r1');
+      const result = await service.syncReviews('r1', 'u1');
 
       expect(result.new_reviews).toBe(1);
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('ReviewsService', () => {
         { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
       ]);
 
-      const result = await service.syncReviews('r1');
+      const result = await service.syncReviews('r1', 'u1');
 
       expect(result.new_reviews).toBe(0);
     });
@@ -164,7 +164,7 @@ describe('ReviewsService', () => {
         { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
       ]);
 
-      await service.syncReviews('r1');
+      await service.syncReviews('r1', 'u1');
 
       expect(mockEmailService.sendNewReview).toHaveBeenCalledWith(
         'u@test.com',
@@ -194,7 +194,7 @@ describe('ReviewsService', () => {
         { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
       ]);
 
-      await service.syncReviews('r1');
+      await service.syncReviews('r1', 'u1');
 
       expect(mockEmailService.sendNewReview).not.toHaveBeenCalled();
     });
@@ -213,7 +213,7 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([]) // UPDATE place meta
         .mockResolvedValueOnce([]);
 
-      const result = await service.syncReviews('r1');
+      const result = await service.syncReviews('r1', 'u1');
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
         ['place1'],
@@ -235,7 +235,7 @@ describe('ReviewsService', () => {
     it('should throw if restaurant not found', async () => {
       sql.mockResolvedValueOnce([]);
 
-      await expect(service.getReviews('bad', 'all', 1, 10)).rejects.toThrow(
+      await expect(service.getReviews('bad', 'u1', 'all', 1, 10)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -253,9 +253,9 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([]) // reviews
         .mockResolvedValueOnce([{ pending: 0, replied: 0, total: 0 }]);
 
-      await service.getReviews('r1', 'all', 1, 10);
+      await service.getReviews('r1', 'u1', 'all', 1, 10);
 
-      expect(syncSpy).toHaveBeenCalledWith('r1');
+      expect(syncSpy).toHaveBeenCalledWith('r1', 'u1');
     });
 
     it('should return reviews with pagination and stats', async () => {
@@ -266,7 +266,7 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 1, replied: 2, total: 3 }]);
 
-      const result = await service.getReviews('r1', 'all', 1, 2);
+      const result = await service.getReviews('r1', 'u1', 'all', 1, 2);
 
       expect(result.reviews.length).toBe(1);
       expect(result.pagination.total).toBe(3);
@@ -281,7 +281,7 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 2, replied: 1, total: 3 }]);
 
-      const result = await service.getReviews('r1', 'pending', 1, 10);
+      const result = await service.getReviews('r1', 'u1', 'pending', 1, 10);
 
       expect(result.pagination.total).toBe(2);
     });
@@ -294,7 +294,7 @@ describe('ReviewsService', () => {
         .mockResolvedValueOnce([{ id: 1 }])
         .mockResolvedValueOnce([{ pending: 2, replied: 1, total: 3 }]);
 
-      const result = await service.getReviews('r1', 'replied', 1, 10);
+      const result = await service.getReviews('r1', 'u1', 'replied', 1, 10);
 
       expect(result.pagination.total).toBe(1);
     });
@@ -313,7 +313,7 @@ describe('ReviewsService', () => {
         { reviews_data: [FAKE_OUTSCRAPER_REVIEW] },
       ]);
 
-      await service.getReviews('r1', 'all', 1, 5);
+      await service.getReviews('r1', 'u1', 'all', 1, 5);
 
       expect(mockOutscraperClient.googleMapsReviews).toHaveBeenCalledWith(
         ['place1'],

@@ -382,7 +382,11 @@ describe('/billing route', () => {
   });
 
   describe('GET /billing/invoice/:invoiceId', () => {
-    it('returns the PDF download URL', async () => {
+    it('returns the PDF download URL for an invoice that belongs to the user', async () => {
+      await sql`
+        INSERT INTO invoices (user_id, paddle_invoice_id, amount, currency, status)
+        VALUES (1, 'inv_123', 10, 'USD', 'paid')
+      `;
       mockGetInvoicePDF.mockResolvedValueOnce({ url: 'https://pdf.paddle.com/inv_123.pdf' });
 
       const res = await request(server)
@@ -393,7 +397,25 @@ describe('/billing route', () => {
       expect(mockGetInvoicePDF).toHaveBeenCalledWith('inv_123');
     });
 
+    it('returns 404 when invoice belongs to a different user', async () => {
+      await sql`
+        INSERT INTO users (id, email, name) VALUES (99, 'other@test.com', 'Other')
+        ON CONFLICT DO NOTHING
+      `;
+      await sql`
+        INSERT INTO invoices (user_id, paddle_invoice_id, amount, currency, status)
+        VALUES (99, 'inv_other_user', 10, 'USD', 'paid')
+      `;
+
+      await request(server).get('/billing/invoice/inv_other_user').expect(404);
+      expect(mockGetInvoicePDF).not.toHaveBeenCalled();
+    });
+
     it('returns 404 when Paddle returns no URL', async () => {
+      await sql`
+        INSERT INTO invoices (user_id, paddle_invoice_id, amount, currency, status)
+        VALUES (1, 'inv_missing', 10, 'USD', 'paid')
+      `;
       mockGetInvoicePDF.mockResolvedValueOnce(null);
 
       await request(server).get('/billing/invoice/inv_missing').expect(404);
@@ -538,9 +560,4 @@ describe('/billing route', () => {
     });
   });
 
-  describe('GET /billing/invoice/:invoiceId', () => {
-    it('returns 200 with invoice URL', async () => {});
-    it('returns 404 if invoice not found', async () => {});
-    it('returns 500 on server error', async () => {});
-  });
 });
