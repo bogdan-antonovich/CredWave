@@ -20,6 +20,7 @@ import {
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/services/api'
+import { config } from '@/config/env'
 
 interface AdminRestaurant {
   name: string
@@ -106,7 +107,7 @@ const selectedRestaurant = computed(() =>
 )
 
 const demoUrl = computed(() =>
-  selectedSlug.value ? `/demo/${selectedSlug.value}` : '',
+  selectedSlug.value ? `${config.appUrl}/demo/${selectedSlug.value}` : '',
 )
 
 function slugify(name: string) {
@@ -309,7 +310,7 @@ async function handleDeleteBlock(id: number) {
 
 async function copyUrl() {
   try {
-    await navigator.clipboard.writeText(window.location.origin + demoUrl.value)
+    await navigator.clipboard.writeText(demoUrl.value)
     urlCopied.value = true
     setTimeout(() => { urlCopied.value = false }, 2000)
   } catch { /* */ }
@@ -598,14 +599,15 @@ function formatUses(promo: PromoCode) {
                     <Check v-if="urlCopied" class="w-3 h-3 text-success" />
                     <Copy v-else class="w-3 h-3" />
                   </button>
-                  <RouterLink
-                    :to="demoUrl"
+                  <a
+                    :href="demoUrl"
                     target="_blank"
+                    rel="noopener noreferrer"
                     class="p-1 rounded text-text-muted hover:text-accent transition-colors"
                     title="Open demo page"
                   >
                     <ExternalLink class="w-3 h-3" />
-                  </RouterLink>
+                  </a>
                 </div>
               </div>
             </div>
